@@ -4,10 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getLampsAction, type Lamp } from '@/app/actions/lamp';
 import { logInAction } from '@/app/actions/login';
+import { getLullabiesAction, type Lullaby } from '@/app/actions/lullaby';
 import { getNightLightAction } from '@/app/actions/night-light';
 import { getTapoCloudStatusAction } from '@/app/actions/tapo-login';
 import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
 import { LoginGate } from '@/components/login-gate';
+import { LullabyPlayer } from '@/components/lullaby-player';
 import { NightLight } from '@/components/night-light';
 import { TapoCloudLogin } from '@/components/tapo-cloud-login';
 import { useLocalStorage } from '@/hooks/use-local-storage';
@@ -18,6 +20,7 @@ const SECRET_HASH_KEY = 'baby-app-secret-hash';
 type RoomState = {
   isTapoSignedIn: boolean;
   lamps: Lamp[];
+  lullabies: Lullaby[];
   nightLight: NightLightState;
 };
 
@@ -42,8 +45,13 @@ export function Room() {
 
       if (attempt.isLoggedIn) {
         try {
-          const [lamps, nightLight, tapo] = await Promise.all([getLampsAction(hash), getNightLightAction(hash), getTapoCloudStatusAction(hash)]);
-          setState({ isTapoSignedIn: tapo.isSignedIn, lamps, nightLight });
+          const [lamps, nightLight, tapo, lullabies] = await Promise.all([
+            getLampsAction(hash),
+            getNightLightAction(hash),
+            getTapoCloudStatusAction(hash),
+            getLullabiesAction(hash),
+          ]);
+          setState({ isTapoSignedIn: tapo.isSignedIn, lamps, lullabies, nightLight });
         } catch (caughtError) {
           setError(caughtError instanceof Error ? caughtError.message : 'Could not load the room.');
         }
@@ -99,6 +107,8 @@ export function Room() {
       {!state.isTapoSignedIn && <TapoCloudLogin onSignedIn={() => load(secretHash)} secretHash={secretHash} />}
 
       <NightLight initialState={state.nightLight} secretHash={secretHash} />
+
+      <LullabyPlayer lullabies={state.lullabies} />
     </div>
   );
 }
