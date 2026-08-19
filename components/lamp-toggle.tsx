@@ -36,14 +36,10 @@ export function LampToggle({ lamp }: { lamp: Lamp }) {
       aria-checked={isOn}
       onClick={handleClick}
       disabled={isPending}
-      className={`flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-colors disabled:opacity-60 ${
-        isOn
-          ? "border-amber-300 bg-amber-100 text-amber-950"
-          : "border-foreground/15 bg-foreground/5"
-      }`}
+      className="border-foreground/15 bg-foreground/5 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left disabled:opacity-60"
     >
       <LampIcon
-        className={isOn ? "size-6 text-amber-600" : "size-6 opacity-50"}
+        className={isOn ? "size-6 text-amber-500" : "size-6 opacity-50"}
       />
       <span className="flex-1">
         <span className="block font-semibold capitalize">{lamp.alias}</span>

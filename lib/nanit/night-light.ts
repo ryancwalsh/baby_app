@@ -1,8 +1,10 @@
 import { connectToCamera, type CameraConnection } from "@/lib/nanit/camera";
 import { getAccessToken, getFirstCamera } from "@/lib/nanit/auth";
+import {
+  MAXIMUM_BRIGHTNESS,
+  MINIMUM_BRIGHTNESS,
+} from "@/lib/nanit/brightness";
 
-export const MINIMUM_BRIGHTNESS = 0;
-export const MAXIMUM_BRIGHTNESS = 100;
 /** A nightLightTimeout of zero means the light stays on until switched off. */
 const STAY_ON_INDEFINITELY = 0;
 
