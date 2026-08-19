@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && yarn record_commit_hash_and_build_time",
+    "record_commit_hash_and_build_time": "./scripts/record_commit_hash_and_build_time.sh",
     "start": "next start -p 2026",
-    "deploy": "next build && next start -p 2026",
+    "deploy": "yarn build && next start -p 2026",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",

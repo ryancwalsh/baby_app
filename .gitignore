@@ -18,3 +18,6 @@ next-env.d.ts
 .env
 .env*.local
 secrets/
+
+# Generated at build time by scripts/record_commit_hash_and_build_time.sh.
+public/version.json
