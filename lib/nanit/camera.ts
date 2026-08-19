@@ -5,8 +5,8 @@ import { NANIT_API_HOST } from "@/lib/nanit/auth";
 import { NANIT_PROTO } from "@/lib/nanit/protocol";
 
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
-/** How long to wait for the state the camera announces just after connecting. */
-const ANNOUNCEMENT_WAIT_MILLISECONDS = 3_000;
+/** Cameras drop a silent socket, so give them traffic well inside that. */
+const KEEPALIVE_INTERVAL_MILLISECONDS = 30_000;
 
 interface PendingRequest {
   resolve: (response: Record<string, unknown>) => void;
@@ -23,7 +23,15 @@ interface Frame {
     statusCode?: number;
     statusMessage?: string;
     settings?: { nightLightBrightness?: number };
+    control?: { nightLight?: string };
   };
+}
+
+export interface CameraHandlers {
+  /** Fired for every on/off the camera announces, including app-driven ones. */
+  onNightLight: (isOn: boolean) => void;
+  onBrightness: (brightness: number) => void;
+  onClose: () => void;
 }
 
 export interface CameraConnection {
@@ -31,14 +39,18 @@ export interface CameraConnection {
     type: string,
     payload?: Record<string, unknown>,
   ) => Promise<Record<string, unknown>>;
-  /** Whatever on/off state the camera has announced so far, if any. */
-  getAnnouncedNightLight: () => string | undefined;
   close: () => void;
 }
 
+/**
+ * Resolves as soon as the socket is open. It deliberately does not wait around
+ * for the camera's opening announcements: this connection is meant to be held
+ * open, so anything announced later still arrives through `onNightLight`.
+ */
 export async function connectToCamera(
   cameraUid: string,
   accessToken: string,
+  handlers: CameraHandlers,
 ): Promise<CameraConnection> {
   const root = protobuf.parse(NANIT_PROTO).root;
   const messageType = root.lookupType("nanit.Message");
@@ -51,7 +63,12 @@ export async function connectToCamera(
 
   const pendingRequests = new Map<number, PendingRequest>();
   let lastRequestId = 0;
-  let announcedNightLight: string | undefined;
+
+  function reportNightLight(nightLight: string | undefined) {
+    if (nightLight !== undefined) {
+      handlers.onNightLight(nightLight === "LIGHT_ON");
+    }
+  }
 
   socket.on("message", (data: Buffer) => {
     const frame = messageType.toObject(messageType.decode(data), {
@@ -75,15 +92,19 @@ export async function connectToCamera(
           );
         }
       }
+      /** Responses carry state too, not just the requests the camera pushes. */
+      reportNightLight(response.control?.nightLight);
+      if (response.settings?.nightLightBrightness !== undefined) {
+        handlers.onBrightness(response.settings.nightLightBrightness);
+      }
     }
     /**
-     * The camera announces its own state as REQUESTs, both unprompted on
-     * connect and whenever something changes. This is the only way to learn
-     * whether the light is on, since GET_CONTROL is never answered.
+     * The camera announces its own state as REQUESTs whenever something
+     * changes, including changes made from the phone app. Holding this socket
+     * open is the only way to see them, and the only way to know on/off at all,
+     * since GET_CONTROL is never answered.
      */
-    if (frame.request?.control?.nightLight !== undefined) {
-      announcedNightLight = frame.request.control.nightLight;
-    }
+    reportNightLight(frame.request?.control?.nightLight);
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -91,10 +112,26 @@ export async function connectToCamera(
     socket.once("error", reject);
   });
 
-  /** Give the camera time to volunteer its opening state dump. */
-  await new Promise((resolve) =>
-    setTimeout(resolve, ANNOUNCEMENT_WAIT_MILLISECONDS),
-  );
+  const keepaliveTimer = setInterval(() => {
+    socket.send(
+      messageType
+        .encode(messageType.fromObject({ type: "KEEPALIVE" }))
+        .finish(),
+    );
+  }, KEEPALIVE_INTERVAL_MILLISECONDS);
+
+  socket.on("close", () => {
+    clearInterval(keepaliveTimer);
+    for (const pending of pendingRequests.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error("The camera connection closed."));
+    }
+    pendingRequests.clear();
+    handlers.onClose();
+  });
+
+  /** Errors arrive as a close too, so this only needs to stop them throwing. */
+  socket.on("error", () => {});
 
   function sendRequest(
     type: string,
@@ -124,7 +161,9 @@ export async function connectToCamera(
 
   return {
     sendRequest,
-    getAnnouncedNightLight: () => announcedNightLight,
-    close: () => socket.close(),
+    close: () => {
+      clearInterval(keepaliveTimer);
+      socket.close();
+    },
   };
 }

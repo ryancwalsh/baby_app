@@ -1,15 +1,28 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { LampIcon } from "lucide-react";
-import { toggleLampAction, type Lamp } from "@/app/actions/lamp";
+import { LampIcon, PlugZapIcon } from "lucide-react";
+import {
+  toggleLampAction,
+  type ConnectedLamp,
+  type UnreachableLamp,
+} from "@/app/actions/lamp";
+
+const CARD_CLASS_NAME =
+  "border-foreground/15 bg-foreground/5 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left";
 
 /**
  * Optimistic on purpose: the plug takes a moment to answer over the cloud, and
  * a switch that lags behind the tap reads as broken. If the call fails the
  * switch snaps back to the state we started from.
  */
-export function LampToggle({ lamp }: { lamp: Lamp }) {
+export function LampToggle({
+  lamp,
+  secretHash,
+}: {
+  lamp: ConnectedLamp;
+  secretHash: string;
+}) {
   const [isOn, setIsOn] = useState(lamp.isOn);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -21,7 +34,7 @@ export function LampToggle({ lamp }: { lamp: Lamp }) {
 
     startTransition(async () => {
       try {
-        setIsOn(await toggleLampAction(lamp.deviceId));
+        setIsOn(await toggleLampAction(secretHash, lamp.deviceId));
       } catch {
         setIsOn(previous);
         setError("Could not reach the plug.");
@@ -36,13 +49,13 @@ export function LampToggle({ lamp }: { lamp: Lamp }) {
       aria-checked={isOn}
       onClick={handleClick}
       disabled={isPending}
-      className="border-foreground/15 bg-foreground/5 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left disabled:opacity-60"
+      className={`${CARD_CLASS_NAME} disabled:opacity-60`}
     >
       <LampIcon
         className={isOn ? "size-6 text-amber-500" : "size-6 opacity-50"}
       />
       <span className="flex-1">
-        <span className="block font-semibold capitalize">{lamp.alias}</span>
+        <span className="block font-semibold">{lamp.alias}</span>
         <span className="block text-sm opacity-70">
           {error ?? (isOn ? "On" : "Off")}
         </span>
@@ -59,5 +72,21 @@ export function LampToggle({ lamp }: { lamp: Lamp }) {
         />
       </span>
     </button>
+  );
+}
+
+/**
+ * Shown in place of the switch when the plug did not answer, so the row states
+ * why it cannot be controlled rather than offering a switch that would fail.
+ */
+export function UnreachableLampRow({ lamp }: { lamp: UnreachableLamp }) {
+  return (
+    <div className={`${CARD_CLASS_NAME} opacity-60`}>
+      <PlugZapIcon className="size-6 opacity-50" />
+      <span className="flex-1">
+        <span className="block font-semibold">{lamp.alias}</span>
+        <span className="block text-sm opacity-70">{lamp.reason}</span>
+      </span>
+    </div>
   );
 }

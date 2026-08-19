@@ -14,6 +14,8 @@ function validate() {
     TAPO_PASSWORD: str(),
     /** [[appServerUrl, alias, deviceId], ...] — see .env.example. */
     TAPO_DEVICES: json<[string, string, string][]>(),
+    /** SHA-256 hex of the password the app asks for. Never the password. */
+    LOGIN_SECRET: str(),
   });
 }
 

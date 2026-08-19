@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { LightbulbIcon, RefreshCwIcon } from "lucide-react";
+import { LightbulbIcon } from "lucide-react";
 import {
-  getNightLightAction,
   setNightLightBrightnessAction,
   setNightLightPowerAction,
 } from "@/app/actions/night-light";
@@ -15,53 +14,52 @@ import {
 import type { NightLightState } from "@/lib/nanit/night-light";
 
 /**
- * Nothing is read on mount, and that is deliberate twice over: every call opens
- * a fresh cloud websocket and takes several seconds, and the camera is in a
- * room where a page load should not wake anyone. The state arrives only when
- * asked for, or as the answer to a change made here.
- *
- * `isOn` is a tri-state — null is genuinely unknown rather than off, because
- * the camera never reports on/off unless it changes. See README.md. From
- * unknown, a tap switches the light *off*: erring towards darkness cannot wake
- * a sleeping baby, whereas guessing the other way can.
+ * Optimistic, like the plug toggles: the shared camera connection is already
+ * open, so a press is one frame on an existing socket and the real answer
+ * lands quickly. On failure the control snaps back to where it started.
  */
-export function NightLight() {
-  const [state, setState] = useState<NightLightState>({
-    brightness: null,
-    isOn: null,
-  });
-  /** What the slider shows mid-drag, before the camera has been told. */
-  const [draggedBrightness, setDraggedBrightness] = useState<number | null>(
-    null,
-  );
+export function NightLight({
+  initialState,
+  secretHash,
+}: {
+  initialState: NightLightState;
+  secretHash: string;
+}) {
+  const [state, setState] = useState(initialState);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   /**
-   * Serialised through one transition so two commands can never be in flight
-   * at once: each opens its own connection, and the camera answers the second
-   * with state the first has already made stale.
+   * Serialised through one transition so two commands are never in flight at
+   * once, which would let the slower answer overwrite the newer state.
    */
-  function run(act: () => Promise<NightLightState>) {
+  function run(
+    optimistic: NightLightState,
+    act: () => Promise<NightLightState>,
+  ) {
+    const previous = state;
+    setState(optimistic);
     setError(null);
+
     startTransition(async () => {
       try {
         setState(await act());
       } catch {
+        setState(previous);
         setError("Could not reach the camera.");
-      } finally {
-        setDraggedBrightness(null);
       }
     });
   }
 
-  const shownBrightness = draggedBrightness ?? state.brightness;
-  const powerLabel =
-    state.isOn === null ? "Unknown" : state.isOn ? "On" : "Off";
+  function setBrightness(brightness: number) {
+    run({ ...state, brightness }, () =>
+      setNightLightBrightnessAction(secretHash, brightness),
+    );
+  }
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
+      <h2 className="text-foreground/60 flex items-center gap-2 text-lg font-semibold">
         <LightbulbIcon className="size-5 opacity-60" />
         Nanit night light
       </h2>
@@ -69,17 +67,17 @@ export function NightLight() {
       <button
         type="button"
         role="switch"
-        aria-checked={state.isOn === true}
-        aria-label={`Nanit night light, currently ${powerLabel.toLowerCase()}`}
+        aria-checked={state.isOn}
         onClick={() =>
-          run(() => setNightLightPowerAction(state.isOn === false))
+          run({ ...state, isOn: !state.isOn }, () =>
+            setNightLightPowerAction(secretHash, !state.isOn),
+          )
         }
         disabled={isPending}
         className="border-foreground/15 bg-foreground/5 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left disabled:opacity-60"
       >
         <span className="flex-1 text-sm opacity-70">
-          {error ??
-            (state.isOn === null ? "Unknown — tap to turn off" : powerLabel)}
+          {error ?? (state.isOn ? "On" : "Off")}
         </span>
         <span
           className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${
@@ -94,13 +92,13 @@ export function NightLight() {
         </span>
       </button>
 
-      <div className="rounded-2xl border border-foreground/15 bg-foreground/5 px-5 py-4">
+      <div className="border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4">
         <div className="flex items-baseline justify-between">
           <label htmlFor="brightness" className="font-semibold">
             Brightness
           </label>
           <span className="text-sm tabular-nums opacity-70">
-            {shownBrightness === null ? "—" : `${shownBrightness}%`}
+            {state.brightness}%
           </span>
         </div>
 
@@ -113,20 +111,13 @@ export function NightLight() {
           type="range"
           min={MINIMUM_BRIGHTNESS}
           max={MAXIMUM_BRIGHTNESS}
-          value={shownBrightness ?? MINIMUM_BRIGHTNESS}
-          disabled={isPending}
-          onChange={(event) => setDraggedBrightness(Number(event.target.value))}
-          onPointerUp={() => {
-            if (draggedBrightness !== null) {
-              run(() => setNightLightBrightnessAction(draggedBrightness));
-            }
-          }}
-          onKeyUp={() => {
-            if (draggedBrightness !== null) {
-              run(() => setNightLightBrightnessAction(draggedBrightness));
-            }
-          }}
-          className="mt-3 w-full accent-amber-500 disabled:opacity-60"
+          value={state.brightness}
+          onChange={(event) =>
+            setState({ ...state, brightness: Number(event.target.value) })
+          }
+          onPointerUp={() => setBrightness(state.brightness)}
+          onKeyUp={() => setBrightness(state.brightness)}
+          className="mt-3 w-full accent-amber-500"
         />
 
         <div className="mt-4 grid grid-cols-5 gap-2">
@@ -134,7 +125,7 @@ export function NightLight() {
             <button
               key={preset}
               type="button"
-              onClick={() => run(() => setNightLightBrightnessAction(preset))}
+              onClick={() => setBrightness(preset)}
               disabled={isPending}
               className={`rounded-lg border py-2 text-sm tabular-nums disabled:opacity-60 ${
                 state.brightness === preset
@@ -147,18 +138,6 @@ export function NightLight() {
           ))}
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={() => run(getNightLightAction)}
-        disabled={isPending}
-        className="flex items-center justify-center gap-2 self-center text-sm opacity-70 disabled:opacity-40"
-      >
-        <RefreshCwIcon
-          className={isPending ? "size-4 animate-spin" : "size-4"}
-        />
-        {isPending ? "Talking to the camera…" : "Read current state"}
-      </button>
     </section>
   );
 }

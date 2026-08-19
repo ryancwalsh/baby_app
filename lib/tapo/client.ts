@@ -14,6 +14,12 @@ const ERROR_MESSAGES: Record<number, string> = {
   [-20004]: "API rate limit exceeded",
   [-20104]: "Missing credentials",
   [-20601]: "Incorrect email or password",
+  /**
+   * The cloud says "Device is offline", which is misleading: Tapo devices
+   * answer this even when powered and working, because this endpoint has no
+   * route to them at all. See CLAUDE.md.
+   */
+  [-20571]: "Not reachable through this TP-Link cloud",
   [-20675]: "Cloud token expired or invalid",
   [-1501]: "Invalid credentials",
   [9999]: "Session timeout",
@@ -28,8 +34,10 @@ interface CloudResponse<Result> {
 function checkError(body: CloudResponse<unknown>) {
   if (body.error_code !== 0) {
     const known = ERROR_MESSAGES[body.error_code];
+    /** Recognised codes read plainly; only unknown ones need the number. */
     throw new Error(
-      `Tapo cloud error ${body.error_code}: ${known ?? body.msg ?? "unrecognised"}`,
+      known ??
+        `Tapo cloud error ${body.error_code}: ${body.msg ?? "unrecognised"}`,
     );
   }
 }
