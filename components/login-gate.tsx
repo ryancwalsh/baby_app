@@ -21,10 +21,12 @@ export function LoginGate({ onUnlock }: { readonly onUnlock: (hash: string) => v
 
     startTransition(async () => {
       const hash = await hashPassword(password);
-      if (await logInAction(hash)) {
+      const attempt = await logInAction(hash);
+
+      if (attempt.isLoggedIn) {
         onUnlock(hash);
       } else {
-        setError('That password did not work.');
+        setError(attempt.lockedForSeconds === null ? 'That password did not work.' : `Too many attempts. Try again in ${Math.ceil(attempt.lockedForSeconds / 60)} minutes.`);
         setPassword('');
       }
     });

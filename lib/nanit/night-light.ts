@@ -1,5 +1,5 @@
 import { MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
-import { connect, getNightLightState, type NightLightState, sendToCamera } from '@/lib/nanit/connection';
+import { type NightLightState, sendToCamera, syncFromCamera } from '@/lib/nanit/connection';
 
 /**
  * A nightLightTimeout of zero means the light stays on until switched off.
@@ -7,13 +7,15 @@ import { connect, getNightLightState, type NightLightState, sendToCamera } from 
 const STAY_ON_INDEFINITELY = 0;
 
 /**
- * Returns the last known state without waiting on the camera, and opens the
- * shared connection in the background so the next press is quick and later
- * announcements are seen. Cheap enough to call while rendering a page.
+ * Waits for the camera's own brightness rather than answering from cache. The
+ * cache was previously returned straight away with the read left running in the
+ * background, which meant the first load after a restart rendered a stale value
+ * and only a second load was right.
+ *
+ * On/off still comes from the cache, because it cannot be asked for at all.
  */
-export function readNightLight(): NightLightState {
-  connect().catch(() => {});
-  return getNightLightState();
+export function readNightLight(): Promise<NightLightState> {
+  return syncFromCamera();
 }
 
 /**

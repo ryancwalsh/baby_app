@@ -10,7 +10,11 @@ const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 rounded-2xl border
 /**
  * Signing in to the Tapo cloud, which the S-series switches need and the older
  * Kasa cloud cannot provide. The account has two-step verification on, so
- * starting the login makes TP-Link email a code, which is entered here.
+ * starting the login makes TP-Link send a code, which is entered here.
+ *
+ * The code goes wherever the TP-Link account is set to send it. By default that
+ * is a Tapo app notification on a trusted phone, *not* email — there is no way
+ * to choose from here, since no dispatch endpoint exists to ask.
  */
 export function TapoCloudLogin({ onSignedIn, secretHash }: { readonly onSignedIn: () => void; readonly secretHash: string }) {
   const [needsMfaCode, setNeedsMfaCode] = useState(false);
@@ -23,8 +27,8 @@ export function TapoCloudLogin({ onSignedIn, secretHash }: { readonly onSignedIn
     startTransition(async () => {
       try {
         await act();
-      } catch (error_) {
-        setError(error_ instanceof Error ? error_.message : 'That failed.');
+      } catch (caughtError) {
+        setError(caughtError instanceof Error ? caughtError.message : 'That failed.');
       }
     });
   }
@@ -61,7 +65,7 @@ export function TapoCloudLogin({ onSignedIn, secretHash }: { readonly onSignedIn
       {needsMfaCode ? (
         <form className="flex flex-col gap-3" onSubmit={handleSubmitCode}>
           <label className="text-sm opacity-70" htmlFor="mfaCode">
-            TP-Link emailed a verification code. Enter it here.
+            Enter the code TP-Link sent. Check your Tapo app notifications; it only goes to email if the account is set that way.
           </label>
           <input
             autoComplete="one-time-code"
@@ -79,7 +83,7 @@ export function TapoCloudLogin({ onSignedIn, secretHash }: { readonly onSignedIn
         </form>
       ) : (
         <button className="border-foreground/15 rounded-lg border py-2 text-sm font-semibold disabled:opacity-40" disabled={isPending} onClick={handleStart} type="button">
-          {isPending ? 'Signing in…' : 'Sign in and email me a code'}
+          {isPending ? 'Signing in…' : 'Sign in and send me a code'}
         </button>
       )}
 

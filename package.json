@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 2026",
+    "deploy": "next build && next start -p 2026",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
-    "@next/eslint-plugin-next": "16.2.6",
+    "@next/eslint-plugin-next": "16.3.1",
     "@ryancwalsh/linting": "1.1.0",
     "@tailwindcss/postcss": "4.2.0",
     "@types/node": "24.10.1",

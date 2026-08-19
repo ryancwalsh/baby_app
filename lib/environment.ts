@@ -7,6 +7,7 @@ import { cleanEnv, json, str } from 'envalid';
 let environment: null | ReturnType<typeof validate> = null;
 
 function validate() {
+  // eslint-disable-next-line n/no-process-env -- Reading it here is the point; nothing else in the app touches it.
   return cleanEnv(process.env, {
     /**
      * SHA-256 hex of the password the app asks for. Never the password.
@@ -24,9 +25,7 @@ function validate() {
 }
 
 export function getEnvironment() {
-  if (environment === null) {
-    environment = validate();
-  }
+  environment ??= validate();
 
   return environment;
 }

@@ -10,16 +10,16 @@ import { type NightLightState, readNightLight, setNightLightBrightness, setNight
  */
 
 export async function getNightLightAction(secretHash: string): Promise<NightLightState> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return readNightLight();
 }
 
 export async function setNightLightBrightnessAction(secretHash: string, brightness: number): Promise<NightLightState> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return setNightLightBrightness(brightness);
 }
 
 export async function setNightLightPowerAction(secretHash: string, isOn: boolean): Promise<NightLightState> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return setNightLightPower(isOn);
 }

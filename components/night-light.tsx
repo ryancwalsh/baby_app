@@ -69,10 +69,10 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
           <span className="text-sm tabular-nums opacity-70">{state.brightness}%</span>
         </div>
 
-        {/**
-         * Committed on release, not on every pixel of the drag: `onChange` only
-         * moves the handle, and the camera is told once the finger lifts.
-         */}
+        {/*
+          Committed on release, not on every pixel of the drag: `onChange` only
+          moves the handle, and the camera is told once the finger lifts.
+        */}
         <input
           className="mt-3 w-full accent-amber-500"
           id="brightness"

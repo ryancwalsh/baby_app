@@ -46,11 +46,16 @@ Decode S-series aliases before putting them in `TAPO_DEVICES`.
 Tapo devices live on TP-Link's **V2 cloud**, which a probe has reached
 successfully. The recipe, every part of it verified:
 
-- Host `n-wap.i.tplinkcloud.com` (Kasa's is `n-wap.tplinkcloud.com`).
-- TLS is signed by TP-Link's **own private CA**, and the root is not served, so
-  an ordinary client fails with `UNABLE_TO_GET_ISSUER_CERT`. Pin the
-  intermediate `CN=TP-Link Cloud Server CA` by SHA-256 fingerprint rather than
-  disabling verification.
+- Log in at `n-wap.i.tplinkcloud.com`, then send device commands to the
+  **`appServerUrl` the login response names** (currently
+  `n-use1-wap-gw.tplinkcloud.com`) — not the login host.
+- **Two** TP-Link CAs are involved, neither in any public trust store, so both
+  are pinned by SHA-256 fingerprint: `CN=TP-Link Cloud Server CA` for
+  `*.i.tplinkcloud.com`, and the self-signed `CN=tp-link-CA` root for the
+  `*.tplinkcloud.com` app servers. Pinning both, rather than disabling
+  verification.
+- A successful login still carries `result.errorCode: "0"`. Treating any present
+  `errorCode` as a failure surfaces a bare "0" as the error message.
 - Every request is HMAC-SHA1 signed. Headers `Content-MD5` and
   `X-Authorization: Timestamp=…, Nonce=…, AccessKey=…, Signature=…`. The signed
   string is `{contentMd5}\n{timestamp}\n{nonce}\n{path}` — **path only, no query
@@ -65,12 +70,28 @@ successfully. The recipe, every part of it verified:
   (`appName`, `termID`, `appVer`, `ospf`, `netType`, `locale`). A `{method,
 params}` envelope is wrong here and yields `-20107`.
 - Device commands then `POST /api/v2/common/passthrough` with a flat
-  `{deviceId, requestData}` — not Kasa's `{method, params}` wrapper.
+  `{deviceId, requestData, token}` — not Kasa's `{method, params}` wrapper.
+
+Files under `secrets/` are written by the code, never by hand; an empty or
+hand-made `tapo-v2-tokens.json` is treated as no session.
+
+**Still unresolved:** with a valid V2 session on the right app server and both
+CAs pinned, the S-series switches _still_ answer `-20571 "Device is offline"`.
+Everything on this side now works, so the remaining suspicion is the devices
+themselves — every Tapo device on the account reports `status: 0` while every
+Kasa one reports `status: 1`, including plugs on the same guest network.
 
 **The account has MFA enabled**, so login returns `-20677 "MFA feature enabled"`
-with an `MFAProcessId` and `supportedMFATypes`. Automated login alone cannot
-finish; it needs the same one-time interactive pattern as Nanit
-(`yarn nanit:login` → tokens on disk → refresh at request time).
+with an `MFAProcessId` and `supportedMFATypes: [2, 1]`. Redeem the code at
+`/api/v2/account/checkMFACodeAndLogin` with the **same `terminalUUID`** as the
+login that issued the challenge.
+
+There is **no endpoint to dispatch or re-send the code**: `sendMFACode`,
+`resendMFACode`, `getMFACode`, `sendVerificationCode` and `requestMFACode` all
+answer `-20103 "The method does not exist"`. The login call itself sends it, by
+whichever method the TP-Link account is configured for. TP-Link's default is a
+**Tapo app notification to a trusted phone, not email**, so do not promise email
+in the UI, and do not treat a missing email as a failure.
 
 ## State that is knowable, and state that is not
 
@@ -95,6 +116,29 @@ A socket per button press cost a token check, a REST call, a TLS handshake and a
 3-second wait for announcements — seconds per press, and it closed before on/off
 could ever be learned. Both the slowness and the old unknown state came from
 that one decision. Everything goes through the shared connection.
+
+## How this is deployed, and why it matters
+
+One **long-lived Node process at home**, exposed with a Cloudflare tunnel. Not
+serverless, and the difference is structural rather than cosmetic:
+
+- The token and state files under `secrets/` are read and rewritten at runtime.
+  A read-only or ephemeral filesystem breaks Nanit auth, the Tapo V2 session and
+  the night light cache. `secrets/` is gitignored, so it would not even be
+  present in a git-based deploy.
+- `lib/nanit/connection.ts` holds a websocket open, sends keepalives and listens
+  for announcements. Nothing about that survives a per-request runtime, and
+  losing it costs both the quick presses and the knowable on/off state.
+- Login rate limiting and the pending Tapo MFA `terminalUUID` live in process
+  memory, which is only sound because there is one process.
+
+If this ever needs to move to serverless, all four have to be rehomed (a
+database such as Turso for the first, second and fourth; a separate always-on
+worker for the socket). Do not port it piecemeal.
+
+The app is on the public internet through the tunnel, so `LOGIN_SECRET` is the
+only thing in front of the nursery. Serve a production build (`yarn build` then
+`yarn start`) rather than `next dev`, which is slower and ships dev tooling.
 
 ## Working here
 

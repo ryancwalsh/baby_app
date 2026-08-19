@@ -33,7 +33,7 @@ export type Lamp = ConnectedLamp | UnreachableLamp;
  * is caught on its own.
  */
 export async function getLampsAction(secretHash: string): Promise<Lamp[]> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   const devices = getConfiguredDevices();
 
   return Promise.all(
@@ -58,11 +58,11 @@ export async function getLampsAction(secretHash: string): Promise<Lamp[]> {
 }
 
 export async function setLampPowerAction(secretHash: string, deviceId: string, isOn: boolean): Promise<boolean> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return setLampPower(deviceId, isOn);
 }
 
 export async function toggleLampAction(secretHash: string, deviceId: string): Promise<boolean> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return toggleLampPower(deviceId);
 }

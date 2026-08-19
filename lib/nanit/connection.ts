@@ -61,17 +61,15 @@ function saveState(state: NightLightState) {
  * invisible until the camera next announces one.
  */
 function getShared(): SharedConnection {
-  if (globalForNanit.nanitConnection === undefined) {
-    globalForNanit.nanitConnection = {
-      camera: null,
-      connecting: null,
-      reconnectTimer: null,
-      state: readSavedState() ?? {
-        brightness: MINIMUM_BRIGHTNESS,
-        isOn: false,
-      },
-    };
-  }
+  globalForNanit.nanitConnection ??= {
+    camera: null,
+    connecting: null,
+    reconnectTimer: null,
+    state: readSavedState() ?? {
+      brightness: MINIMUM_BRIGHTNESS,
+      isOn: false,
+    },
+  };
 
   return globalForNanit.nanitConnection;
 }
@@ -106,25 +104,36 @@ async function openConnection(): Promise<CameraConnection> {
        * Reconnect unprompted: an idle socket is what keeps app-driven changes
        * visible, so it is worth holding even when nobody is pressing anything.
        */
-      if (shared.reconnectTimer === null) {
-        shared.reconnectTimer = setTimeout(() => {
-          shared.reconnectTimer = null;
-          connect().catch(() => {});
-        }, RECONNECT_DELAY_MILLISECONDS);
-      }
+      shared.reconnectTimer ??= setTimeout(() => {
+        shared.reconnectTimer = null;
+
+        connect().catch(() => {});
+      }, RECONNECT_DELAY_MILLISECONDS);
     },
     onNightLight: (isOn) => updateState({ isOn }),
   });
 
   shared.camera = camera;
-  /**
-   * Brightness, unlike on/off, can be read back, so ask once per connection and
-   * let the cache correct itself. Read-only, and not awaited: a press should not
-   * queue behind it, and a camera that ignores it should not block the socket.
-   */
-  camera.sendRequest('GET_SETTINGS', { getSettings: { all: true } }).catch(() => {});
-
   return camera;
+}
+
+/**
+ * Asks the camera for its brightness and waits for the answer, so a caller that
+ * is about to render gets the camera's value rather than yesterday's cache.
+ * Read-only. Failure leaves the cache alone rather than throwing: a page should
+ * still load when the camera is unreachable.
+ */
+export async function syncFromCamera(): Promise<NightLightState> {
+  try {
+    const camera = await connect();
+    await camera.sendRequest('GET_SETTINGS', { getSettings: { all: true } });
+  } catch {
+    /**
+     * Kept as last known — see the note on the state file above.
+     */
+  }
+
+  return getNightLightState();
 }
 
 /**
@@ -138,11 +147,10 @@ export function connect(): Promise<CameraConnection> {
     return Promise.resolve(shared.camera);
   }
 
-  if (shared.connecting === null) {
-    shared.connecting = openConnection().finally(() => {
-      shared.connecting = null;
-    });
-  }
+  // eslint-disable-next-line promise/prefer-await-to-then -- This function is synchronous on purpose, so overlapping callers share one in-flight promise.
+  shared.connecting ??= openConnection().finally(() => {
+    shared.connecting = null;
+  });
 
   return shared.connecting;
 }

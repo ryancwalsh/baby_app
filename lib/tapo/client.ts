@@ -79,6 +79,7 @@ async function getCloudToken(): Promise<string> {
     },
   });
 
+  // eslint-disable-next-line require-atomic-updates -- A concurrent login would only overwrite one valid token with another equally valid one.
   cachedToken = { obtainedAt: Date.now(), value: body.result.token };
   return cachedToken.value;
 }

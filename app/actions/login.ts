@@ -1,11 +1,12 @@
 'use server';
 
-import { isLoggedIn } from '@/lib/login';
+import { attemptLogin, type LoginAttempt } from '@/lib/login';
 
 /**
  * Takes the hash the browser computed, never the password itself. Returning a
- * boolean rather than throwing keeps a wrong password an ordinary answer.
+ * result rather than throwing keeps a wrong password an ordinary answer, and
+ * carries the lockout so the form can say why it is refusing.
  */
-export async function logInAction(secretHash: string): Promise<boolean> {
-  return isLoggedIn(secretHash);
+export async function logInAction(secretHash: string): Promise<LoginAttempt> {
+  return attemptLogin(secretHash);
 }

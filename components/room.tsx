@@ -38,16 +38,23 @@ export function Room() {
        * having a bad day cannot be mistaken for a bad password and log someone
        * out of the app.
        */
-      if (await logInAction(hash)) {
+      const attempt = await logInAction(hash);
+
+      if (attempt.isLoggedIn) {
         try {
           const [lamps, nightLight, tapo] = await Promise.all([getLampsAction(hash), getNightLightAction(hash), getTapoCloudStatusAction(hash)]);
           setState({ isTapoSignedIn: tapo.isSignedIn, lamps, nightLight });
-        } catch (error_) {
-          setError(error_ instanceof Error ? error_.message : 'Could not load the room.');
+        } catch (caughtError) {
+          setError(caughtError instanceof Error ? caughtError.message : 'Could not load the room.');
         }
-      } else {
+      } else if (attempt.lockedForSeconds === null) {
         store(null);
         setError('That login is no longer valid.');
+      } else {
+        /**
+         * Locked out, not wrong: keep the stored hash so a wait is enough.
+         */
+        setError(`Too many attempts. Try again in ${Math.ceil(attempt.lockedForSeconds / 60)} minutes.`);
       }
     },
     [store],
@@ -60,7 +67,6 @@ export function Room() {
        * writes happens after an await, once the server has answered — this is
        * fetching on mount, not a synchronous cascade.
        */
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       load(secretHash);
     }
   }, [isLoaded, load, secretHash]);

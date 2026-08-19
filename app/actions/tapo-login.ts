@@ -10,16 +10,16 @@ import { hasTapoCloudSession, startTapoCloudLogin, submitTapoMfaCode } from '@/l
  */
 
 export async function getTapoCloudStatusAction(secretHash: string): Promise<{ isSignedIn: boolean }> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return { isSignedIn: hasTapoCloudSession() };
 }
 
 export async function startTapoCloudLoginAction(secretHash: string): Promise<{ needsMfaCode: boolean }> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return startTapoCloudLogin();
 }
 
 export async function submitTapoMfaCodeAction(secretHash: string, code: string): Promise<void> {
-  requireLogin(secretHash);
+  await requireLogin(secretHash);
   return submitTapoMfaCode(code);
 }

@@ -3,6 +3,7 @@ import { Nunito_Sans } from 'next/font/google';
 
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 
+// eslint-disable-next-line import/no-unassigned-import -- A stylesheet has nothing to bind.
 import './globals.css';
 
 const nunitoSans = Nunito_Sans({
