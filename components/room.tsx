@@ -7,6 +7,7 @@ import { logInAction } from '@/app/actions/login';
 import { getLullabiesAction, type Lullaby } from '@/app/actions/lullaby';
 import { getNightLightAction } from '@/app/actions/night-light';
 import { getTapoCloudStatusAction } from '@/app/actions/tapo-login';
+import { EndlessNoise } from '@/components/endless-noise';
 import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
 import { LoginGate } from '@/components/login-gate';
 import { LullabyPlayer } from '@/components/lullaby-player';
@@ -109,6 +110,8 @@ export function Room() {
       <NightLight initialState={state.nightLight} secretHash={secretHash} />
 
       <LullabyPlayer lullabies={state.lullabies} />
+
+      <EndlessNoise />
     </div>
   );
 }
