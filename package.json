@@ -1,0 +1,42 @@
+{
+  "name": "baby_app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "nanit:login": "tsx --env-file=.env scripts/nanit-login.ts"
+  },
+  "dependencies": {
+    "envalid": "8.2.0",
+    "lucide-react": "1.16.0",
+    "next": "16.2.6",
+    "protobufjs": "8.7.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@tailwindcss/postcss": "4.2.0",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@types/ws": "8.18.1",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.2.6",
+    "eslint-config-prettier": "10.1.8",
+    "postcss": "8.5.6",
+    "prettier": "3.6.2",
+    "tailwindcss": "4.2.0",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.4"
+  },
+  "packageManager": "yarn@4.14.1"
+}

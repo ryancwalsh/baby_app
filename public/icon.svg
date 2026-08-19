@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="A crescent moon">
+  <rect width="512" height="512" rx="112" fill="#7c6bb0"/>
+  <path d="M330 132a124 124 0 1 0 60 232 148 148 0 0 1-60-232z" fill="#fdfcfa"/>
+  <circle cx="150" cy="150" r="14" fill="#fdfcfa"/>
+  <circle cx="196" cy="106" r="9" fill="#fdfcfa"/>
+  <circle cx="120" cy="212" r="8" fill="#fdfcfa"/>
+</svg>
