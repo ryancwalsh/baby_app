@@ -1,18 +1,22 @@
-/** Minimal service worker, just enough to make the app installable. */
-const CACHE = "laydon-cache-v1";
+/**
+ * Minimal service worker, just enough to make the app installable.
+ */
+const CACHE = 'laydon-cache-v1';
 
-self.addEventListener("install", () => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (event) => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-/** Network first, falling back to whatever was cached last. */
-self.addEventListener("fetch", (event) => {
+/**
+ * Network first, falling back to whatever was cached last.
+ */
+self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method === "GET") {
+  if (request.method === 'GET') {
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -23,9 +27,7 @@ self.addEventListener("fetch", (event) => {
             .catch(() => {});
           return response;
         })
-        .catch(() =>
-          caches.match(request).then((cached) => cached || Response.error()),
-        ),
+        .catch(() => caches.match(request).then((cached) => cached || Response.error())),
     );
   }
 });

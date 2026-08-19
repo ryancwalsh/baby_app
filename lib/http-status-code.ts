@@ -4,8 +4,10 @@
  * uses `fetch` and axios is not otherwise a dependency.
  */
 export const HttpStatusCode = {
-  Ok: 200,
   Created: 201,
-  /** Nanit-specific: login needs a multi-factor code. */
+  /**
+   * Nanit-specific: login needs a multi-factor code.
+   */
   NanitMfaRequired: 482,
+  Ok: 200,
 } as const;

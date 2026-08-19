@@ -1,6 +1,6 @@
-"use server";
+'use server';
 
-import { isLoggedIn } from "@/lib/login";
+import { isLoggedIn } from '@/lib/login';
 
 /**
  * Takes the hash the browser computed, never the password itself. Returning a

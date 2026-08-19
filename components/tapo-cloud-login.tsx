@@ -1,30 +1,21 @@
-"use client";
+'use client';
 
-import { useState, useTransition } from "react";
-import { KeyRoundIcon } from "lucide-react";
-import {
-  startTapoCloudLoginAction,
-  submitTapoMfaCodeAction,
-} from "@/app/actions/tapo-login";
+import { KeyRoundIcon } from 'lucide-react';
+import { useState, useTransition } from 'react';
 
-const CARD_CLASS_NAME =
-  "border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4";
+import { startTapoCloudLoginAction, submitTapoMfaCodeAction } from '@/app/actions/tapo-login';
+
+const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4';
 
 /**
  * Signing in to the Tapo cloud, which the S-series switches need and the older
  * Kasa cloud cannot provide. The account has two-step verification on, so
  * starting the login makes TP-Link email a code, which is entered here.
  */
-export function TapoCloudLogin({
-  secretHash,
-  onSignedIn,
-}: {
-  secretHash: string;
-  onSignedIn: () => void;
-}) {
+export function TapoCloudLogin({ onSignedIn, secretHash }: { readonly onSignedIn: () => void; readonly secretHash: string }) {
   const [needsMfaCode, setNeedsMfaCode] = useState(false);
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
 
   function run(act: () => Promise<void>) {
@@ -32,8 +23,8 @@ export function TapoCloudLogin({
     startTransition(async () => {
       try {
         await act();
-      } catch (caught) {
-        setError(caught instanceof Error ? caught.message : "That failed.");
+      } catch (error_) {
+        setError(error_ instanceof Error ? error_.message : 'That failed.');
       }
     });
   }
@@ -53,7 +44,7 @@ export function TapoCloudLogin({
     event.preventDefault();
     run(async () => {
       await submitTapoMfaCodeAction(secretHash, code.trim());
-      setCode("");
+      setCode('');
       setNeedsMfaCode(false);
       onSignedIn();
     });
@@ -65,41 +56,30 @@ export function TapoCloudLogin({
         <KeyRoundIcon className="size-5 opacity-60" />
         Tapo cloud sign-in
       </h2>
-      <p className="text-sm opacity-70">
-        The S505 switches need the Tapo cloud, which is signed out.
-      </p>
+      <p className="text-sm opacity-70">The S505 switches need the Tapo cloud, which is signed out.</p>
 
       {needsMfaCode ? (
-        <form onSubmit={handleSubmitCode} className="flex flex-col gap-3">
-          <label htmlFor="mfaCode" className="text-sm opacity-70">
+        <form className="flex flex-col gap-3" onSubmit={handleSubmitCode}>
+          <label className="text-sm opacity-70" htmlFor="mfaCode">
             TP-Link emailed a verification code. Enter it here.
           </label>
           <input
-            id="mfaCode"
-            type="text"
-            inputMode="numeric"
             autoComplete="one-time-code"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            disabled={isPending}
             className="border-foreground/15 rounded-lg border px-4 py-3 tracking-widest tabular-nums disabled:opacity-60"
+            disabled={isPending}
+            id="mfaCode"
+            inputMode="numeric"
+            onChange={(event) => setCode(event.target.value)}
+            type="text"
+            value={code}
           />
-          <button
-            type="submit"
-            disabled={isPending || code.trim() === ""}
-            className="border-foreground/15 rounded-lg border py-2 text-sm font-semibold disabled:opacity-40"
-          >
-            {isPending ? "Verifying…" : "Verify code"}
+          <button className="border-foreground/15 rounded-lg border py-2 text-sm font-semibold disabled:opacity-40" disabled={isPending || code.trim() === ''} type="submit">
+            {isPending ? 'Verifying…' : 'Verify code'}
           </button>
         </form>
       ) : (
-        <button
-          type="button"
-          onClick={handleStart}
-          disabled={isPending}
-          className="border-foreground/15 rounded-lg border py-2 text-sm font-semibold disabled:opacity-40"
-        >
-          {isPending ? "Signing in…" : "Sign in and email me a code"}
+        <button className="border-foreground/15 rounded-lg border py-2 text-sm font-semibold disabled:opacity-40" disabled={isPending} onClick={handleStart} type="button">
+          {isPending ? 'Signing in…' : 'Sign in and email me a code'}
         </button>
       )}
 

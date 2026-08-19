@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from 'react';
 
 /**
  * localStorage is an external store, so it is read through
@@ -14,12 +14,14 @@ const listeners = new Set<() => void>();
 
 function subscribe(onChange: () => void) {
   listeners.add(onChange);
-  /** Other tabs report through `storage`; this tab reports through `store`. */
-  window.addEventListener("storage", onChange);
+  /**
+   * Other tabs report through `storage`; this tab reports through `store`.
+   */
+  window.addEventListener('storage', onChange);
 
   return () => {
     listeners.delete(onChange);
-    window.removeEventListener("storage", onChange);
+    window.removeEventListener('storage', onChange);
   };
 }
 
@@ -31,12 +33,13 @@ export function useLocalStorage(key: string) {
   );
 
   const store = useCallback(
-    (next: string | null) => {
+    (next: null | string) => {
       if (next === null) {
         window.localStorage.removeItem(key);
       } else {
         window.localStorage.setItem(key, next);
       }
+
       for (const onChange of listeners) {
         onChange();
       }
@@ -44,5 +47,5 @@ export function useLocalStorage(key: string) {
     [key],
   );
 
-  return { value, isLoaded: value !== undefined, store };
+  return { isLoaded: value !== undefined, store, value };
 }

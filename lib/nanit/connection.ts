@@ -1,16 +1,17 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { connectToCamera, type CameraConnection } from "@/lib/nanit/camera";
-import { getAccessToken, getFirstCamera } from "@/lib/nanit/auth";
-import { MINIMUM_BRIGHTNESS } from "@/lib/nanit/brightness";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-const STATE_DIRECTORY = "secrets";
+import { getAccessToken, getFirstCamera } from '@/lib/nanit/auth';
+import { MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
+import { type CameraConnection, connectToCamera } from '@/lib/nanit/camera';
+
+const STATE_DIRECTORY = 'secrets';
 const STATE_FILE_PATH = `${STATE_DIRECTORY}/nanit-night-light.json`;
 const RECONNECT_DELAY_MILLISECONDS = 5_000;
 
-export interface NightLightState {
-  isOn: boolean;
+export type NightLightState = {
   brightness: number;
-}
+  isOn: boolean;
+};
 
 /**
  * One connection for the whole server process, held open.
@@ -22,12 +23,12 @@ export interface NightLightState {
  * press is one frame on an existing socket, and every announcement the camera
  * makes (including changes made from the phone app) lands in `state`.
  */
-interface SharedConnection {
+type SharedConnection = {
   camera: CameraConnection | null;
-  connecting: Promise<CameraConnection> | null;
-  state: NightLightState;
+  connecting: null | Promise<CameraConnection>;
   reconnectTimer: NodeJS.Timeout | null;
-}
+  state: NightLightState;
+};
 
 /**
  * Parked on `globalThis` because `next dev` re-evaluates modules on every edit,
@@ -40,10 +41,9 @@ const globalForNanit = globalThis as typeof globalThis & {
 function readSavedState(): NightLightState | null {
   let state: NightLightState | null = null;
   if (existsSync(STATE_FILE_PATH)) {
-    state = JSON.parse(
-      readFileSync(STATE_FILE_PATH, "utf8"),
-    ) as NightLightState;
+    state = JSON.parse(readFileSync(STATE_FILE_PATH, 'utf8')) as NightLightState;
   }
+
   return state;
 }
 
@@ -65,13 +65,14 @@ function getShared(): SharedConnection {
     globalForNanit.nanitConnection = {
       camera: null,
       connecting: null,
-      state: readSavedState() ?? {
-        isOn: false,
-        brightness: MINIMUM_BRIGHTNESS,
-      },
       reconnectTimer: null,
+      state: readSavedState() ?? {
+        brightness: MINIMUM_BRIGHTNESS,
+        isOn: false,
+      },
     };
   }
+
   return globalForNanit.nanitConnection;
 }
 
@@ -79,16 +80,15 @@ function updateState(changes: Partial<NightLightState>) {
   const shared = getShared();
   const updated = { ...shared.state, ...changes };
 
-  if (
-    updated.isOn !== shared.state.isOn ||
-    updated.brightness !== shared.state.brightness
-  ) {
+  if (updated.isOn !== shared.state.isOn || updated.brightness !== shared.state.brightness) {
     shared.state = updated;
     saveState(updated);
   }
 }
 
-/** The state as last known, with no network involved, so callers stay cheap. */
+/**
+ * The state as last known, with no network involved, so callers stay cheap.
+ */
 export function getNightLightState(): NightLightState {
   return getShared().state;
 }
@@ -99,7 +99,6 @@ async function openConnection(): Promise<CameraConnection> {
   const { cameraUid } = await getFirstCamera(accessToken);
 
   const camera = await connectToCamera(cameraUid, accessToken, {
-    onNightLight: (isOn) => updateState({ isOn }),
     onBrightness: (brightness) => updateState({ brightness }),
     onClose: () => {
       shared.camera = null;
@@ -114,6 +113,7 @@ async function openConnection(): Promise<CameraConnection> {
         }, RECONNECT_DELAY_MILLISECONDS);
       }
     },
+    onNightLight: (isOn) => updateState({ isOn }),
   });
 
   shared.camera = camera;
@@ -122,9 +122,7 @@ async function openConnection(): Promise<CameraConnection> {
    * let the cache correct itself. Read-only, and not awaited: a press should not
    * queue behind it, and a camera that ignores it should not block the socket.
    */
-  camera
-    .sendRequest("GET_SETTINGS", { getSettings: { all: true } })
-    .catch(() => {});
+  camera.sendRequest('GET_SETTINGS', { getSettings: { all: true } }).catch(() => {});
 
   return camera;
 }
@@ -139,19 +137,17 @@ export function connect(): Promise<CameraConnection> {
   if (shared.camera !== null) {
     return Promise.resolve(shared.camera);
   }
+
   if (shared.connecting === null) {
     shared.connecting = openConnection().finally(() => {
       shared.connecting = null;
     });
   }
+
   return shared.connecting;
 }
 
-export async function sendToCamera(
-  type: string,
-  payload: Record<string, unknown>,
-  changes: Partial<NightLightState>,
-): Promise<NightLightState> {
+export async function sendToCamera(type: string, payload: Record<string, unknown>, changes: Partial<NightLightState>): Promise<NightLightState> {
   const camera = await connect();
   await camera.sendRequest(type, payload);
   /**

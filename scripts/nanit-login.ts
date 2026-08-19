@@ -1,5 +1,6 @@
-import { createInterface } from "node:readline/promises";
-import { logInInteractively } from "../lib/nanit/auth.js";
+import { createInterface } from 'node:readline/promises';
+
+import { logInInteractively } from '../lib/nanit/auth.js';
 
 /**
  * Nanit answers a fresh login with a multi-factor challenge, which a web
@@ -12,16 +13,12 @@ async function main() {
       input: process.stdin,
       output: process.stdout,
     });
-    const answer = await readline.question(
-      "Nanit MFA code (check email/SMS): ",
-    );
+    const answer = await readline.question('Nanit MFA code (check email/SMS): ');
     readline.close();
     return answer.trim();
   });
 
-  console.log(
-    `Signed in. Tokens saved at ${new Date(tokens.authTime).toISOString()}.`,
-  );
+  console.log(`Signed in. Tokens saved at ${new Date(tokens.authTime).toISOString()}.`);
 }
 
 main();

@@ -1,12 +1,7 @@
-"use server";
+'use server';
 
-import { requireLogin } from "@/lib/login";
-import {
-  readNightLight,
-  setNightLightBrightness,
-  setNightLightPower,
-  type NightLightState,
-} from "@/lib/nanit/night-light";
+import { requireLogin } from '@/lib/login';
+import { type NightLightState, readNightLight, setNightLightBrightness, setNightLightPower } from '@/lib/nanit/night-light';
 
 /**
  * The Nanit camera's built-in night light. These share one long-lived camera
@@ -14,25 +9,17 @@ import {
  * fresh login and handshake — see lib/nanit/connection.ts.
  */
 
-export async function getNightLightAction(
-  secretHash: string,
-): Promise<NightLightState> {
+export async function getNightLightAction(secretHash: string): Promise<NightLightState> {
   requireLogin(secretHash);
   return readNightLight();
 }
 
-export async function setNightLightBrightnessAction(
-  secretHash: string,
-  brightness: number,
-): Promise<NightLightState> {
+export async function setNightLightBrightnessAction(secretHash: string, brightness: number): Promise<NightLightState> {
   requireLogin(secretHash);
   return setNightLightBrightness(brightness);
 }
 
-export async function setNightLightPowerAction(
-  secretHash: string,
-  isOn: boolean,
-): Promise<NightLightState> {
+export async function setNightLightPowerAction(secretHash: string, isOn: boolean): Promise<NightLightState> {
   requireLogin(secretHash);
   return setNightLightPower(isOn);
 }
