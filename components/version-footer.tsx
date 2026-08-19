@@ -6,7 +6,7 @@ const SHORT_COMMIT_LENGTH = 7;
 
 type Version = {
   branch: string;
-  build_time_UTC: string;
+  build_time_ET: string;
   commit: string;
 };
 
@@ -37,27 +37,12 @@ export function VersionFooter() {
     return null;
   }
 
-  /**
-   * The recorded time is UTC but has no zone marker, so one is added before it
-   * is read as a date and shown in the phone's own time.
-   */
-  const builtAt = new Date(`${version.build_time_UTC.replace(' ', 'T')}Z`);
-
   return (
     <footer className="text-foreground/40 flex flex-col gap-1 text-xs">
       <p>
         Version <span className="font-semibold">{version.commit.slice(0, SHORT_COMMIT_LENGTH)}</span> on {version.branch}
       </p>
-      <p>
-        Built{' '}
-        {builtAt.toLocaleString(undefined, {
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          month: 'long',
-          year: 'numeric',
-        })}
-      </p>
+      <p>Built {version.build_time_ET}</p>
     </footer>
   );
 }
