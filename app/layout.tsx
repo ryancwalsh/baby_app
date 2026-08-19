@@ -1,6 +1,7 @@
 import { type Metadata, type Viewport } from 'next';
 import { Nunito_Sans } from 'next/font/google';
 
+import { BottomNav } from '@/components/bottom-nav';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 
 // eslint-disable-next-line import/no-unassigned-import -- A stylesheet has nothing to bind.
@@ -43,8 +44,9 @@ export default function RootLayout({
     <html className={nunitoSans.variable} lang="en">
       <body className="bg-background text-foreground font-sans antialiased">
         <div className="mx-auto flex min-h-screen max-w-md flex-col">
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 pb-24">{children}</main>
         </div>
+        <BottomNav />
         <ServiceWorkerRegister />
       </body>
     </html>
