@@ -6,7 +6,7 @@ const SHORT_COMMIT_LENGTH = 7;
 
 type Version = {
   branch: string;
-  build_time_ET: string;
+  build_time_UTC: string;
   commit: string;
 };
 
@@ -38,11 +38,11 @@ export function VersionFooter() {
   }
 
   return (
-    <footer className="text-foreground/40 flex flex-col gap-1 text-xs">
+    <footer className="text-foreground/40 flex flex-col gap-1 text-xs text-center">
       <p>
         Version <span className="font-semibold">{version.commit.slice(0, SHORT_COMMIT_LENGTH)}</span> on {version.branch}
       </p>
-      <p>Built {version.build_time_ET}</p>
+      <p>Built {version.build_time_UTC} UTC</p>
     </footer>
   );
 }

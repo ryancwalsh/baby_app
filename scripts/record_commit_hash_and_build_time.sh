@@ -12,8 +12,7 @@
 # Make errors visible and fail fast:
 set -euo pipefail
 
-# The nursery is always in Eastern time, so the build time is recorded there.
-now=$(TZ=America/New_York date +"%Y-%m-%d %H:%M:%S ET")
+now=$(date -u +"%Y-%m-%d %H:%M:%S")
 current_branch=$(git branch --show-current)
 last_commit=$(git rev-parse HEAD)
 
@@ -21,7 +20,7 @@ cat > public/version.json <<EOF
 {
   "branch": "$current_branch",
   "commit": "$last_commit",
-  "build_time_ET": "$now"
+  "build_time_UTC": "$now"
 }
 EOF
 
