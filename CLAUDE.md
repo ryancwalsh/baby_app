@@ -32,12 +32,33 @@ amber accents for state are fine.
   `passthrough` method. This is what `lib/tapo/client.ts` implements, and the
   only family proven to work — in this app and in the POC.
 - `SMART.TAPOSWITCH` (S-series, "Tapo"): **base64-encoded `alias`**, and
-  **unreachable through this cloud endpoint at all**. Every S-series device on
-  the account reports `status: 0` while every Kasa one reports `status: 1`, and
-  `passthrough` answers `-20571 "Device is offline"` no matter what the request
-  contains. The legacy Kasa cloud has no route to them; they live on TP-Link's
-  newer IoT cloud. `-20571` here means "this cloud cannot reach it", not
-  "unplugged" — do not read it as a hardware problem.
+  **not reachable through any `tplinkcloud.com` endpoint**. They report
+  `status: 0` while every Kasa device reports `status: 1`, and `passthrough`
+  answers `-20571 "Device is offline"` whatever the request contains.
+
+  **`status: 0` does not mean the device is offline**, and `-20571` is not a
+  hardware problem. Both were proven misleading:
+  1. The official Tapo app controls these switches remotely over **cellular**,
+     with the phone on no local network. Remote control demonstrably works.
+  2. Immediately after a successful app command, every `tplinkcloud.com` host
+     still reported `status: 0` and `-20571`. Four were tried —
+     `n-use1-wap.i`, `n-use1-wap-gw`, `n-use1-wap` and the legacy `use1-wap`,
+     including the host the device's own record names as its `appServerUrl`.
+
+  `tplinkcloud.com` is a legacy mirror: it lists Tapo devices but neither
+  tracks nor relays them. The app uses TP-Link's **NBU** backend
+  (`*.iot.i.tplinknbu.com`). That host is reachable and uses the same
+  `tp-link-CA` root already pinned here, but its API shape is unknown — every
+  guessed path 404s, and no community library implements it; they all target
+  `tplinkcloud.com`, the path that fails.
+
+  The app was slow on its first command and quicker after, suggesting the
+  device holds no standing cloud session and one is established on demand.
+
+  Finding the NBU protocol needs the app's own traffic captured (mitmproxy on
+  the phone, with its CA trusted). Guessing endpoints has been tried; it does
+  not work. Comparing device records is also exhausted: a working HS103 and a
+  failing S505 differ only in `deviceType` and `status`.
 
 Decode S-series aliases before putting them in `TAPO_DEVICES`.
 
@@ -75,11 +96,10 @@ params}` envelope is wrong here and yields `-20107`.
 Files under `secrets/` are written by the code, never by hand; an empty or
 hand-made `tapo-v2-tokens.json` is treated as no session.
 
-**Still unresolved:** with a valid V2 session on the right app server and both
-CAs pinned, the S-series switches _still_ answer `-20571 "Device is offline"`.
-Everything on this side now works, so the remaining suspicion is the devices
-themselves — every Tapo device on the account reports `status: 0` while every
-Kasa one reports `status: 1`, including plugs on the same guest network.
+**The V2 client is verified working**: sign-in, token storage, signing and
+certificate pinning were all exercised against the real cloud. What it cannot do
+is reach a device TP-Link itself lists as offline — see the note above. Do not
+spend more time on the client code.
 
 **The account has MFA enabled**, so login returns `-20677 "MFA feature enabled"`
 with an `MFAProcessId` and `supportedMFATypes: [2, 1]`. Redeem the code at

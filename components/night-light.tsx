@@ -1,7 +1,7 @@
 'use client';
 
 import { LightbulbIcon } from 'lucide-react';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 import { setNightLightBrightnessAction, setNightLightPowerAction } from '@/app/actions/night-light';
 import { BRIGHTNESS_PRESETS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
@@ -16,6 +16,23 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
   const [state, setState] = useState(initialState);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
+
+  /**
+   * Live updates, so a change made in the Nanit app shows up here without a
+   * refresh. The stream is ignored while a press of ours is in flight, since
+   * the optimistic value is newer than anything the camera has announced yet.
+   */
+  useEffect(() => {
+    const source = new EventSource(`/api/night-light/stream?secretHash=${encodeURIComponent(secretHash)}`);
+
+    source.addEventListener('message', (event) => {
+      setState(JSON.parse(event.data) as NightLightState);
+    });
+
+    return () => {
+      source.close();
+    };
+  }, [secretHash]);
 
   /**
    * Serialised through one transition so two commands are never in flight at

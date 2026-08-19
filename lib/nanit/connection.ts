@@ -7,6 +7,13 @@ import { type CameraConnection, connectToCamera } from '@/lib/nanit/camera';
 const STATE_DIRECTORY = 'secrets';
 const STATE_FILE_PATH = `${STATE_DIRECTORY}/nanit-night-light.json`;
 const RECONNECT_DELAY_MILLISECONDS = 5_000;
+/**
+ * How often to re-read brightness. The camera announces on/off the moment it
+ * changes but says nothing about brightness, so that one value has to be asked
+ * for. This is one frame on an already-open socket, not a new connection, and
+ * it happens once for the whole server no matter how many pages are open.
+ */
+const BRIGHTNESS_POLL_MILLISECONDS = 30_000;
 
 export type NightLightState = {
   brightness: number;
@@ -23,9 +30,16 @@ export type NightLightState = {
  * press is one frame on an existing socket, and every announcement the camera
  * makes (including changes made from the phone app) lands in `state`.
  */
+type StateListener = (state: NightLightState) => void;
+
 type SharedConnection = {
+  brightnessTimer: NodeJS.Timeout | null;
   camera: CameraConnection | null;
   connecting: null | Promise<CameraConnection>;
+  /**
+   * Open SSE streams, told the moment the camera announces anything.
+   */
+  listeners: Set<StateListener>;
   reconnectTimer: NodeJS.Timeout | null;
   state: NightLightState;
 };
@@ -62,8 +76,10 @@ function saveState(state: NightLightState) {
  */
 function getShared(): SharedConnection {
   globalForNanit.nanitConnection ??= {
+    brightnessTimer: null,
     camera: null,
     connecting: null,
+    listeners: new Set(),
     reconnectTimer: null,
     state: readSavedState() ?? {
       brightness: MINIMUM_BRIGHTNESS,
@@ -81,6 +97,15 @@ function updateState(changes: Partial<NightLightState>) {
   if (updated.isOn !== shared.state.isOn || updated.brightness !== shared.state.brightness) {
     shared.state = updated;
     saveState(updated);
+
+    /**
+     * Told only on a real change, so a browser is not woken for a repeat of
+     * what it already shows. This is what makes a change made in the Nanit app
+     * appear here without a refresh.
+     */
+    for (const listener of shared.listeners) {
+      listener(updated);
+    }
   }
 }
 
@@ -100,6 +125,12 @@ async function openConnection(): Promise<CameraConnection> {
     onBrightness: (brightness) => updateState({ brightness }),
     onClose: () => {
       shared.camera = null;
+
+      if (shared.brightnessTimer !== null) {
+        clearInterval(shared.brightnessTimer);
+        shared.brightnessTimer = null;
+      }
+
       /**
        * Reconnect unprompted: an idle socket is what keeps app-driven changes
        * visible, so it is worth holding even when nobody is pressing anything.
@@ -114,7 +145,31 @@ async function openConnection(): Promise<CameraConnection> {
   });
 
   shared.camera = camera;
+
+  /**
+   * Started once per connection, so brightness changed from the Nanit app is
+   * picked up and pushed to any open page. Announcements cover on/off already.
+   */
+  shared.brightnessTimer ??= setInterval(() => {
+    // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget from a timer; a failed read just waits for the next tick.
+    camera.sendRequest('GET_SETTINGS', { getSettings: { all: true } }).catch(() => {});
+  }, BRIGHTNESS_POLL_MILLISECONDS);
+
   return camera;
+}
+
+/**
+ * Subscribes to state changes. Returns the function that unsubscribes, which
+ * the stream must call when the browser goes away, or listeners accumulate for
+ * the life of the process.
+ */
+export function subscribeToNightLight(listener: StateListener): () => void {
+  const shared = getShared();
+  shared.listeners.add(listener);
+
+  return () => {
+    shared.listeners.delete(listener);
+  };
 }
 
 /**
