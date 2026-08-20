@@ -184,15 +184,51 @@ database such as Turso for the first, second and fourth; a separate always-on
 worker for the socket). Do not port it piecemeal.
 
 The app is on the public internet through the tunnel, so `LOGIN_SECRET` is the
-only thing in front of the nursery. Serve a production build (`yarn build` then
-`yarn start`) rather than `next dev`, which is slower and ships dev tooling.
+only thing in front of the nursery. Serve a production build rather than
+`next dev`, which is slower and ships dev tooling.
+
+### pm2 owns that process — never start one by hand
+
+The process is a **pm2 app named `baby`**, running `bash -c 'cd
+/home/rcwalsh/code/baby_app && yarn start'` on port **2026**. pm2 is what
+restarts it after a crash or a reboot, so deploying is two steps:
+
+```bash
+yarn build && pm2 restart baby
+```
+
+Do not deploy with a bare `yarn start`, `nohup` or `setsid`, and do not reach
+for `next dev` to look at something. Any of those puts a **second** copy of the
+app on the machine, and the failure is quiet rather than loud:
+
+- Whichever copy binds 2026 first wins, so pm2 can report `baby` **online**
+  while the port is actually served by a stray — a deploy then appears to do
+  nothing, because pm2 restarted a process that was not the one answering.
+- `next-server` **releases the port on `SIGTERM` without exiting**. A killed
+  stray disappears from `ss` but stays in `ps`, so "the port is free" is not
+  evidence that anything was cleaned up. Check with `pgrep -af next-server` and
+  follow up with `kill -KILL`.
+- `yarn build` rewrites `.next` underneath whatever is already running, which
+  leaves the live app serving a mix of old process and new chunks until it is
+  restarted. That is fine as the first half of the deploy above, but it means a
+  build is never a read-only "just checking it compiles" step while the nursery
+  is being used.
+
+`pm2 logs baby` for output; the files are `~/.pm2/logs/baby-{out,error}.log`.
+`pm2 restart baby --update-env` if `.env` changed. Confirm a deploy landed by
+reading `/version.json`, which the build stamps with the commit:
+
+```bash
+curl -s http://localhost:2026/version.json
+```
 
 ## Working here
 
 - `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
   and safe to run. Yarn, not npm; `--exact` when adding.
-- A dev server is usually already running on port 3000 — attach to it rather
-  than starting another.
+- There is no dev server to attach to: the app runs as the pm2-managed
+  production build on port 2026 described above. Starting `next dev` alongside
+  it corrupts the `.next` the live app is serving from.
 - `lib/environment.ts` validates lazily via envalid, because `next build` runs
   without secrets present.
 - Client components must not import `lib/nanit/night-light.ts` (drags in `ws`
