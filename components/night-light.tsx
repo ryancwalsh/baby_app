@@ -97,7 +97,14 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
           <label className="font-semibold" htmlFor="brightness">
             Brightness
           </label>
-          <span className="text-sm tabular-nums opacity-70">{state.brightness}%</span>
+          {/*
+            The number carries the reading, so it is the large half; the percent
+            sign is shrunk and dimmed so it does not compete in a dark room.
+          */}
+          <span className="text-2xl tabular-nums opacity-70">
+            {state.brightness}
+            <span className="text-xs opacity-50">%</span>
+          </span>
         </div>
 
         {/*
@@ -120,7 +127,7 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
         <div className="mt-4 grid grid-cols-5 gap-2">
           {BRIGHTNESS_PRESETS.map((preset) => (
             <button
-              className={`rounded-lg border py-2 text-sm tabular-nums disabled:opacity-60 ${
+              className={`rounded-lg border py-2 text-lg tabular-nums disabled:opacity-60 ${
                 state.brightness === preset
                   ? `font-semibold ${preset === MINIMUM_BRIGHTNESS ? 'border-moon/60 text-moon' : 'border-amber-500/60 text-amber-500'}`
                   : 'border-foreground/15'
@@ -130,7 +137,8 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
               onClick={() => setBrightness(preset)}
               type="button"
             >
-              {preset}%
+              {preset}
+              <span className="text-xs opacity-50">%</span>
             </button>
           ))}
         </div>

@@ -197,7 +197,15 @@ export function EndlessNoise() {
               <label className="font-semibold" htmlFor={`noise-${slider.label}`}>
                 {slider.label}
               </label>
-              <span className="text-sm tabular-nums opacity-70">{slider.value}%</span>
+              {/*
+                The number carries the reading, so it is the large half; the
+                percent sign is shrunk and dimmed so it does not compete in a
+                dark room.
+              */}
+              <span className="text-2xl tabular-nums opacity-70">
+                {slider.value}
+                <span className="text-xs opacity-50">%</span>
+              </span>
             </div>
             <input
               className="mt-2 w-full accent-amber-500"
