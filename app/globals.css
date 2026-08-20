@@ -17,3 +17,13 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-nunito-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+/**
+ * Tailwind's reset leaves buttons on the default arrow. Disabled ones keep it,
+ * since they cannot be pressed.
+ */
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
