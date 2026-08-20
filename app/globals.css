@@ -72,3 +72,34 @@
     background: currentColor;
   }
 }
+
+/**
+ * The pod rocks about its own foot, the way a cradle does, rather than spinning
+ * about its centre. It is deliberately gentler than it looks on paper — a
+ * degree or so of visible travel at the size the button uses — because this is
+ * watched in an unlit room.
+ */
+@layer components {
+  .swaddle-rock {
+    animation: swaddle-rock 3.6s ease-in-out infinite;
+    transform-box: view-box;
+    transform-origin: 12px 21px;
+  }
+}
+
+@keyframes swaddle-rock {
+  0%,
+  100% {
+    transform: rotate(-4.5deg);
+  }
+
+  50% {
+    transform: rotate(4.5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swaddle-rock {
+    animation: none;
+  }
+}

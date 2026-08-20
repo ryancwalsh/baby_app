@@ -1,10 +1,11 @@
 'use client';
 
-import { BedIcon, TriangleAlertIcon } from 'lucide-react';
+import { TriangleAlertIcon } from 'lucide-react';
 import { useCallback, useEffect, useState, useTransition } from 'react';
 
 import { getSnooAction, setSnooPowerAction } from '@/app/actions/snoo';
 import { SECRET_HASH_KEY } from '@/components/login-guard';
+import { SwaddleIcon } from '@/components/swaddle-icon';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { describeSnoo, getSnooStatus, type SnooState, type SnooStatus } from '@/lib/snoo/state';
 
@@ -86,7 +87,7 @@ export function SnooToggle() {
       title={description}
       type="button"
     >
-      {status === 'error' ? <TriangleAlertIcon className="size-6" /> : <BedIcon className="size-6" />}
+      {status === 'error' ? <TriangleAlertIcon className="size-6" /> : <SwaddleIcon className="size-6" isMoving={status === 'on'} />}
     </button>
   );
 }
