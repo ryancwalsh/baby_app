@@ -1,7 +1,7 @@
 'use client';
 
 import { LightbulbIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
-import { useEffect, useState, useTransition } from 'react';
+import { type CSSProperties, useEffect, useState, useTransition } from 'react';
 
 import { setNightLightBrightnessAction, setNightLightPowerAction } from '@/app/actions/night-light';
 import { BRIGHTNESS_PRESETS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
@@ -105,13 +105,14 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
           moves the handle, and the camera is told once the finger lifts.
         */}
         <input
-          className="mt-3 w-full accent-amber-500"
+          className={`brightness-slider mt-3 w-full ${state.brightness === MINIMUM_BRIGHTNESS ? 'text-moon' : 'text-amber-500'}`}
           id="brightness"
           max={MAXIMUM_BRIGHTNESS}
           min={MINIMUM_BRIGHTNESS}
           onChange={(event) => setState({ ...state, brightness: Number(event.target.value) })}
           onKeyUp={() => setBrightness(state.brightness)}
           onPointerUp={() => setBrightness(state.brightness)}
+          style={{ '--brightness-fill': `${state.brightness}%` } as CSSProperties}
           type="range"
           value={state.brightness}
         />
@@ -120,7 +121,9 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
           {BRIGHTNESS_PRESETS.map((preset) => (
             <button
               className={`rounded-lg border py-2 text-sm tabular-nums disabled:opacity-60 ${
-                state.brightness === preset ? 'border-amber-500/60 font-semibold text-amber-500' : 'border-foreground/15'
+                state.brightness === preset
+                  ? `font-semibold ${preset === MINIMUM_BRIGHTNESS ? 'border-moon/60 text-moon' : 'border-amber-500/60 text-amber-500'}`
+                  : 'border-foreground/15'
               }`}
               disabled={isPending}
               key={preset}
