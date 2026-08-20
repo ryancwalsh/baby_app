@@ -6,7 +6,7 @@ import { logInAction } from '@/app/actions/login';
 import { LoginGate } from '@/components/login-gate';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
-const SECRET_HASH_KEY = 'baby-app-secret-hash';
+export const SECRET_HASH_KEY = 'baby-app-secret-hash';
 
 /**
  * Nothing about the room is fetched until the password has been accepted, so an

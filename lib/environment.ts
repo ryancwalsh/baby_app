@@ -16,6 +16,12 @@ function validate() {
     NANIT_EMAIL_ADDRESS: str(),
     NANIT_PASSWORD: str(),
     /**
+     * Optional so that a room without these still runs: the Snoo reports its
+     * own missing credentials rather than taking the whole app down with it.
+     */
+    SNOO_EMAIL_ADDRESS: str({ default: '' }),
+    SNOO_PASSWORD: str({ default: '' }),
+    /**
      * [[appServerUrl, alias, deviceId], ...] — see .env.example.
      */
     TAPO_DEVICES: json<Array<[string, string, string]>>(),

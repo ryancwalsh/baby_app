@@ -113,6 +113,33 @@ whichever method the TP-Link account is configured for. TP-Link's default is a
 **Tapo app notification to a trusted phone, not email**, so do not promise email
 in the UI, and do not treat a missing email as a failure.
 
+## The Snoo talks to AWS IoT, not to the app's REST API
+
+Unlike the other two devices, this protocol was not guessed: `python-snoo`
+backs Home Assistant's official `snoo` integration, and `lib/snoo/` follows it.
+Three hops, in order:
+
+1. **Cognito** at `cognito-idp.us-east-1.amazonaws.com`, `USER_PASSWORD_AUTH`,
+   with the Happiest Baby app's own `ClientId`. No second factor, so no
+   interactive login script — the one device here that does not need one. Keep
+   the **id** token; the access token is not used.
+2. **`GET .../hds/me/v11/devices`** with `Authorization: Bearer <idToken>`, for
+   the per-device `awsIoT.thingName` and `awsIoT.clientEndpoint`.
+3. **MQTT over websocket** at `wss://{clientEndpoint}:443/mqtt`, protocol
+   **3.1** (`protocolId: "MQIsdp"`), the id token as a `token` websocket header.
+   Subscribe to `{thingName}/state_machine/activity_state`; publish to
+   `{thingName}/state_machine/control`.
+
+PubNub is the older path and still serves history. Control has moved to the
+topics above — do not reach for `pubnubapi.com` to send a command.
+
+There is no on/off. The bassinet runs a state machine, and the button maps onto
+two commands: `start_snoo`, and `go_to_state` with `state: "ONLINE", hold: "off"`
+to stop. Anything other than `ONLINE` means it is running.
+
+The connection is shared and held open for the same reasons the Nanit one is —
+see below, and do not reintroduce a connection per press.
+
 ## State that is knowable, and state that is not
 
 - A Kasa plug that answers **always** reports `relay_state`. Power is never
