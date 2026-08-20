@@ -47,6 +47,8 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <NightLight initialState={state.nightLight} secretHash={secretHash} />
+
       <div className="flex flex-col gap-3">
         {state.lamps.map((lamp) =>
           lamp.isReachable ? <LampToggle key={lamp.deviceId} lamp={lamp} secretHash={secretHash} /> : <UnreachableLampRow key={lamp.deviceId} lamp={lamp} />,
@@ -54,8 +56,6 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
       </div>
 
       {!state.isTapoSignedIn && <TapoCloudLogin onSignedIn={load} secretHash={secretHash} />}
-
-      <NightLight initialState={state.nightLight} secretHash={secretHash} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { LightbulbIcon } from 'lucide-react';
+import { LightbulbIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
 import { useEffect, useState, useTransition } from 'react';
 
 import { setNightLightBrightnessAction, setNightLightPowerAction } from '@/app/actions/night-light';
@@ -16,6 +16,7 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
   const [state, setState] = useState(initialState);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
+  const [isSoundOn, setIsSoundOn] = useState(false);
 
   /**
    * Live updates, so a change made in the Nanit app shows up here without a
@@ -58,27 +59,40 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-foreground/60 flex items-center gap-2 text-lg font-semibold">
-        <LightbulbIcon className="size-5 opacity-60" />
-        Nanit night light
-      </h2>
+    <section className="border-foreground/15 bg-foreground/5 flex flex-col gap-4 rounded-2xl border px-5 py-4">
+      <div className="flex items-center gap-3">
+        <h2 className="text-foreground/60 flex flex-1 items-center gap-2 text-lg font-semibold">
+          <LightbulbIcon className="size-5 opacity-60" />
+          Nanit night light
+        </h2>
 
-      <button
-        aria-checked={state.isOn}
-        className="border-foreground/15 bg-foreground/5 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left disabled:opacity-60"
-        disabled={isPending}
-        onClick={() => run({ ...state, isOn: !state.isOn }, () => setNightLightPowerAction(secretHash, !state.isOn))}
-        role="switch"
-        type="button"
-      >
-        <span className="flex-1 text-sm opacity-70">{error ?? (state.isOn ? 'On' : 'Off')}</span>
-        <span className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${state.isOn ? 'bg-amber-500' : 'bg-foreground/25'}`}>
-          <span className={`size-5 rounded-full bg-white transition-transform ${state.isOn ? 'translate-x-5' : 'translate-x-0'}`} />
-        </span>
-      </button>
+        <button
+          aria-checked={state.isOn}
+          aria-label="Nanit night light"
+          className={`shrink-0 rounded-lg border p-2 transition-colors disabled:opacity-60 ${state.isOn ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`}
+          disabled={isPending}
+          onClick={() => run({ ...state, isOn: !state.isOn }, () => setNightLightPowerAction(secretHash, !state.isOn))}
+          role="switch"
+          type="button"
+        >
+          <LightbulbIcon className="size-6" />
+        </button>
 
-      <div className="border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4">
+        <button
+          aria-checked={isSoundOn}
+          aria-label="Nanit sound"
+          className={`shrink-0 rounded-lg border p-2 transition-colors ${isSoundOn ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`}
+          onClick={() => setIsSoundOn(!isSoundOn)}
+          role="switch"
+          type="button"
+        >
+          {isSoundOn ? <Volume2Icon className="size-6" /> : <VolumeIcon className="size-6" />}
+        </button>
+      </div>
+
+      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+
+      <div>
         <div className="flex items-baseline justify-between">
           <label className="font-semibold" htmlFor="brightness">
             Brightness

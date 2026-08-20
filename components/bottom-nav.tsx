@@ -1,6 +1,6 @@
 'use client';
 
-import { LightbulbIcon, MusicIcon, WavesIcon } from 'lucide-react';
+import { MusicIcon, SlidersHorizontalIcon, WavesIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 const NAV_ITEMS = [
-  { href: '/', icon: LightbulbIcon, label: 'Lights' },
+  { href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
   { href: '/lullabies', icon: MusicIcon, label: 'Lullabies' },
   { href: '/noise', icon: WavesIcon, label: 'Noise' },
 ] as const;
@@ -42,7 +42,7 @@ export function BottomNav() {
         hasRestored.current = true;
         /**
          * An unknown stored page — a renamed tab, or a hand-edited value —
-         * falls back to the lights rather than stranding the app somewhere it
+         * falls back to the switches rather than stranding the app somewhere it
          * cannot navigate away from.
          */
         const isKnown = NAV_ITEMS.some((item) => item.href === storedHref);
