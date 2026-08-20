@@ -42,6 +42,10 @@ export function VersionFooter() {
       <p>
         <a href="https://trello.com/c/4slYijiN/" rel="noopener noreferrer" target="_blank">
           Notes
+        </a>{' '}
+        |{' '}
+        <a href="https://github.com/ryancwalsh/baby_app" rel="noopener noreferrer" target="_blank">
+          Source
         </a>
       </p>
       <p>

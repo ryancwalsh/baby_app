@@ -30,6 +30,6 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     short_name: 'Laydon',
     start_url: '/',
-    theme_color: '#7c6bb0',
+    theme_color: '#000000',
   };
 }
