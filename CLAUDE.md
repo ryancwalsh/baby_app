@@ -229,7 +229,11 @@ curl -s http://localhost:2026/version.json
 - There is no dev server to attach to: the app runs as the pm2-managed
   production build on port 2026 described above. Starting `next dev` alongside
   it corrupts the `.next` the live app is serving from.
-- `lib/environment.ts` validates lazily via envalid, because `next build` runs
-  without secrets present.
+- `lib/environment.ts` validates lazily via envalid. That once meant `next
+build` ran without secrets present, but no longer: `APP_TITLE` is read by
+  `app/layout.tsx` and `app/manifest.ts`, both of which prerender, so a build
+  now touches `getEnvironment()` and needs a full `.env` beside it. Envalid
+  validates the whole object at once, so a missing `NANIT_PASSWORD` fails the
+  build just as a missing `APP_TITLE` would.
 - Client components must not import `lib/nanit/night-light.ts` (drags in `ws`
   and protobuf). Shared constants live in `lib/nanit/brightness.ts`.

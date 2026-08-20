@@ -10,6 +10,11 @@ function validate() {
   // eslint-disable-next-line n/no-process-env -- Reading it here is the point; nothing else in the app touches it.
   return cleanEnv(process.env, {
     /**
+     * The room's name, shown as the page heading and as the installed PWA's
+     * name. Here rather than hardcoded so a second nursery only needs an `.env`.
+     */
+    APP_TITLE: str(),
+    /**
      * SHA-256 hex of the password the app asks for. Never the password.
      */
     LOGIN_SECRET: str(),

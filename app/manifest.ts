@@ -1,6 +1,10 @@
 import { type MetadataRoute } from 'next';
 
+import { getEnvironment } from '@/lib/environment';
+
 export default function manifest(): MetadataRoute.Manifest {
+  const { APP_TITLE } = getEnvironment();
+
   return {
     background_color: '#fdfcfa',
     description: 'Nursery controls',
@@ -25,7 +29,7 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/png',
       },
     ],
-    name: "Laydon's Room",
+    name: APP_TITLE,
     orientation: 'portrait',
     scope: '/',
     short_name: 'Laydon',

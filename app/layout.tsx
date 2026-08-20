@@ -5,6 +5,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { LullabyAudioProvider } from '@/components/lullaby-audio-provider';
 import { NoiseAudioProvider } from '@/components/noise-audio-provider';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
+import { getEnvironment } from '@/lib/environment';
 
 // eslint-disable-next-line import/no-unassigned-import -- A stylesheet has nothing to bind.
 import './globals.css';
@@ -14,20 +15,24 @@ const nunitoSans = Nunito_Sans({
   variable: '--font-nunito-sans',
 });
 
-export const metadata: Metadata = {
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: "Laydon's Room",
-  },
-  description: 'Nursery controls',
-  icons: {
-    apple: '/icon-192.png',
-    icon: '/icon.svg',
-  },
-  manifest: '/manifest.webmanifest',
-  title: "Laydon's Room",
-};
+export function generateMetadata(): Metadata {
+  const { APP_TITLE } = getEnvironment();
+
+  return {
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: APP_TITLE,
+    },
+    description: 'Nursery controls',
+    icons: {
+      apple: '/icon-192.png',
+      icon: '/icon.svg',
+    },
+    manifest: '/manifest.webmanifest',
+    title: APP_TITLE,
+  };
+}
 
 export const viewport: Viewport = {
   initialScale: 1,
