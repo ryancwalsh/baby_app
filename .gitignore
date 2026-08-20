@@ -8,6 +8,7 @@
 
 node_modules
 .next/
+.next-dev/
 out/
 next-env.d.ts
 *.tsbuildinfo
