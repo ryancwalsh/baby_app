@@ -3,7 +3,7 @@ import { type MetadataRoute } from 'next';
 import { getEnvironment } from '@/lib/environment';
 
 export default function manifest(): MetadataRoute.Manifest {
-  const { APP_TITLE } = getEnvironment();
+  const { APP_SHORT_NAME, APP_TITLE } = getEnvironment();
 
   return {
     background_color: '#fdfcfa',
@@ -32,7 +32,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: APP_TITLE,
     orientation: 'portrait',
     scope: '/',
-    short_name: 'Laydon',
+    short_name: APP_SHORT_NAME,
     start_url: '/',
     theme_color: '#000000',
   };

@@ -1,7 +1,7 @@
 /**
  * Minimal service worker, just enough to make the app installable.
  */
-const CACHE = 'laydon-cache-v1';
+const CACHE = 'baby-app-cache-v1';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

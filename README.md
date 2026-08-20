@@ -1,6 +1,6 @@
 # baby_app
 
-A PWA for the controls in Laydon's room. The homepage is currently just a
+A PWA for the controls in a nursery. The homepage is currently just a
 headline — the server actions below are wired up and working, but nothing calls
 them yet.
 
