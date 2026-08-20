@@ -1,146 +1,18 @@
 'use client';
 
 import { PauseIcon, PlayIcon, WavesIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 
-import { NOISE_TYPES, NOISE_WORKLET_SOURCE, type NoiseType } from '@/lib/noise-worklet';
+import { MAXIMUM_PERCENT, MINIMUM_PERCENT, useNoiseAudio } from '@/components/noise-audio-provider';
+import { NOISE_TYPES } from '@/lib/noise-worklet';
 
 const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4';
 
-const MINIMUM_PERCENT = 0;
-const MAXIMUM_PERCENT = 100;
 /**
- * Warmth sweeps a low-pass filter between these, so 100% is properly muffled.
- */
-const BRIGHTEST_HERTZ = 20_000;
-const WARMEST_HERTZ = 400;
-/**
- * Texture sweeps a high-pass filter, thinning the sound as it rises.
- */
-const FULLEST_HERTZ = 20;
-const THINNEST_HERTZ = 2_000;
-const RAMP_SECONDS = 0.05;
-const FADE_OUT_SECONDS = 0.3;
-
-type AudioGraph = {
-  context: AudioContext;
-  gain: GainNode;
-  highpass: BiquadFilterNode;
-  lowpass: BiquadFilterNode;
-  worklets: AudioWorkletNode[];
-};
-
-/**
- * Procedural noise rather than a looping sample, so it never repeats and never
- * has a seam. Two independent generators are panned hard left and right, which
- * is what makes it sound wide rather than like a point source.
- *
- * The audio graph is built on first play: browsers refuse to start an
- * AudioContext until a gesture, and there is no reason to hold one open before.
+ * The sound itself is owned by `NoiseAudioProvider`, above the router, so that
+ * it survives leaving this tab. Everything here is the panel that drives it.
  */
 export function EndlessNoise() {
-  const graphRef = useRef<AudioGraph | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [noiseType, setNoiseType] = useState<NoiseType>('pink');
-  const [volume, setVolume] = useState(70);
-  const [warmth, setWarmth] = useState(50);
-  const [texture, setTexture] = useState(0);
-
-  /**
-   * Nothing should keep making sound once this leaves the page.
-   */
-  useEffect(() => {
-    return () => {
-      void graphRef.current?.context.close();
-      graphRef.current = null;
-    };
-  }, []);
-
-  async function buildGraph(): Promise<AudioGraph> {
-    const context = new AudioContext();
-    const blob = new Blob([NOISE_WORKLET_SOURCE], { type: 'application/javascript' });
-    const moduleUrl = URL.createObjectURL(blob);
-    await context.audioWorklet.addModule(moduleUrl);
-    URL.revokeObjectURL(moduleUrl);
-
-    const merger = context.createChannelMerger(2);
-    const worklets = [0, 1].map((channel) => {
-      const worklet = new AudioWorkletNode(context, 'noise-proc', { outputChannelCount: [1] });
-      worklet.connect(merger, 0, channel);
-      return worklet;
-    });
-
-    const lowpass = context.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    const highpass = context.createBiquadFilter();
-    highpass.type = 'highpass';
-    const gain = context.createGain();
-    gain.gain.value = 0;
-
-    merger.connect(lowpass);
-    lowpass.connect(highpass);
-    highpass.connect(gain);
-    gain.connect(context.destination);
-
-    return { context, gain, highpass, lowpass, worklets };
-  }
-
-  function applySettings(graph: AudioGraph, settings: { noiseType: NoiseType; texture: number; volume: number; warmth: number }) {
-    const now = graph.context.currentTime;
-
-    graph.gain.gain.setTargetAtTime(settings.volume / MAXIMUM_PERCENT, now, RAMP_SECONDS);
-    graph.lowpass.frequency.setTargetAtTime(BRIGHTEST_HERTZ * (WARMEST_HERTZ / BRIGHTEST_HERTZ) ** (settings.warmth / MAXIMUM_PERCENT), now, RAMP_SECONDS);
-    graph.highpass.frequency.setTargetAtTime(FULLEST_HERTZ * (THINNEST_HERTZ / FULLEST_HERTZ) ** (settings.texture / MAXIMUM_PERCENT), now, RAMP_SECONDS);
-
-    for (const worklet of graph.worklets) {
-      // eslint-disable-next-line unicorn/require-post-message-target-origin -- An AudioWorkletNode port is not a window; there is no origin to target.
-      worklet.port.postMessage({ noiseType: settings.noiseType });
-    }
-  }
-
-  function update(changes: { noiseType?: NoiseType; texture?: number; volume?: number; warmth?: number }) {
-    const settings = { noiseType, texture, volume, warmth, ...changes };
-
-    if (changes.noiseType !== undefined) {
-      setNoiseType(changes.noiseType);
-    }
-
-    if (changes.volume !== undefined) {
-      setVolume(changes.volume);
-    }
-
-    if (changes.warmth !== undefined) {
-      setWarmth(changes.warmth);
-    }
-
-    if (changes.texture !== undefined) {
-      setTexture(changes.texture);
-    }
-
-    if (graphRef.current !== null && isPlaying) {
-      applySettings(graphRef.current, settings);
-    }
-  }
-
-  async function togglePlay() {
-    if (isPlaying) {
-      const graph = graphRef.current;
-      if (graph !== null) {
-        /**
-         * Faded rather than cut, because an abrupt stop is startling.
-         */
-        graph.gain.gain.setTargetAtTime(0, graph.context.currentTime, FADE_OUT_SECONDS);
-      }
-
-      setIsPlaying(false);
-    } else {
-      // eslint-disable-next-line require-atomic-updates -- Guarded by the play button, which is disabled to a single press at a time.
-      graphRef.current ??= await buildGraph();
-      await graphRef.current.context.resume();
-      applySettings(graphRef.current, { noiseType, texture, volume, warmth });
-      setIsPlaying(true);
-    }
-  }
+  const { isPlaying, noiseType, texture, togglePlay, update, volume, warmth } = useNoiseAudio();
 
   return (
     <section className="flex flex-col gap-3">
@@ -153,11 +25,7 @@ export function EndlessNoise() {
         aria-pressed={isPlaying}
         className={`${CARD_CLASS_NAME} flex w-full items-center gap-4 text-left`}
         onClick={async () => {
-          try {
-            await togglePlay();
-          } catch {
-            setIsPlaying(false);
-          }
+          await togglePlay();
         }}
         type="button"
       >

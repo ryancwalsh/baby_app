@@ -5,12 +5,17 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
+import { useLullabyAudio } from '@/components/lullaby-audio-provider';
+import { useNoiseAudio } from '@/components/noise-audio-provider';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+
+const LULLABIES_HREF = '/lullabies';
+const NOISE_HREF = '/noise';
 
 const NAV_ITEMS = [
   { href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
-  { href: '/lullabies', icon: MusicIcon, label: 'Lullabies' },
-  { href: '/noise', icon: WavesIcon, label: 'Noise' },
+  { href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
+  { href: NOISE_HREF, icon: WavesIcon, label: 'Noise' },
 ] as const;
 
 const CURRENT_PAGE_KEY = 'baby-app-current-page';
@@ -28,6 +33,8 @@ export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { isLoaded, store, value: storedHref } = useLocalStorage(CURRENT_PAGE_KEY);
+  const { isPlaying: isLullabyPlaying } = useLullabyAudio();
+  const { isPlaying: isNoisePlaying } = useNoiseAudio();
   const hasRestored = useRef(false);
 
   useEffect(() => {
@@ -57,12 +64,18 @@ export function BottomNav() {
     }
   }, [isLoaded, pathname, router, store, storedHref]);
 
+  const isPlayingByHref: Record<string, boolean> = {
+    [LULLABIES_HREF]: isLullabyPlaying,
+    [NOISE_HREF]: isNoisePlaying,
+  };
+
   return (
     <nav className="border-foreground/10 bg-background/95 fixed inset-x-0 bottom-0 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-md">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isCurrent = pathname === item.href;
+          const isSounding = isPlayingByHref[item.href] === true;
 
           return (
             <Link
@@ -71,8 +84,16 @@ export function BottomNav() {
               href={item.href}
               key={item.href}
             >
-              <Icon className="size-5" />
+              <span className="relative">
+                <Icon className="size-5" />
+                {/*
+                  A small amber dot, the same accent the device controls use, so
+                  a tab that is still making sound says so from any other tab.
+                */}
+                {isSounding && <span aria-hidden className="absolute -top-0.5 -right-1 size-1.5 rounded-full bg-amber-500" />}
+              </span>
               {item.label}
+              {isSounding && <span className="sr-only">, playing</span>}
             </Link>
           );
         })}

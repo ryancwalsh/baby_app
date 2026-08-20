@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from 'react';
 
-import { getLullabiesAction, type Lullaby } from '@/app/actions/lullaby';
+import { getLullabiesAction } from '@/app/actions/lullaby';
+import { useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { LullabyPlayer } from '@/components/lullaby-player';
 
+/**
+ * The list is handed to the provider as well as rendered, because a track that
+ * ends after the user has walked to another tab still has to know what comes
+ * next.
+ */
 export function Lullabies({ secretHash }: { readonly secretHash: string }) {
-  const [lullabies, setLullabies] = useState<Lullaby[] | null>(null);
+  const { lullabies, setLullabies } = useLullabyAudio();
   const [error, setError] = useState<null | string>(null);
 
   useEffect(() => {
@@ -19,7 +25,7 @@ export function Lullabies({ secretHash }: { readonly secretHash: string }) {
     }
 
     load();
-  }, [secretHash]);
+  }, [secretHash, setLullabies]);
 
   if (error !== null) {
     return <p className="text-sm text-amber-500">{error}</p>;
