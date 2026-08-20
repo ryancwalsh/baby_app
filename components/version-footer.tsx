@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 
+import { SECRET_HASH_KEY } from '@/components/login-guard';
+import { useLocalStorage } from '@/hooks/use-local-storage';
+
 const SHORT_COMMIT_LENGTH = 7;
 
 type Version = {
@@ -17,6 +20,7 @@ type Version = {
  */
 export function VersionFooter() {
   const [version, setVersion] = useState<null | Version>(null);
+  const { store, value: secretHash } = useLocalStorage(SECRET_HASH_KEY);
 
   useEffect(() => {
     async function load() {
@@ -33,10 +37,6 @@ export function VersionFooter() {
     load();
   }, []);
 
-  if (version === null) {
-    return null;
-  }
-
   return (
     <footer className="text-foreground/40 flex flex-col gap-1 text-xs text-center">
       <p>
@@ -48,10 +48,21 @@ export function VersionFooter() {
           Source
         </a>
       </p>
-      <p>
-        Version <span className="font-semibold">{version.commit.slice(0, SHORT_COMMIT_LENGTH)}</span> on {version.branch}
-      </p>
-      <p>Built {version.build_time_UTC} UTC</p>
+      {version !== null && (
+        <>
+          <p>
+            Version <span className="font-semibold">{version.commit.slice(0, SHORT_COMMIT_LENGTH)}</span> on {version.branch}
+          </p>
+          <p>Built {version.build_time_UTC} UTC</p>
+        </>
+      )}
+      {secretHash !== null && secretHash !== undefined && (
+        <p>
+          <button className="underline" onClick={() => store(null)} type="button">
+            Log out
+          </button>
+        </p>
+      )}
     </footer>
   );
 }
