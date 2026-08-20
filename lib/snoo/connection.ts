@@ -11,6 +11,12 @@ const STATE_FILE_PATH = `${STATE_DIRECTORY}/snoo-state.json`;
 const RECONNECT_DELAY_MILLISECONDS = 5_000;
 const CONNECT_TIMEOUT_MILLISECONDS = 10_000;
 /**
+ * How long a press waits for the bassinet to say what it did. Long enough for
+ * an answer over the cloud, short enough that a silent bassinet does not hold
+ * a thumb on the button.
+ */
+const CONFIRMATION_MILLISECONDS = 4_000;
+/**
  * MQTT 3.1 rather than 3.1.1, which is what the Happiest Baby app itself
  * speaks. The protocol id changes with it: 3.1 is "MQIsdp".
  */
@@ -22,21 +28,29 @@ const MQTT_3_1 = { protocolId: 'MQIsdp', protocolVersion: 3 } as const;
 const IOT_USER_NAME = '?SDK=iOS&Version=2.40.1';
 
 /**
- * One announcement from the bassinet. Everything else it sends — cry
- * detection, safety clips, signal strength — is ignored, because the button
- * only asks one question.
+ * One announcement from the bassinet. Cry detection and signal strength are
+ * ignored; the clips are not, because they are what explains a refusal.
  */
 type ActivityState = {
+  left_safety_clip?: number;
+  right_safety_clip?: number;
   state_machine?: {
     state?: string;
   };
 };
+
+/**
+ * Told when the bassinet has said something, so a command can wait for the
+ * answer to its own press rather than reporting what it hoped for.
+ */
+type Waiter = () => void;
 
 type SharedConnection = {
   client: MqttClient | null;
   connecting: null | Promise<MqttClient>;
   device: null | SnooDevice;
   state: SnooState;
+  waiters: Set<Waiter>;
 };
 
 /**
@@ -47,10 +61,22 @@ const globalForSnoo = globalThis as typeof globalThis & {
   snooConnection?: SharedConnection;
 };
 
-function readSavedState(): null | SnooState {
-  let state: null | SnooState = null;
+const UNKNOWN_STATE: SnooState = {
+  areClipsFastened: true,
+  heardAt: null,
+  isOn: false,
+  isRefused: false,
+  level: STOPPED_LEVEL,
+};
+
+/**
+ * Merged over the defaults rather than trusted whole, so a file written by an
+ * older build is missing fields rather than broken by them.
+ */
+function readSavedState(): SnooState {
+  let state = UNKNOWN_STATE;
   if (existsSync(STATE_FILE_PATH)) {
-    state = JSON.parse(readFileSync(STATE_FILE_PATH, 'utf8')) as SnooState;
+    state = { ...UNKNOWN_STATE, ...(JSON.parse(readFileSync(STATE_FILE_PATH, 'utf8')) as Partial<SnooState>) };
   }
 
   return state;
@@ -74,7 +100,8 @@ function getShared(): SharedConnection {
     client: null,
     connecting: null,
     device: null,
-    state: readSavedState() ?? { heardAt: null, isOn: false, level: STOPPED_LEVEL },
+    state: readSavedState(),
+    waiters: new Set(),
   };
 
   return globalForSnoo.snooConnection;
@@ -93,17 +120,70 @@ export function getSnooState(): SnooState {
   return getShared().state;
 }
 
+/**
+ * A clip reports 1 when it is fastened. Anything else counts as undone, but an
+ * absent field does not: a message that says nothing about the clips is not
+ * evidence that they are off, and treating it as such would raise an alarm
+ * over a missing field.
+ */
+function readClips(announcement: ActivityState, fallback: boolean): boolean {
+  const { left_safety_clip: left, right_safety_clip: right } = announcement;
+  let areFastened = fallback;
+
+  if (left !== undefined && right !== undefined) {
+    areFastened = left === 1 && right === 1;
+  }
+
+  return areFastened;
+}
+
 function handleAnnouncement(payload: Buffer) {
+  const shared = getShared();
   const announcement = JSON.parse(payload.toString('utf8')) as ActivityState;
   const level = announcement.state_machine?.state;
 
   if (level !== undefined) {
+    const isOn = level !== STOPPED_LEVEL;
     /**
      * Every level other than ONLINE means the bassinet is running, so the
-     * button follows the state machine rather than a separate flag.
+     * button follows the state machine rather than a separate flag. Seeing it
+     * run also settles any refusal: whatever was wrong no longer is.
      */
-    updateState({ heardAt: Date.now(), isOn: level !== STOPPED_LEVEL, level });
+    updateState({
+      areClipsFastened: readClips(announcement, shared.state.areClipsFastened),
+      heardAt: Date.now(),
+      isOn,
+      isRefused: isOn ? false : shared.state.isRefused,
+      level,
+    });
+
+    for (const waiter of shared.waiters) {
+      waiter();
+    }
   }
+}
+
+/**
+ * Resolves on the next announcement, or when the wait runs out — never
+ * rejects, because a quiet bassinet is not an error, just an unconfirmed one.
+ */
+function waitForAnnouncement(): Promise<void> {
+  const shared = getShared();
+
+  return new Promise((resolve) => {
+    const waiter = () => {
+      shared.waiters.delete(waiter);
+      resolve();
+    };
+
+    shared.waiters.add(waiter);
+    /**
+     * Left to fire even when an announcement gets there first: by then the
+     * waiter has removed itself and resolving again does nothing, which is
+     * cheaper than the bookkeeping to cancel it.
+     */
+    setTimeout(waiter, CONFIRMATION_MILLISECONDS);
+  });
 }
 
 async function openConnection(): Promise<MqttClient> {
@@ -203,8 +283,15 @@ async function sendCommand(command: string, extras: Record<string, string> = {})
  * Starting and stopping are different commands rather than one with a flag, so
  * the boolean is turned into the right one here. Stopping is a move to ONLINE
  * with the hold released, which is what the app's stop button does.
+ *
+ * A press then waits for the bassinet's own answer, because a start can be
+ * declined — most often because the baby is not clipped in, and the motor will
+ * not run without that. Waiting is what lets the button say so instead of
+ * showing a cheerful "on" over a bassinet that never moved.
  */
 export async function setSnooPower(isOn: boolean): Promise<SnooState> {
+  const heardBefore = getSnooState().heardAt;
+
   if (isOn) {
     await sendCommand('start_snoo');
   } else {
@@ -212,12 +299,21 @@ export async function setSnooPower(isOn: boolean): Promise<SnooState> {
   }
 
   /**
-   * Optimistic on purpose. A publish means the command left this process, not
-   * that the bassinet has acted on it — the announcement that follows is what
-   * confirms the new level, usually within a second. `heardAt` is deliberately
-   * left alone, so a state we assumed is never mistaken for one we were told.
+   * Optimistic in the meantime. A publish means the command left this process,
+   * not that the bassinet acted on it. `heardAt` is deliberately left alone, so
+   * a state we assumed is never mistaken for one we were told.
    */
-  updateState({ isOn });
+  updateState({ isOn, isRefused: false });
+  await waitForAnnouncement();
+
+  const state = getSnooState();
+  /**
+   * Only a bassinet that actually answered can refuse. If nothing was heard,
+   * the optimistic value stands: a silent cloud is not the motor declining.
+   */
+  if (isOn && state.heardAt !== heardBefore && !state.isOn) {
+    updateState({ isRefused: true });
+  }
 
   return getSnooState();
 }
