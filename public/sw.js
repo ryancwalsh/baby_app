@@ -15,10 +15,6 @@ self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
 /**
  * Anything under `/api/` is live device state or an endless stream, and neither
  * survives being stored. The night light's `EventSource` is the sharp case: it
@@ -32,6 +28,23 @@ const shouldHandle = (request) => {
 
   return request.method === 'GET' && !pathname.startsWith('/api/');
 };
+
+/**
+ * Every worker before this one cached the night light stream, hash and all, and
+ * those entries outlive the worker that wrote them — so take the chance that
+ * activating gives us to drop anything today's rules would refuse to store.
+ */
+const purgeUncacheableEntries = async () => {
+  const cache = await caches.open(CACHE);
+  const requests = await cache.keys();
+  const stale = requests.filter((request) => !shouldHandle(request));
+
+  await Promise.all(stale.map((request) => cache.delete(request)));
+};
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(purgeUncacheableEntries().then(() => self.clients.claim()));
+});
 
 /**
  * Next names everything under `/_next/static/` after a hash of its contents, so
