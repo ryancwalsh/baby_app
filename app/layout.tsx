@@ -2,6 +2,7 @@ import { type Metadata, type Viewport } from 'next';
 import { Nunito_Sans } from 'next/font/google';
 
 import { BottomNav } from '@/components/bottom-nav';
+import { InstallBanner } from '@/components/install-banner';
 import { LullabyAudioProvider } from '@/components/lullaby-audio-provider';
 import { NoiseAudioProvider } from '@/components/noise-audio-provider';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
@@ -57,6 +58,7 @@ export default function RootLayout({
         <LullabyAudioProvider>
           <NoiseAudioProvider>
             <div className="mx-auto flex min-h-screen max-w-md flex-col">
+              <InstallBanner />
               <main className="flex-1 pb-24">{children}</main>
             </div>
             <BottomNav />

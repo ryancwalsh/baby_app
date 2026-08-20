@@ -57,7 +57,7 @@ export function VersionFooter() {
         </>
       )}
       {secretHash !== null && secretHash !== undefined && (
-        <p>
+        <p className="mt-40">
           <button className="underline" onClick={() => store(null)} type="button">
             Log out
           </button>
