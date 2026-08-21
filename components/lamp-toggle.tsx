@@ -36,8 +36,8 @@ export function LampToggle({ lamp, secretHash }: { readonly lamp: ConnectedLamp;
     <button aria-checked={isOn} className={`${CARD_CLASS_NAME} disabled:opacity-60`} disabled={isPending} onClick={handleClick} role="switch" type="button">
       <LampIcon className={isOn ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
       <span className="flex-1">
-        <span className="block font-semibold">{lamp.alias}</span>
-        <span className="block text-sm opacity-70">{error ?? (isOn ? 'On' : 'Off')}</span>
+        <span className="block opacity-60">{lamp.alias}</span>
+        <span className="block text-sm opacity-60">{error ?? ''}</span>
       </span>
       <span className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${isOn ? 'bg-amber-500' : 'bg-foreground/25'}`}>
         <span className={`size-5 rounded-full bg-white transition-transform ${isOn ? 'translate-x-5' : 'translate-x-0'}`} />
