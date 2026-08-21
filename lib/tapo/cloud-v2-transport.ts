@@ -86,20 +86,41 @@ export function queryString(terminalUuid: string, extra: Record<string, string> 
   }).toString();
 }
 
-export function post(host: string, path: string, query: string, payload: unknown): Promise<CloudResult> {
-  const body = JSON.stringify(payload);
+export type PinnedResponse = {
+  status: number;
+  text: string;
+};
+
+/**
+ * One HTTPS request against a pinned TP-Link host. Both clouds go through here
+ * so the pin check has a single home; the V2 cloud's signing sits in `post`
+ * below, and the NBU cloud brings its own headers.
+ */
+export function pinnedRequest({
+  body,
+  headers,
+  host,
+  method,
+  path,
+}: {
+  body?: string;
+  headers: Record<string, string>;
+  host: string;
+  method: string;
+  path: string;
+}): Promise<PinnedResponse> {
   /**
    * Every TP-Link cloud host is pinned; nothing else is contacted here.
    */
-  const isPinned = host.endsWith('tplinkcloud.com');
+  const isPinned = host.endsWith('tplinkcloud.com') || host.endsWith('tplinknbu.com');
 
   return new Promise((resolve, reject) => {
     const client = request(
       {
-        headers: signedHeaders(body, path),
+        headers,
         host,
-        method: 'POST',
-        path: `${path}?${query}`,
+        method,
+        path,
         /**
          * Not a blanket opt-out: the pin check below rejects anything else.
          */
@@ -109,13 +130,7 @@ export function post(host: string, path: string, query: string, payload: unknown
       (response) => {
         let text = '';
         response.on('data', (chunk) => (text += chunk));
-        response.on('end', () => {
-          try {
-            resolve(JSON.parse(text) as CloudResult);
-          } catch {
-            reject(new Error(`Unreadable reply from ${host}${path}.`));
-          }
-        });
+        response.on('end', () => resolve({ status: response.statusCode ?? 0, text }));
       },
     );
 
@@ -143,7 +158,28 @@ export function post(host: string, path: string, query: string, payload: unknown
 
     client.on('timeout', () => client.destroy(new Error('Tapo cloud timeout.')));
     client.on('error', reject);
-    client.write(body);
+
+    if (body !== undefined) {
+      client.write(body);
+    }
+
     client.end();
   });
+}
+
+export async function post(host: string, path: string, query: string, payload: unknown): Promise<CloudResult> {
+  const body = JSON.stringify(payload);
+  const { text } = await pinnedRequest({
+    body,
+    headers: signedHeaders(body, path),
+    host,
+    method: 'POST',
+    path: `${path}?${query}`,
+  });
+
+  try {
+    return JSON.parse(text) as CloudResult;
+  } catch {
+    throw new Error(`Unreadable reply from ${host}${path}.`);
+  }
 }

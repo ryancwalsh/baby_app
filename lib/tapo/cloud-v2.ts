@@ -14,6 +14,7 @@ const HOST = 'n-wap.i.tplinkcloud.com';
 const LOGIN_PATH = '/api/v2/account/login';
 const MFA_LOGIN_PATH = '/api/v2/account/checkMFACodeAndLogin';
 const PASSTHROUGH_PATH = '/api/v2/common/passthrough';
+const REFRESH_TOKEN_PATH = '/api/v2/account/refreshToken';
 
 const TOKENS_DIRECTORY = 'secrets';
 const TOKENS_FILE_PATH = `${TOKENS_DIRECTORY}/tapo-v2-tokens.json`;
@@ -184,4 +185,42 @@ export async function sendToTapoDevice(deviceId: string, requestData: unknown): 
   }
 
   return body.result?.responseData;
+}
+
+/**
+ * Mints a fresh access token from the stored refresh token. This needs no
+ * second factor, which is what lets the app run unattended: the MFA flow above
+ * is only ever needed for the very first sign-in on a given terminal UUID.
+ */
+export async function refreshTapoCloudToken(): Promise<string> {
+  const tokens = readTokens();
+  if (tokens === null || tokens.refreshToken === undefined) {
+    throw new Error('Not signed in to the Tapo cloud.');
+  }
+
+  const body = await post(HOST, REFRESH_TOKEN_PATH, queryString(tokens.terminalUuid), {
+    appType: APP_TYPE,
+    refreshToken: tokens.refreshToken,
+    terminalUUID: tokens.terminalUuid,
+  });
+
+  if (body.result?.token === undefined) {
+    throw new Error(body.result?.errorMsg ?? body.msg ?? 'The Tapo cloud would not refresh the session.');
+  }
+
+  saveTokens({ ...tokens, authTime: Date.now(), token: body.result.token });
+  return body.result.token;
+}
+
+/**
+ * The stored session. Callers send the token as it stands and refresh only when
+ * the cloud rejects it, since there is no stated lifetime to pre-empt.
+ */
+export function getTapoCloudSession(): Tokens {
+  const tokens = readTokens();
+  if (tokens === null) {
+    throw new Error('Not signed in to the Tapo cloud.');
+  }
+
+  return tokens;
 }

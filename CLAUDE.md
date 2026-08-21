@@ -25,93 +25,87 @@ amber accents for state are fine.
 
 ## Two protocols, one cloud account
 
-`TAPO_DEVICES` mixes device families and they are **not** interchangeable:
+`TAPO_DEVICES` mixes device families and they are **not** interchangeable. Which
+cloud a device is on is decided by the `appServerUrl` in its `TAPO_DEVICES`
+entry, and `lib/tapo/client.ts` routes on it: a `tplinknbu.com` host means the
+NBU cloud, anything else means the Kasa one.
 
 - `IOT.SMARTPLUGSWITCH` (HS-series, "Kasa"): plaintext `alias`, driven by
   `system.get_sysinfo` / `system.set_relay_state` through the cloud's
-  `passthrough` method. This is what `lib/tapo/client.ts` implements, and the
-  only family proven to work — in this app and in the POC.
+  `passthrough` method at `use1-wap.tplinkcloud.com`. This is what
+  `lib/tapo/client.ts` implements directly.
 - `SMART.TAPOSWITCH` (S-series, "Tapo"): **base64-encoded `alias`**, and
-  **not reachable through any `tplinkcloud.com` endpoint**. They report
-  `status: 0` while every Kasa device reports `status: 1`, and `passthrough`
-  answers `-20571 "Device is offline"` whatever the request contains.
+  reachable only through the **NBU** cloud — see below. Decode S-series aliases
+  before putting them in `TAPO_DEVICES`.
 
-  **`status: 0` does not mean the device is offline**, and `-20571` is not a
-  hardware problem. Both were proven misleading:
-  1. The official Tapo app controls these switches remotely over **cellular**,
-     with the phone on no local network. Remote control demonstrably works.
-  2. Immediately after a successful app command, every `tplinkcloud.com` host
-     still reported `status: 0` and `-20571`. Four were tried —
-     `n-use1-wap.i`, `n-use1-wap-gw`, `n-use1-wap` and the legacy `use1-wap`,
-     including the host the device's own record names as its `appServerUrl`.
+### The S-series switches work, through the NBU cloud
 
-  `tplinkcloud.com` is a legacy mirror: it lists Tapo devices but neither
-  tracks nor relays them. The app uses TP-Link's **NBU** backend
-  (`*.iot.i.tplinknbu.com`). That host is reachable and uses the same
-  `tp-link-CA` root already pinned here, but its API shape is unknown — every
-  guessed path 404s, and no community library implements it; they all target
-  `tplinkcloud.com`, the path that fails.
+Verified end to end against a real S505 on 2026-08-20: read, write, and the
+state read back. Round trip is about **130ms**, faster than the Kasa cloud.
 
-  The app was slow on its first command and quicker after, suggesting the
-  device holds no standing cloud session and one is established on demand.
+**`tplinkcloud.com` cannot reach these devices and never could.** It lists them,
+reports `status: 0`, and answers `-20571 "Device is offline"` for every request
+shape — through the legacy endpoint _and_ through the signed V2 cloud. None of
+that means the hardware is offline: NBU reports the very same devices as
+`status: 1` and commands them instantly. `tplinkcloud.com` is a legacy mirror
+that neither tracks nor relays Tapo devices. Do not spend time there.
 
-  Finding the NBU protocol needs the app's own traffic captured (mitmproxy on
-  the phone, with its CA trusted). Guessing endpoints has been tried; it does
-  not work. Comparing device records is also exhausted: a working HS103 and a
-  failing S505 differ only in `deviceType` and `status`.
+The NBU API is `https://use1-app-server.iot.i.tplinknbu.com`, and its root is
+**`/v1/`, not `/api/v2/`** — probing `/api/v2/...` there 404s, which is what
+made earlier attempts look like dead ends. It is implemented in
+`lib/tapo/cloud-nbu.ts`:
 
-Decode S-series aliases before putting them in `TAPO_DEVICES`.
+- No HMAC signing. Two headers carry the session:
+  `Authorization: ut|{token}` and `app-cid: app:Tapo:{terminalUuid}`, alongside
+  `x-app-name`, `x-app-version`, `x-locale`, `x-net-type`, `x-ospf`, `x-strict`
+  and `x-term-id`. The `app:` and `ut|` formats and every header name were read
+  out of the Tapo Android app's dex constants
+  (`com.tplink.iot.aiassistant.bean.see.sseclient.SSESession`) — they are not
+  guesses, and the server rejects near-misses with a bare
+  `403 "missing appCid or invalid"`.
+- The `terminalUuid` in `app-cid` must be the one the session token was issued
+  for.
+- Devices are AWS IoT **things**, addressed by the same device id the Kasa
+  cloud uses. `GET /v1/things?pageSize=50` lists them.
+- Read: `GET /v1/things/shadows?thingNames={deviceId}` →
+  `{shadows:[{state:{desired,reported},version}]}`. **`reported` is the truth**;
+  `desired` is only what was last asked for.
+- Write: `PATCH /v1/things/{deviceId}/shadows` with
+  `{state:{desired:{on}},version}`. The version must be **exactly one past** the
+  shadow's current one — anything else earns `11000 "Update version is smaller
+than present version"`, which names `curVersion` so it can be retried.
+  `GET`/`POST`/`PUT` on that path all answer `405`.
+- NBU chains to the **same self-signed `tp-link-CA` root already pinned** for
+  the app servers, so `pinnedRequest` in `cloud-v2-transport.ts` covers both
+  clouds with no new certificate.
 
-### Reaching the Tapo devices: the V2 cloud
+### Sign-in: the refresh token, not MFA
 
-Tapo devices live on TP-Link's **V2 cloud**, which a probe has reached
-successfully. The recipe, every part of it verified:
+The NBU session token comes from the V2 cloud at `n-wap.i.tplinkcloud.com`, and
+**`POST /api/v2/account/refreshToken` mints a fresh one with no second factor**,
+from the `refreshToken` in `secrets/tapo-v2-tokens.json`. That is the normal
+path and it needs nobody present; `lib/tapo/cloud-nbu.ts` refreshes on a `401`
+and retries once. Expired access tokens surface as `-20651 "Token expired"`.
 
-- Log in at `n-wap.i.tplinkcloud.com`, then send device commands to the
-  **`appServerUrl` the login response names** (currently
-  `n-use1-wap-gw.tplinkcloud.com`) — not the login host.
-- **Two** TP-Link CAs are involved, neither in any public trust store, so both
-  are pinned by SHA-256 fingerprint: `CN=TP-Link Cloud Server CA` for
-  `*.i.tplinkcloud.com`, and the self-signed `CN=tp-link-CA` root for the
-  `*.tplinkcloud.com` app servers. Pinning both, rather than disabling
-  verification.
-- A successful login still carries `result.errorCode: "0"`. Treating any present
-  `errorCode` as a failure surfaces a bare "0" as the error message.
-- Every request is HMAC-SHA1 signed. Headers `Content-MD5` and
-  `X-Authorization: Timestamp=…, Nonce=…, AccessKey=…, Signature=…`. The signed
-  string is `{contentMd5}\n{timestamp}\n{nonce}\n{path}` — **path only, no query
-  string**, or the server answers `-10301 "Signature dose not match"`.
-- Tapo app keys: access `4d11b6b9d5ea4d19a829adbb9714b057`, secret
-  `6ed7d97f3e73467f8a5bab90b577ba4c`, fixed timestamp `9999999999`. These are
-  app constants from the APK, not account secrets.
-- `POST /api/v2/account/login` takes a **flat** body (`appType:
-  "TP-Link_Tapo_Android"`, `cloudUserName`, `cloudPassword`, `terminalUUID`,
-  `terminalName`, `terminalMeta`, `appVersion`, `platform`,
-  `refreshTokenNeeded`, `supportBindAccount`) plus app query parameters
-  (`appName`, `termID`, `appVer`, `ospf`, `netType`, `locale`). A `{method,
-params}` envelope is wrong here and yields `-20107`.
-- Device commands then `POST /api/v2/common/passthrough` with a flat
-  `{deviceId, requestData, token}` — not Kasa's `{method, params}` wrapper.
+Interactive login is therefore only needed if the refresh token itself is ever
+lost, and **it is currently broken**: login answers `-20677 "MFA feature
+enabled"` with an `MFAProcessId`, but **no code is ever sent** — confirmed
+2026-08-20, nothing arrived by app notification or email, and the reply carries
+`remainAttempts: 0`. There is no dispatch endpoint: `sendMFACode`,
+`resendMFACode`, `getMFACode`, `sendVerificationCode` and `requestMFACode` all
+answer `-20103`. So **guard the refresh token**. If it is lost, finding the real
+MFA dispatch call means capturing the app's own traffic.
+
+Other V2 details, still true: a successful login carries `result.errorCode: "0"`,
+so treating any present `errorCode` as failure surfaces a bare "0" as the error;
+requests are HMAC-SHA1 signed over `{contentMd5}\n{timestamp}\n{nonce}\n{path}`
+with **path only, no query string**; app keys are access
+`4d11b6b9d5ea4d19a829adbb9714b057`, secret `6ed7d97f3e73467f8a5bab90b577ba4c`,
+fixed timestamp `9999999999`. `sendToTapoDevice` in `cloud-v2.ts` is the V2
+passthrough — it is unused, and it cannot reach the S-series switches.
 
 Files under `secrets/` are written by the code, never by hand; an empty or
 hand-made `tapo-v2-tokens.json` is treated as no session.
-
-**The V2 client is verified working**: sign-in, token storage, signing and
-certificate pinning were all exercised against the real cloud. What it cannot do
-is reach a device TP-Link itself lists as offline — see the note above. Do not
-spend more time on the client code.
-
-**The account has MFA enabled**, so login returns `-20677 "MFA feature enabled"`
-with an `MFAProcessId` and `supportedMFATypes: [2, 1]`. Redeem the code at
-`/api/v2/account/checkMFACodeAndLogin` with the **same `terminalUUID`** as the
-login that issued the challenge.
-
-There is **no endpoint to dispatch or re-send the code**: `sendMFACode`,
-`resendMFACode`, `getMFACode`, `sendVerificationCode` and `requestMFACode` all
-answer `-20103 "The method does not exist"`. The login call itself sends it, by
-whichever method the TP-Link account is configured for. TP-Link's default is a
-**Tapo app notification to a trusted phone, not email**, so do not promise email
-in the UI, and do not treat a missing email as a failure.
 
 ## The Snoo talks to AWS IoT, not to the app's REST API
 

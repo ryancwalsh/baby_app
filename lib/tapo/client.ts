@@ -1,4 +1,5 @@
 import { getEnvironment } from '@/lib/environment';
+import { readTapoSwitchPower, setTapoSwitchPower } from '@/lib/tapo/cloud-nbu';
 
 const CLOUD_LOGIN_URL = 'https://use1-wap.tplinkcloud.com/';
 /**
@@ -140,8 +141,23 @@ async function sendToDevice<Result>(device: Device, request: unknown): Promise<R
   return JSON.parse(body.result.responseData) as Result;
 }
 
+/**
+ * The two device families share this account and this file, but not a protocol.
+ * A device's configured app server is what says which: the S-series switches
+ * are reachable only through the NBU cloud, the HS-series plugs only through
+ * the Kasa one. See CLAUDE.md.
+ */
+function isTapoCloudDevice(device: Device): boolean {
+  return new URL(device.appServerUrl).host.endsWith('tplinknbu.com');
+}
+
 export async function readLampPower(deviceId: string): Promise<boolean> {
   const device = getConfiguredDevice(deviceId);
+
+  if (isTapoCloudDevice(device)) {
+    return readTapoSwitchPower(new URL(device.appServerUrl).host, device.deviceId);
+  }
+
   const information = await sendToDevice<{
     system: { get_sysinfo: { relay_state: number } };
   }>(device, { system: { get_sysinfo: {} } });
@@ -151,6 +167,11 @@ export async function readLampPower(deviceId: string): Promise<boolean> {
 
 export async function setLampPower(deviceId: string, isOn: boolean): Promise<boolean> {
   const device = getConfiguredDevice(deviceId);
+
+  if (isTapoCloudDevice(device)) {
+    return setTapoSwitchPower(new URL(device.appServerUrl).host, device.deviceId, isOn);
+  }
+
   await sendToDevice(device, {
     system: {
       set_relay_state: { state: isOn ? RelayState.ON : RelayState.OFF },
