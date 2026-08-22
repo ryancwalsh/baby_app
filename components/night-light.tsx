@@ -94,7 +94,7 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
 
       <div>
         <div className="flex items-baseline justify-between">
-          <label className="font-semibold" htmlFor="brightness">
+          <label className="font-semibold opacity-60" htmlFor="brightness">
             Brightness
           </label>
           {/*
