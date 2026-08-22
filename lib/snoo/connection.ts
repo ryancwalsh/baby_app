@@ -4,11 +4,17 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { connectAsync, type MqttClient } from 'mqtt';
 
 import { getFirstSnoo, getIdToken, type SnooDevice } from '@/lib/snoo/auth';
-import { type SnooState, STOPPED_LEVEL } from '@/lib/snoo/state';
+import { type SnooReport, type SnooState, STOPPED_LEVEL } from '@/lib/snoo/state';
 
 const STATE_DIRECTORY = 'secrets';
 const STATE_FILE_PATH = `${STATE_DIRECTORY}/snoo-state.json`;
 const RECONNECT_DELAY_MILLISECONDS = 5_000;
+/**
+ * Longer after an attempt that failed outright, rather than the same five
+ * seconds: a dropped socket usually comes straight back, while a cloud or a
+ * credential that just refused us is not going to relent within the minute.
+ */
+const RETRY_DELAY_MILLISECONDS = 60_000;
 const CONNECT_TIMEOUT_MILLISECONDS = 10_000;
 /**
  * How long a press waits for the bassinet to say what it did. Long enough for
@@ -39,18 +45,22 @@ type ActivityState = {
   };
 };
 
-/**
- * Told when the bassinet has said something, so a command can wait for the
- * answer to its own press rather than reporting what it hoped for.
- */
-type Waiter = () => void;
-
 type SharedConnection = {
   client: MqttClient | null;
   connecting: null | Promise<MqttClient>;
   device: null | SnooDevice;
-  state: SnooState;
-  waiters: Set<Waiter>;
+  /**
+   * In memory rather than on disk: a refusal describes the press that provoked
+   * it, and a restart is not that press.
+   */
+  isRefused: boolean;
+  reconnectTimer: NodeJS.Timeout | null;
+  report: SnooReport;
+  /**
+   * Told when the bassinet has said something, so a command can wait for the
+   * answer to its own press rather than reporting what it hoped for.
+   */
+  waiters: Set<() => void>;
 };
 
 /**
@@ -61,11 +71,10 @@ const globalForSnoo = globalThis as typeof globalThis & {
   snooConnection?: SharedConnection;
 };
 
-const UNKNOWN_STATE: SnooState = {
+const UNKNOWN_REPORT: SnooReport = {
   areClipsFastened: true,
   heardAt: null,
   isOn: false,
-  isRefused: false,
   level: STOPPED_LEVEL,
 };
 
@@ -73,18 +82,23 @@ const UNKNOWN_STATE: SnooState = {
  * Merged over the defaults rather than trusted whole, so a file written by an
  * older build is missing fields rather than broken by them.
  */
-function readSavedState(): SnooState {
-  let state = UNKNOWN_STATE;
+function readSavedReport(): SnooReport {
+  let report = UNKNOWN_REPORT;
   if (existsSync(STATE_FILE_PATH)) {
-    state = { ...UNKNOWN_STATE, ...(JSON.parse(readFileSync(STATE_FILE_PATH, 'utf8')) as Partial<SnooState>) };
+    report = { ...UNKNOWN_REPORT, ...(JSON.parse(readFileSync(STATE_FILE_PATH, 'utf8')) as Partial<SnooReport>) };
   }
 
-  return state;
+  return report;
 }
 
-function saveState(state: SnooState) {
+/**
+ * Written field by field, so what an older build saved and this one keeps in
+ * memory — the refusal — is dropped rather than read back tomorrow as though
+ * the bassinet had said it.
+ */
+function saveReport({ areClipsFastened, heardAt, isOn, level }: SnooReport) {
   mkdirSync(STATE_DIRECTORY, { recursive: true });
-  writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), {
+  writeFileSync(STATE_FILE_PATH, JSON.stringify({ areClipsFastened, heardAt, isOn, level }, null, 2), {
     mode: 0o600,
   });
 }
@@ -100,24 +114,22 @@ function getShared(): SharedConnection {
     client: null,
     connecting: null,
     device: null,
-    state: readSavedState(),
+    isRefused: false,
+    reconnectTimer: null,
+    report: readSavedReport(),
     waiters: new Set(),
   };
 
   return globalForSnoo.snooConnection;
 }
 
-function updateState(changes: Partial<SnooState>) {
-  const shared = getShared();
-  shared.state = { ...shared.state, ...changes };
-  saveState(shared.state);
-}
-
 /**
  * The state as last known, with no network involved, so callers stay cheap.
  */
 export function getSnooState(): SnooState {
-  return getShared().state;
+  const { client, isRefused, report } = getShared();
+
+  return { ...report, isReachable: client !== null && client.connected, isRefused };
 }
 
 /**
@@ -149,13 +161,18 @@ function handleAnnouncement(payload: Buffer) {
      * button follows the state machine rather than a separate flag. Seeing it
      * run also settles any refusal: whatever was wrong no longer is.
      */
-    updateState({
-      areClipsFastened: readClips(announcement, shared.state.areClipsFastened),
+    shared.report = {
+      areClipsFastened: readClips(announcement, shared.report.areClipsFastened),
       heardAt: Date.now(),
       isOn,
-      isRefused: isOn ? false : shared.state.isRefused,
       level,
-    });
+    };
+    shared.isRefused = isOn ? false : shared.isRefused;
+    /**
+     * The one place the report is written, and it only ever writes what the
+     * bassinet just said. Nothing this app merely asked for reaches the file.
+     */
+    saveReport(shared.report);
 
     for (const waiter of shared.waiters) {
       waiter();
@@ -164,30 +181,95 @@ function handleAnnouncement(payload: Buffer) {
 }
 
 /**
- * Resolves on the next announcement, or when the wait runs out — never
- * rejects, because a quiet bassinet is not an error, just an unconfirmed one.
+ * Resolves when the bassinet reports what was asked of it, or when the wait
+ * runs out — never rejects, because a quiet bassinet is not an error, just an
+ * unconfirmed one.
+ *
+ * It waits for the state rather than for the next announcement, because the
+ * bassinet often says once more where it still is before it moves, and that
+ * message is not an answer to the press.
  */
-function waitForAnnouncement(): Promise<void> {
+function waitForState(wantedIsOn: boolean): Promise<void> {
   const shared = getShared();
 
   return new Promise((resolve) => {
-    const waiter = () => {
-      shared.waiters.delete(waiter);
+    function stopWaiting() {
+      shared.waiters.delete(hearAnnouncement);
       resolve();
-    };
+    }
 
-    shared.waiters.add(waiter);
-    /**
-     * Left to fire even when an announcement gets there first: by then the
-     * waiter has removed itself and resolving again does nothing, which is
-     * cheaper than the bookkeeping to cancel it.
-     */
-    setTimeout(waiter, CONFIRMATION_MILLISECONDS);
+    function hearAnnouncement() {
+      if (shared.report.isOn === wantedIsOn) {
+        stopWaiting();
+      }
+    }
+
+    if (shared.report.isOn === wantedIsOn) {
+      /**
+       * Already there, so there is nothing to wait for — the press that stops a
+       * bassinet the app already knew was stopped should not sit out the full
+       * wait to say so.
+       */
+      resolve();
+    } else {
+      shared.waiters.add(hearAnnouncement);
+      /**
+       * Left to fire even when the bassinet answers first: by then the waiter
+       * has removed itself and resolving again does nothing, which is cheaper
+       * than the bookkeeping to cancel it.
+       */
+      setTimeout(stopWaiting, CONFIRMATION_MILLISECONDS);
+    }
   });
+}
+
+/**
+ * Dropped connections are reopened here rather than by `mqtt`'s own reconnect,
+ * which is switched off on purpose: it would replay the websocket headers it
+ * was given at connect time, and the id token in them lasts hours rather than
+ * days. Going back through `openConnection` mints a fresh one every attempt,
+ * which is what keeps the bassinet's state live past the first token.
+ */
+function scheduleReconnect(delayMilliseconds: number) {
+  const shared = getShared();
+
+  shared.reconnectTimer ??= setTimeout(() => {
+    shared.reconnectTimer = null;
+
+    /**
+     * An attempt that fails schedules the next one itself. Without that, a
+     * reconnect that lands during a blip would be the last one ever tried, and
+     * the bassinet's state would sit frozen until somebody opened the app.
+     */
+    // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget from a timer, which has nowhere to await.
+    connect().catch(() => {
+      scheduleReconnect(RETRY_DELAY_MILLISECONDS);
+    });
+  }, delayMilliseconds);
+}
+
+function handleClose(client: MqttClient) {
+  const shared = getShared();
+
+  /**
+   * Only the connection currently in use is worth reopening. A client that has
+   * already been replaced is one `openConnection` ended on purpose, and its
+   * late close event must not pull the new connection down with it.
+   */
+  if (shared.client === client) {
+    shared.client = null;
+    scheduleReconnect(RECONNECT_DELAY_MILLISECONDS);
+  }
 }
 
 async function openConnection(): Promise<MqttClient> {
   const shared = getShared();
+
+  if (shared.client !== null) {
+    shared.client.end(true);
+    shared.client = null;
+  }
+
   const idToken = await getIdToken();
   const device = await getFirstSnoo(idToken);
 
@@ -196,11 +278,10 @@ async function openConnection(): Promise<MqttClient> {
     clientId: `baby-app-${randomUUID()}`,
     connectTimeout: CONNECT_TIMEOUT_MILLISECONDS,
     /**
-     * Reconnecting unprompted is what keeps a session started from the
-     * Happiest Baby app visible here, so the connection is worth holding even
-     * when nobody is pressing anything.
+     * See `handleClose`: reconnecting is worth doing, but not with the stale
+     * credentials `mqtt` would reuse.
      */
-    reconnectPeriod: RECONNECT_DELAY_MILLISECONDS,
+    reconnectPeriod: 0,
     username: IOT_USER_NAME,
     /**
      * The id token rides as a websocket header rather than an MQTT password.
@@ -211,6 +292,14 @@ async function openConnection(): Promise<MqttClient> {
   client.on('message', (_topic, payload) => {
     handleAnnouncement(payload);
   });
+
+  client.on('close', () => {
+    handleClose(client);
+  });
+  /**
+   * Errors arrive as a close too, so this only needs to stop them throwing.
+   */
+  client.on('error', () => {});
 
   /**
    * Subscribing is a read. It is what makes the state knowable at all: the
@@ -227,11 +316,15 @@ async function openConnection(): Promise<MqttClient> {
 /**
  * Idempotent, and safe to call concurrently: overlapping callers await the same
  * in-flight connection rather than opening one each.
+ *
+ * A client that exists but is not connected is not a connection. Handing one
+ * back is how a bassinet whose credentials had expired went on looking healthy
+ * for a day: every press was accepted, queued and never sent.
  */
 export function connect(): Promise<MqttClient> {
   const shared = getShared();
 
-  if (shared.client !== null) {
+  if (shared.client !== null && shared.client.connected) {
     return Promise.resolve(shared.client);
   }
 
@@ -254,7 +347,9 @@ export async function readSnoo(): Promise<SnooState> {
     await connect();
   } catch {
     /**
-     * Kept as last known — see the note on the state file above.
+     * Kept as last known — see the note on the state file above. The button
+     * shows it as unreachable rather than as a state to be trusted, because
+     * `isReachable` is read from the connection rather than from the file.
      */
   }
 
@@ -290,7 +385,7 @@ async function sendCommand(command: string, extras: Record<string, string> = {})
  * showing a cheerful "on" over a bassinet that never moved.
  */
 export async function setSnooPower(isOn: boolean): Promise<SnooState> {
-  const heardBefore = getSnooState().heardAt;
+  const shared = getShared();
 
   if (isOn) {
     await sendCommand('start_snoo');
@@ -299,20 +394,21 @@ export async function setSnooPower(isOn: boolean): Promise<SnooState> {
   }
 
   /**
-   * Optimistic in the meantime. A publish means the command left this process,
-   * not that the bassinet acted on it. `heardAt` is deliberately left alone, so
-   * a state we assumed is never mistaken for one we were told.
+   * The press clears the last refusal, and claims nothing else. `isOn` stays
+   * whatever the bassinet last announced, so a start that never happens can no
+   * longer leave an optimistic "on" behind — least of all a persisted one.
    */
-  updateState({ isOn, isRefused: false });
-  await waitForAnnouncement();
+  shared.isRefused = false;
+  await waitForState(isOn);
 
-  const state = getSnooState();
   /**
-   * Only a bassinet that actually answered can refuse. If nothing was heard,
-   * the optimistic value stands: a silent cloud is not the motor declining.
+   * `sendCommand` only publishes over a connected client, so silence here is
+   * not the cloud being slow: it is the bassinet declining to run, which is
+   * what happens when the baby is not clipped in. Whether it answered ONLINE or
+   * said nothing at all, the honest answer is the same — it did not start.
    */
-  if (isOn && state.heardAt !== heardBefore && !state.isOn) {
-    updateState({ isRefused: true });
+  if (isOn && !shared.report.isOn) {
+    shared.isRefused = true;
   }
 
   return getSnooState();

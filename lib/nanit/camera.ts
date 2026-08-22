@@ -142,6 +142,15 @@ export async function connectToCamera(cameraUid: string, accessToken: string, ha
       const timer = setTimeout(() => {
         pendingRequests.delete(id);
         reject(new Error(`${type} timed out`));
+        /**
+         * A camera that ignores a request is not going to answer the next one
+         * on this socket either: it keeps announcing state whatever happens, so
+         * silence here is the connection being spent rather than the camera
+         * being away. Dropping it turns what was a permanent failure — every
+         * press timing out until the process was restarted — into one bad
+         * press, because the close handler reconnects with a fresh token.
+         */
+        socket.terminate();
       }, REQUEST_TIMEOUT_MILLISECONDS);
 
       pendingRequests.set(id, { reject, resolve, timer });

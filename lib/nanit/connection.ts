@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getAccessToken, getFirstCamera } from '@/lib/nanit/auth';
+import { getAccessToken, getFirstCamera, TOKEN_LIFETIME_MILLISECONDS } from '@/lib/nanit/auth';
 import { MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
 import { type CameraConnection, connectToCamera } from '@/lib/nanit/camera';
 
@@ -14,6 +14,17 @@ const RECONNECT_DELAY_MILLISECONDS = 5_000;
  * it happens once for the whole server no matter how many pages are open.
  */
 const BRIGHTNESS_POLL_MILLISECONDS = 30_000;
+/**
+ * How long to hold one socket before replacing it. The camera authorises a
+ * connection once, with the access token it was opened with, and then goes on
+ * announcing state whether or not that token is still good — so a socket held
+ * past its token looks perfectly healthy while quietly answering nothing. That
+ * is what left every press timing out until the process was restarted.
+ *
+ * Just past the point where `getAccessToken` mints a new one, so the reconnect
+ * is guaranteed a fresh token rather than the tail of the old one.
+ */
+const RECYCLE_MILLISECONDS = TOKEN_LIFETIME_MILLISECONDS + 60_000;
 
 export type NightLightState = {
   brightness: number;
@@ -41,6 +52,10 @@ type SharedConnection = {
    */
   listeners: Set<StateListener>;
   reconnectTimer: NodeJS.Timeout | null;
+  /**
+   * Closes this socket before its token expires — see RECYCLE_MILLISECONDS.
+   */
+  recycleTimer: NodeJS.Timeout | null;
   state: NightLightState;
 };
 
@@ -81,6 +96,7 @@ function getShared(): SharedConnection {
     connecting: null,
     listeners: new Set(),
     reconnectTimer: null,
+    recycleTimer: null,
     state: readSavedState() ?? {
       brightness: MINIMUM_BRIGHTNESS,
       isOn: false,
@@ -131,6 +147,11 @@ async function openConnection(): Promise<CameraConnection> {
         shared.brightnessTimer = null;
       }
 
+      if (shared.recycleTimer !== null) {
+        clearTimeout(shared.recycleTimer);
+        shared.recycleTimer = null;
+      }
+
       /**
        * Reconnect unprompted: an idle socket is what keeps app-driven changes
        * visible, so it is worth holding even when nobody is pressing anything.
@@ -154,6 +175,14 @@ async function openConnection(): Promise<CameraConnection> {
     // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget from a timer; a failed read just waits for the next tick.
     camera.sendRequest('GET_SETTINGS', { getSettings: { all: true } }).catch(() => {});
   }, BRIGHTNESS_POLL_MILLISECONDS);
+
+  /**
+   * Closing is all this has to do: `onClose` clears the timers and reconnects,
+   * which is where the fresh token comes from.
+   */
+  shared.recycleTimer ??= setTimeout(() => {
+    camera.close();
+  }, RECYCLE_MILLISECONDS);
 
   return camera;
 }

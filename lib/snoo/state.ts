@@ -18,7 +18,13 @@ const FAULT_LEVELS = new Set(['SUSPENDED', 'UNRECOVERABLE_ERROR', 'UNRECOVERABLE
 
 export type SnooStatus = 'error' | 'off' | 'on';
 
-export type SnooState = {
+/**
+ * What the bassinet itself has said, and the only part of the state worth
+ * keeping on disk. Everything here was announced by the hardware: nothing in
+ * this shape is ever set because the app hoped for it, which is what stops a
+ * start that never happened from surviving a restart as a cheerful "on".
+ */
+export type SnooReport = {
   /**
    * Both safety clips fastened, as the bassinet last reported them. This is
    * why a start was refused rather than whether it was: the refusal itself is
@@ -33,13 +39,6 @@ export type SnooState = {
   heardAt: null | number;
   isOn: boolean;
   /**
-   * Set when a start was sent and the bassinet answered that it is still
-   * stopped — the motor declining to run, which is what happens when the baby
-   * is not clipped in. Cleared the moment it is seen running, or when the
-   * button is used to stop it, so it never outlives the press it describes.
-   */
-  isRefused: boolean;
-  /**
    * The state machine's own label: ONLINE while stopped, then BASELINE through
    * LEVEL4 while soothing. Kept because it is what the device actually speaks,
    * and because it says how hard the Snoo is working, which a boolean cannot.
@@ -48,14 +47,37 @@ export type SnooState = {
 };
 
 /**
- * A refused start and a fault are both "asked, and it is not running", which
- * the button shows as one state rather than two: at night the useful
- * distinction is between working and needing a hand, not between causes.
+ * The report plus the two facts that belong to this process rather than to the
+ * bassinet. Both are deliberately not persisted: a refusal describes one press,
+ * and reachability describes one connection, so neither survives a restart as
+ * something to be believed.
+ */
+export type SnooState = {
+  /**
+   * Whether the shared connection is open right now. A bassinet we cannot hear
+   * from is a reachability problem, never an on/off one — the same distinction
+   * the plugs make.
+   */
+  isReachable: boolean;
+  /**
+   * Set when a start was sent and the bassinet did not go on to run — the motor
+   * declining, which is what happens when the baby is not clipped in. Cleared
+   * the moment it is seen running, or when the button is used to stop it, so it
+   * never outlives the press it describes.
+   */
+  isRefused: boolean;
+} & SnooReport;
+
+/**
+ * A refused start, a fault and a bassinet we cannot reach are all "not running,
+ * and not because anyone asked for that", which the button shows as one state
+ * rather than three: at night the useful distinction is between working and
+ * needing a hand, not between causes.
  */
 export function getSnooStatus(state: SnooState): SnooStatus {
   let status: SnooStatus = 'off';
 
-  if (state.isRefused || FAULT_LEVELS.has(state.level)) {
+  if (!state.isReachable || state.isRefused || FAULT_LEVELS.has(state.level)) {
     status = 'error';
   } else if (state.isOn) {
     status = 'on';
@@ -71,8 +93,12 @@ export function describeSnoo(state: SnooState): string {
   const status = getSnooStatus(state);
   let description = 'Off';
 
-  if (status === 'error' && !state.areClipsFastened) {
+  if (!state.isReachable) {
+    description = 'Could not reach the Snoo.';
+  } else if (status === 'error' && !state.areClipsFastened) {
     description = 'The Snoo will not start. Check the safety clips.';
+  } else if (status === 'error' && state.isRefused) {
+    description = 'The Snoo did not start.';
   } else if (status === 'error') {
     description = `The Snoo will not start (${state.level}).`;
   } else if (status === 'on') {

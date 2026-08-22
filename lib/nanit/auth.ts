@@ -9,9 +9,12 @@ const API_VERSION = '1';
 const TOKENS_DIRECTORY = 'secrets';
 const TOKENS_FILE_PATH = `${TOKENS_DIRECTORY}/nanit-tokens.json`;
 /**
- * Nanit access tokens last an hour; refresh a little before that.
+ * Nanit access tokens last an hour; refresh a little before that. Exported
+ * because the held-open camera socket is authorised once, with the token it was
+ * opened with, so how long that token is good for is also how long that socket
+ * is good for.
  */
-const TOKEN_LIFETIME_MILLISECONDS = 55 * 60 * 1_000;
+export const TOKEN_LIFETIME_MILLISECONDS = 55 * 60 * 1_000;
 
 export type Tokens = {
   accessToken: string;
