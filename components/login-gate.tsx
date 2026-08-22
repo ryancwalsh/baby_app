@@ -39,7 +39,7 @@ export function LoginGate({ onUnlock }: { readonly onUnlock: (hash: string) => v
       </label>
       <input
         autoComplete="current-password"
-        className="border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4 disabled:opacity-60"
+        className="border-foreground/15 bg-foreground/2 rounded-2xl border px-5 py-4 disabled:opacity-60"
         disabled={isPending}
         id="password"
         onChange={(event) => setPassword(event.target.value)}
@@ -47,7 +47,7 @@ export function LoginGate({ onUnlock }: { readonly onUnlock: (hash: string) => v
         value={password}
       />
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
-      <button className="border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4 font-semibold disabled:opacity-40" disabled={isPending || password === ''} type="submit">
+      <button className="border-foreground/15 bg-foreground/2 rounded-2xl border px-5 py-4 font-semibold disabled:opacity-40" disabled={isPending || password === ''} type="submit">
         {isPending ? 'Checking…' : 'Unlock'}
       </button>
     </form>

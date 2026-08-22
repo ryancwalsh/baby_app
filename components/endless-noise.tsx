@@ -5,7 +5,7 @@ import { PauseIcon, PlayIcon, WavesIcon } from 'lucide-react';
 import { MAXIMUM_PERCENT, MINIMUM_PERCENT, useNoiseAudio } from '@/components/noise-audio-provider';
 import { NOISE_TYPES } from '@/lib/noise-worklet';
 
-const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4';
+const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 rounded-2xl border px-5 py-4';
 
 /**
  * The sound itself is owned by `NoiseAudioProvider`, above the router, so that

@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react';
 
 import { startTapoCloudLoginAction, submitTapoMfaCodeAction } from '@/app/actions/tapo-login';
 
-const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4';
+const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 rounded-2xl border px-5 py-4';
 
 /**
  * Signing in to the Tapo cloud, which the S-series switches need and the older

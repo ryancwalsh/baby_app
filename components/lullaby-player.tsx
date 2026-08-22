@@ -5,7 +5,7 @@ import { MusicIcon, PauseIcon, PlayIcon, Repeat1Icon, RepeatIcon } from 'lucide-
 import { type Lullaby } from '@/app/actions/lullaby';
 import { type LoopMode, useLullabyAudio } from '@/components/lullaby-audio-provider';
 
-const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 rounded-2xl border px-5 py-4';
+const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 rounded-2xl border px-5 py-4';
 
 const LOOP_MODES: Record<LoopMode, { icon: typeof RepeatIcon; label: string }> = {
   all: { icon: RepeatIcon, label: 'Loop all' },

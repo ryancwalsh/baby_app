@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react';
 import { type ConnectedLamp, toggleLampAction, type UnreachableLamp } from '@/app/actions/lamp';
 import { getDeviceIcon } from '@/components/device-icons';
 
-const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left';
+const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left';
 
 /**
  * Optimistic on purpose: the plug takes a moment to answer over the cloud, and
