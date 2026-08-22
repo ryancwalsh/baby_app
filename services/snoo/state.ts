@@ -1,6 +1,6 @@
 /**
  * Shared with client components, so nothing here may pull in `mqtt` or Node —
- * the same split as lib/nanit/brightness.ts.
+ * the same split as services/nanit/brightness.ts.
  */
 
 /**

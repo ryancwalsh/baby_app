@@ -1,13 +1,13 @@
 'use server';
 
-import { requireLogin } from '@/lib/login';
-import { readSnoo, setSnooPower } from '@/lib/snoo/connection';
-import { type SnooState } from '@/lib/snoo/state';
+import { requireLogin } from '@/auth/login';
+import { readSnoo, setSnooPower } from '@/services/snoo/connection';
+import { type SnooState } from '@/services/snoo/state';
 
 /**
  * The Snoo bassinet. These share one long-lived AWS IoT connection, so a press
  * is one publish on an open socket rather than a fresh sign-in and handshake —
- * see lib/snoo/connection.ts.
+ * see services/snoo/connection.ts.
  */
 
 export async function getSnooAction(secretHash: string): Promise<SnooState> {

@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { connectAsync, type MqttClient } from 'mqtt';
 
-import { getFirstSnoo, getIdToken, type SnooDevice } from '@/lib/snoo/auth';
-import { type SnooReport, type SnooState, STOPPED_LEVEL } from '@/lib/snoo/state';
+import { getFirstSnoo, getIdToken, type SnooDevice } from '@/services/snoo/auth';
+import { type SnooReport, type SnooState, STOPPED_LEVEL } from '@/services/snoo/state';
 
 const STATE_DIRECTORY = 'secrets';
 const STATE_FILE_PATH = `${STATE_DIRECTORY}/snoo-state.json`;

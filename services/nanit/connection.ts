@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getAccessToken, getFirstCamera, TOKEN_LIFETIME_MILLISECONDS } from '@/lib/nanit/auth';
-import { MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
-import { type CameraConnection, connectToCamera } from '@/lib/nanit/camera';
+import { getAccessToken, getFirstCamera, TOKEN_LIFETIME_MILLISECONDS } from '@/services/nanit/auth';
+import { MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
+import { type CameraConnection, connectToCamera } from '@/services/nanit/camera';
 
 const STATE_DIRECTORY = 'secrets';
 const STATE_FILE_PATH = `${STATE_DIRECTORY}/nanit-night-light.json`;

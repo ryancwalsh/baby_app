@@ -1,7 +1,7 @@
 'use server';
 
-import { requireLogin } from '@/lib/login';
-import { getConfiguredDevices, readLampPower, setLampPower, toggleLampPower } from '@/lib/tapo/client';
+import { requireLogin } from '@/auth/login';
+import { getConfiguredDevices, readLampPower, setLampPower, toggleLampPower } from '@/services/tapo/client';
 
 /**
  * The smart plugs the lamps are on. Unlike the night light, their state can be

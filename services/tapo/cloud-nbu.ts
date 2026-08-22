@@ -1,5 +1,5 @@
-import { getTapoCloudSession, refreshTapoCloudToken } from '@/lib/tapo/cloud-v2';
-import { pinnedRequest } from '@/lib/tapo/cloud-v2-transport';
+import { getTapoCloudSession, refreshTapoCloudToken } from '@/services/tapo/cloud-v2';
+import { pinnedRequest } from '@/services/tapo/cloud-v2-transport';
 
 /**
  * TP-Link's NBU cloud (`*.iot.i.tplinknbu.com`), which is the only cloud that

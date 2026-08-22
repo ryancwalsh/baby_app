@@ -1,5 +1,5 @@
-import { getEnvironment } from '@/lib/environment';
-import { readTapoSwitchPower, setTapoSwitchPower } from '@/lib/tapo/cloud-nbu';
+import { getEnvironment } from '@/constants/environment';
+import { readTapoSwitchPower, setTapoSwitchPower } from '@/services/tapo/cloud-nbu';
 
 const CLOUD_LOGIN_URL = 'https://use1-wap.tplinkcloud.com/';
 /**

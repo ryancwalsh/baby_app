@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { connectAsync } from 'mqtt';
 
-import { getFirstSnoo, getIdToken } from '../lib/snoo/auth.js';
+import { getFirstSnoo, getIdToken } from '../services/snoo/auth.js';
 
 /**
  * Read-only: signs in, lists the account's Snoo, then subscribes and prints

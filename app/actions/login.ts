@@ -1,6 +1,6 @@
 'use server';
 
-import { attemptLogin, type LoginAttempt } from '@/lib/login';
+import { attemptLogin, type LoginAttempt } from '@/auth/login';
 
 /**
  * Takes the hash the browser computed, never the password itself. Returning a

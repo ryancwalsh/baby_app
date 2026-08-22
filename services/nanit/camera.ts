@@ -2,9 +2,9 @@ import protobuf from 'protobufjs';
 // eslint-disable-next-line import/no-named-as-default -- `ws` exports the same class as both default and named.
 import WebSocket from 'ws';
 
-import { HttpStatusCode } from '@/lib/http-status-code';
-import { NANIT_API_HOST } from '@/lib/nanit/auth';
-import { NANIT_PROTO } from '@/lib/nanit/protocol';
+import { HttpStatusCode } from '@/constants/http-status-code';
+import { NANIT_API_HOST } from '@/services/nanit/auth';
+import { NANIT_PROTO } from '@/services/nanit/protocol';
 
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
 /**

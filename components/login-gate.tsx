@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 
 import { logInAction } from '@/app/actions/login';
-import { hashPassword } from '@/lib/hash-password';
+import { hashPassword } from '@/auth/hash-password';
 
 /**
  * The password is hashed here and only the hash is sent, but the check that

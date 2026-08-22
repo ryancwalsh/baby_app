@@ -1,7 +1,7 @@
 import { LightsSection } from '@/components/lights-section';
 import { SnooToggle } from '@/components/snoo-toggle';
 import { VersionFooter } from '@/components/version-footer';
-import { getEnvironment } from '@/lib/environment';
+import { getEnvironment } from '@/constants/environment';
 
 export default function LightsPage() {
   const { APP_TITLE } = getEnvironment();

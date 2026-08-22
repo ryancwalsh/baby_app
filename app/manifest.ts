@@ -1,6 +1,6 @@
 import { type MetadataRoute } from 'next';
 
-import { getEnvironment } from '@/lib/environment';
+import { getEnvironment } from '@/constants/environment';
 
 export default function manifest(): MetadataRoute.Manifest {
   const { APP_SHORT_NAME, APP_TITLE } = getEnvironment();

@@ -2,7 +2,7 @@
 
 import { readdirSync } from 'node:fs';
 
-import { requireLogin } from '@/lib/login';
+import { requireLogin } from '@/auth/login';
 
 const LULLABIES_DIRECTORY = 'public/lullabies';
 const PUBLIC_PATH = '/lullabies';

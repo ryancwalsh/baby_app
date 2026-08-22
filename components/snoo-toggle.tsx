@@ -7,7 +7,7 @@ import { getSnooAction, setSnooPowerAction } from '@/app/actions/snoo';
 import { SECRET_HASH_KEY } from '@/components/login-guard';
 import { SwaddleIcon } from '@/components/swaddle-icon';
 import { useLocalStorage } from '@/hooks/use-local-storage';
-import { describeSnoo, getSnooStatus, type SnooState, type SnooStatus } from '@/lib/snoo/state';
+import { describeSnoo, getSnooStatus, type SnooState, type SnooStatus } from '@/services/snoo/state';
 
 /**
  * Amber for running, matching the night light and the plugs. Red only for the

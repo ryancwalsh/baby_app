@@ -1,7 +1,7 @@
 'use server';
 
-import { requireLogin } from '@/lib/login';
-import { hasTapoCloudSession, startTapoCloudLogin, submitTapoMfaCode } from '@/lib/tapo/cloud-v2';
+import { requireLogin } from '@/auth/login';
+import { hasTapoCloudSession, startTapoCloudLogin, submitTapoMfaCode } from '@/services/tapo/cloud-v2';
 
 /**
  * Signing in to the Tapo cloud from the browser rather than a terminal script.

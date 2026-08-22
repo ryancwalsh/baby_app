@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getEnvironment } from '@/lib/environment';
-import { APP_TYPE, APP_VERSION, type CloudResult, post, queryString, type Tokens } from '@/lib/tapo/cloud-v2-transport';
+import { getEnvironment } from '@/constants/environment';
+import { APP_TYPE, APP_VERSION, type CloudResult, post, queryString, type Tokens } from '@/services/tapo/cloud-v2-transport';
 
 /**
  * TP-Link's V2 cloud, which is where Tapo (S-series) devices actually live. The

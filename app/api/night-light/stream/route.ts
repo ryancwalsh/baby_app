@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server';
 
-import { attemptLogin } from '@/lib/login';
-import { connect, getNightLightState, type NightLightState, subscribeToNightLight } from '@/lib/nanit/connection';
+import { attemptLogin } from '@/auth/login';
+import { connect, getNightLightState, type NightLightState, subscribeToNightLight } from '@/services/nanit/connection';
 
 /**
  * Holding a stream open needs the Node runtime, not the edge one.

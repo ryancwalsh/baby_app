@@ -4,8 +4,8 @@ import { LightbulbIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
 import { type CSSProperties, useEffect, useState, useTransition } from 'react';
 
 import { setNightLightBrightnessAction, setNightLightPowerAction } from '@/app/actions/night-light';
-import { BRIGHTNESS_PRESETS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
-import { type NightLightState } from '@/lib/nanit/night-light';
+import { BRIGHTNESS_PRESETS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
+import { type NightLightState } from '@/services/nanit/night-light';
 
 /**
  * Optimistic, like the plug toggles: the shared camera connection is already

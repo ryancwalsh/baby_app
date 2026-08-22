@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getEnvironment } from '@/lib/environment';
-import { HttpStatusCode } from '@/lib/http-status-code';
+import { getEnvironment } from '@/constants/environment';
+import { HttpStatusCode } from '@/constants/http-status-code';
 
 export const NANIT_API_HOST = 'api.nanit.com';
 const API_BASE_URL = `https://${NANIT_API_HOST}`;

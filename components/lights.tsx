@@ -8,7 +8,7 @@ import { getTapoCloudStatusAction } from '@/app/actions/tapo-login';
 import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
 import { NightLight } from '@/components/night-light';
 import { TapoCloudLogin } from '@/components/tapo-cloud-login';
-import { type NightLightState } from '@/lib/nanit/night-light';
+import { type NightLightState } from '@/services/nanit/night-light';
 
 type LightsState = {
   isTapoSignedIn: boolean;

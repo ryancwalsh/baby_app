@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
-import { NOISE_WORKLET_SOURCE, type NoiseType } from '@/lib/noise-worklet';
+import { NOISE_WORKLET_SOURCE, type NoiseType } from '@/audio/noise-worklet';
 
 export const MINIMUM_PERCENT = 0;
 export const MAXIMUM_PERCENT = 100;

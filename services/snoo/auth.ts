@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getEnvironment } from '@/lib/environment';
+import { getEnvironment } from '@/constants/environment';
 
 const COGNITO_URL = 'https://cognito-idp.us-east-1.amazonaws.com/';
 /**

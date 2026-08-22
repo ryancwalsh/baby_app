@@ -1,5 +1,5 @@
-import { MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/lib/nanit/brightness';
-import { type NightLightState, sendToCamera, syncFromCamera } from '@/lib/nanit/connection';
+import { MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
+import { type NightLightState, sendToCamera, syncFromCamera } from '@/services/nanit/connection';
 
 /**
  * A nightLightTimeout of zero means the light stays on until switched off.
@@ -43,4 +43,4 @@ export function setNightLightPower(isOn: boolean): Promise<NightLightState> {
   );
 }
 
-export { type NightLightState } from '@/lib/nanit/connection';
+export { type NightLightState } from '@/services/nanit/connection';

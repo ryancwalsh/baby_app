@@ -34,7 +34,7 @@ Both read paths and both write paths have been run against the real hardware.
 ## The lamp (TP-Link)
 
 An older Kasa-protocol plug reached through the TP-Link cloud, so it works from
-anywhere. `lib/tapo/client.ts` speaks to the cloud directly with `fetch`: log in
+anywhere. `services/tapo/client.ts` speaks to the cloud directly with `fetch`: log in
 at `use1-wap.tplinkcloud.com` for a token, then `POST {method: "passthrough"}`
 to the device's `appServerUrl` wrapping a `system.get_sysinfo` or
 `system.set_relay_state` command.
@@ -50,7 +50,7 @@ devices on every request.
 
 ## The night light (Nanit)
 
-`lib/nanit/` talks to Nanit's unofficial, reverse-engineered cloud API: log in
+`services/nanit/` talks to Nanit's unofficial, reverse-engineered cloud API: log in
 over REST at `api.nanit.com`, list `/babies` for the `camera_uid`, then open a
 protobuf-over-websocket connection to
 `wss://api.nanit.com/focus/cameras/<camera_uid>/user_connect`. No local network
@@ -123,7 +123,7 @@ Things the published community projects do not document:
   missing `required` field by throwing away the whole frame — which crashes the
   client on an unrelated push.
 
-The schema lives in `lib/nanit/protocol.ts` as a string rather than a `.proto`
+The schema lives in `services/nanit/protocol.ts` as a string rather than a `.proto`
 file: protobufjs resolves file paths against the working directory, which a
 bundled Next.js server build cannot be relied upon to preserve.
 

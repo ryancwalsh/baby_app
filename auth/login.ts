@@ -2,8 +2,8 @@ import { timingSafeEqual } from 'node:crypto';
 
 import { headers } from 'next/headers';
 
-import { getEnvironment } from '@/lib/environment';
-import { clearFailures, getLockoutSeconds, recordFailure } from '@/lib/login-rate-limit';
+import { clearFailures, getLockoutSeconds, recordFailure } from '@/auth/login-rate-limit';
+import { getEnvironment } from '@/constants/environment';
 
 /**
  * The browser hashes the password and sends only the hash, so the hash is the

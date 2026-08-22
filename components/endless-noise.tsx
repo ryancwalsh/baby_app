@@ -2,8 +2,8 @@
 
 import { PauseIcon, PlayIcon, WavesIcon } from 'lucide-react';
 
+import { NOISE_TYPES } from '@/audio/noise-worklet';
 import { MAXIMUM_PERCENT, MINIMUM_PERCENT, useNoiseAudio } from '@/components/noise-audio-provider';
-import { NOISE_TYPES } from '@/lib/noise-worklet';
 
 const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 rounded-2xl border px-5 py-4';
 

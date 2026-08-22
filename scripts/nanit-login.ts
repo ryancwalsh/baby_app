@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline/promises';
 
-import { logInInteractively } from '../lib/nanit/auth.js';
+import { logInInteractively } from '../services/nanit/auth.js';
 
 /**
  * Nanit answers a fresh login with a multi-factor challenge, which a web

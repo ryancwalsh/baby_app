@@ -27,13 +27,13 @@ amber accents for state are fine.
 
 `TAPO_DEVICES` mixes device families and they are **not** interchangeable. Which
 cloud a device is on is decided by the `appServerUrl` in its `TAPO_DEVICES`
-entry, and `lib/tapo/client.ts` routes on it: a `tplinknbu.com` host means the
+entry, and `services/tapo/client.ts` routes on it: a `tplinknbu.com` host means the
 NBU cloud, anything else means the Kasa one.
 
 - `IOT.SMARTPLUGSWITCH` (HS-series, "Kasa"): plaintext `alias`, driven by
   `system.get_sysinfo` / `system.set_relay_state` through the cloud's
   `passthrough` method at `use1-wap.tplinkcloud.com`. This is what
-  `lib/tapo/client.ts` implements directly.
+  `services/tapo/client.ts` implements directly.
 - `SMART.TAPOSWITCH` (S-series, "Tapo"): **base64-encoded `alias`**, and
   reachable only through the **NBU** cloud — see below. Decode S-series aliases
   before putting them in `TAPO_DEVICES`.
@@ -53,7 +53,7 @@ that neither tracks nor relays Tapo devices. Do not spend time there.
 The NBU API is `https://use1-app-server.iot.i.tplinknbu.com`, and its root is
 **`/v1/`, not `/api/v2/`** — probing `/api/v2/...` there 404s, which is what
 made earlier attempts look like dead ends. It is implemented in
-`lib/tapo/cloud-nbu.ts`:
+`services/tapo/cloud-nbu.ts`:
 
 - No HMAC signing. Two headers carry the session:
   `Authorization: ut|{token}` and `app-cid: app:Tapo:{terminalUuid}`, alongside
@@ -84,7 +84,7 @@ than present version"`, which names `curVersion` so it can be retried.
 The NBU session token comes from the V2 cloud at `n-wap.i.tplinkcloud.com`, and
 **`POST /api/v2/account/refreshToken` mints a fresh one with no second factor**,
 from the `refreshToken` in `secrets/tapo-v2-tokens.json`. That is the normal
-path and it needs nobody present; `lib/tapo/cloud-nbu.ts` refreshes on a `401`
+path and it needs nobody present; `services/tapo/cloud-nbu.ts` refreshes on a `401`
 and retries once. Expired access tokens surface as `-20651 "Token expired"`.
 
 Interactive login is therefore only needed if the refresh token itself is ever
@@ -110,7 +110,7 @@ hand-made `tapo-v2-tokens.json` is treated as no session.
 ## The Snoo talks to AWS IoT, not to the app's REST API
 
 Unlike the other two devices, this protocol was not guessed: `python-snoo`
-backs Home Assistant's official `snoo` integration, and `lib/snoo/` follows it.
+backs Home Assistant's official `snoo` integration, and `services/snoo/` follows it.
 Three hops, in order:
 
 1. **Cognito** at `cognito-idp.us-east-1.amazonaws.com`, `USER_PASSWORD_AUTH`,
@@ -143,7 +143,7 @@ see below, and do not reintroduce a connection per press.
   is never answered (see README.md). It is knowable anyway, by holding the
   camera socket open: the camera announces every change, including ones made
   from the phone app, and an acknowledged write tells us what we just set.
-  `lib/nanit/connection.ts` keeps that connection and caches the result to
+  `services/nanit/connection.ts` keeps that connection and caches the result to
   `secrets/nanit-night-light.json`. Treat the cache as _last known_ rather than
   verified — a change made while the process was down is invisible until the
   next announcement.
@@ -167,7 +167,7 @@ serverless, and the difference is structural rather than cosmetic:
   A read-only or ephemeral filesystem breaks Nanit auth, the Tapo V2 session and
   the night light cache. `secrets/` is gitignored, so it would not even be
   present in a git-based deploy.
-- `lib/nanit/connection.ts` holds a websocket open, sends keepalives and listens
+- `services/nanit/connection.ts` holds a websocket open, sends keepalives and listens
   for announcements. Nothing about that survives a per-request runtime, and
   losing it costs both the quick presses and the knowable on/off state.
 - Login rate limiting and the pending Tapo MFA `terminalUUID` live in process
@@ -180,6 +180,11 @@ worker for the socket). Do not port it piecemeal.
 The app is on the public internet through the tunnel, so `LOGIN_SECRET` is the
 only thing in front of the nursery. Serve a production build rather than
 `next dev`, which is slower and ships dev tooling.
+
+That gate is the app's own login and it lives in `auth/`: `login.ts`, with the
+rate limiting and password hashing that exist only to serve it. It is a
+different concern from `services/nanit/auth.ts` and `services/snoo/auth.ts`,
+which are each device cloud's own sign-in and belong with their client.
 
 ### pm2 owns that process — never start one by hand
 
@@ -218,16 +223,20 @@ curl -s http://localhost:2026/version.json
 
 ## Working here
 
+- Each top-level folder is named for what it holds: `services/{nanit,snoo,tapo}/`
+  are the clients for the three external services, `constants/` the app-wide
+  values, `auth/` the app's own login, `audio/` the browser audio behind the
+  noise page.
 - `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
   and safe to run. Yarn, not npm; `--exact` when adding.
 - There is no dev server to attach to: the app runs as the pm2-managed
   production build on port 2026 described above. Starting `next dev` alongside
   it corrupts the `.next` the live app is serving from.
-- `lib/environment.ts` validates lazily via envalid. That once meant `next
+- `constants/environment.ts` validates lazily via envalid. That once meant `next
 build` ran without secrets present, but no longer: `APP_TITLE` is read by
   `app/layout.tsx` and `app/manifest.ts`, both of which prerender, so a build
   now touches `getEnvironment()` and needs a full `.env` beside it. Envalid
   validates the whole object at once, so a missing `NANIT_PASSWORD` fails the
   build just as a missing `APP_TITLE` would.
-- Client components must not import `lib/nanit/night-light.ts` (drags in `ws`
-  and protobuf). Shared constants live in `lib/nanit/brightness.ts`.
+- Client components must not import `services/nanit/night-light.ts` (drags in `ws`
+  and protobuf). Shared constants live in `services/nanit/brightness.ts`.

@@ -6,7 +6,7 @@ import { InstallBanner } from '@/components/install-banner';
 import { LullabyAudioProvider } from '@/components/lullaby-audio-provider';
 import { NoiseAudioProvider } from '@/components/noise-audio-provider';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
-import { getEnvironment } from '@/lib/environment';
+import { getEnvironment } from '@/constants/environment';
 
 // eslint-disable-next-line import/no-unassigned-import -- A stylesheet has nothing to bind.
 import './globals.css';
