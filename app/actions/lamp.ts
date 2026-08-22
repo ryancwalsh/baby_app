@@ -12,6 +12,11 @@ export type ConnectedLamp = {
   alias: string;
   deviceId: string;
   /**
+   * The icon named in `TAPO_DEVICES`, or undefined for a device that named
+   * none. Sent to the browser because the row draws it.
+   */
+  iconName: string | undefined;
+  /**
    * Never unknown: a plug that answers always reports its relay state. Only
    * reaching the plug can fail, which is the case below.
    */
@@ -37,11 +42,12 @@ export async function getLampsAction(secretHash: string): Promise<Lamp[]> {
   const devices = getConfiguredDevices();
 
   return Promise.all(
-    devices.map(async ({ alias, deviceId }): Promise<Lamp> => {
+    devices.map(async ({ alias, deviceId, iconName }): Promise<Lamp> => {
       try {
         return {
           alias,
           deviceId,
+          iconName,
           isOn: await readLampPower(deviceId),
           isReachable: true,
         };

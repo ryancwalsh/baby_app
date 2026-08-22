@@ -32,9 +32,9 @@ function validate() {
     SNOO_EMAIL_ADDRESS: str({ default: '' }),
     SNOO_PASSWORD: str({ default: '' }),
     /**
-     * [[appServerUrl, alias, deviceId], ...] — see .env.example.
+     * [[appServerUrl, alias, deviceId, iconName?], ...] — see .env.example.
      */
-    TAPO_DEVICES: json<Array<[string, string, string]>>(),
+    TAPO_DEVICES: json<Array<[string, string, string, string?]>>(),
     TAPO_EMAIL_ADDRESS: str(),
     TAPO_PASSWORD: str(),
   });

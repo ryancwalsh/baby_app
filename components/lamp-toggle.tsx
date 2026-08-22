@@ -1,9 +1,10 @@
 'use client';
 
-import { LampIcon, PlugZapIcon } from 'lucide-react';
+import { PlugZapIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
 
 import { type ConnectedLamp, toggleLampAction, type UnreachableLamp } from '@/app/actions/lamp';
+import { getDeviceIcon } from '@/components/device-icons';
 
 const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/5 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left';
 
@@ -16,6 +17,7 @@ export function LampToggle({ lamp, secretHash }: { readonly lamp: ConnectedLamp;
   const [isOn, setIsOn] = useState(lamp.isOn);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
+  const Icon = getDeviceIcon(lamp.iconName);
 
   function handleClick() {
     const previous = isOn;
@@ -34,13 +36,14 @@ export function LampToggle({ lamp, secretHash }: { readonly lamp: ConnectedLamp;
 
   return (
     <button aria-checked={isOn} className={`${CARD_CLASS_NAME} disabled:opacity-60`} disabled={isPending} onClick={handleClick} role="switch" type="button">
-      <LampIcon className={isOn ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
+      <Icon className={isOn ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
       <span className="flex-1">
         <span className="block opacity-60">{lamp.alias}</span>
         <span className="block text-sm opacity-60">{error ?? ''}</span>
       </span>
       <span className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${isOn ? 'bg-amber-500' : 'bg-foreground/25'}`}>
-        <span className={`size-5 rounded-full bg-white transition-transform ${isOn ? 'translate-x-5' : 'translate-x-0'}`} />
+        {/* The knob is only full white when the lamp is on: an off switch has nothing to announce, and a white dot is the brightest thing on an unlit page. */}
+        <span className={`size-5 rounded-full transition-transform ${isOn ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white/40'}`} />
       </span>
     </button>
   );

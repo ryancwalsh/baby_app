@@ -89,6 +89,11 @@ type Device = {
   alias: string;
   appServerUrl: string;
   deviceId: string;
+  /**
+   * Names the icon the row draws for this device, or is undefined when `.env`
+   * left the field off and the default lamp icon should stand in.
+   */
+  iconName: string | undefined;
 };
 
 /**
@@ -103,10 +108,11 @@ export function getConfiguredDevices(): Device[] {
     throw new Error('TAPO_DEVICES is empty; add the lamps to .env.');
   }
 
-  return devices.map(([appServerUrl, alias, deviceId]) => ({
+  return devices.map(([appServerUrl, alias, deviceId, iconName]) => ({
     alias,
     appServerUrl,
     deviceId,
+    iconName,
   }));
 }
 

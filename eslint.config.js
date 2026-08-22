@@ -5,7 +5,13 @@ import { lintingEslintConfig } from '@ryancwalsh/linting';
 
 export default [
   {
-    ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'],
+    /**
+     * `.next-dev` is the dev server's build directory and `.claude/worktrees`
+     * holds checkouts of this repo made by other tooling, each with its own
+     * `node_modules`. Both are generated, both are gitignored, and between them
+     * they are the entire output of `yarn lint` when they are not listed here.
+     */
+    ignores: ['.claude/**', '.next/**', '.next-dev/**', 'node_modules/**', 'next-env.d.ts'],
   },
   ...lintingEslintConfig,
   /**
