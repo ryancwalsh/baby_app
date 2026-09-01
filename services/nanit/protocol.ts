@@ -64,6 +64,30 @@ enum RequestType {
   GET_LOGS_URI = 47;
 }
 
+/**
+ * Which of the camera's streams a request is about. Only MOBILE is used here:
+ * it is the one the phone app starts, and the only one the cloud relays.
+ */
+enum StreamIdentifier {
+  DVR = 0;
+  ANALYTICS = 1;
+  MOBILE = 2;
+}
+
+message Streaming {
+  enum Status {
+    STARTED = 0;
+    STOPPED = 1;
+    PAUSED = 2;
+  }
+
+  optional StreamIdentifier id = 1;
+  optional Status status = 2;
+  /** Where the camera should push to. Empty when stopping. */
+  optional string rtmpUrl = 3;
+  optional int32 attempts = 4;
+}
+
 message Settings {
   /** Night light brightness, 0-100. */
   optional int32 nightLightBrightness = 24;
@@ -92,6 +116,7 @@ message GetSettings {
 message Request {
   optional int32 id = 1;
   optional RequestType type = 2;
+  optional Streaming streaming = 4;
   optional Settings settings = 5;
   /**
    * Field number found by probing: GET_SETTINGS answers "Bad Request: missed

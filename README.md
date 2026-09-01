@@ -137,6 +137,72 @@ camera serves a self-signed certificate). `/babies` reports the address as
 gives `403`. Unlike the cloud, this connection announces full state on connect,
 which would make on/off readable. It requires being on the camera's network.
 
+## Listening to the room (Nanit audio)
+
+The Nanit app offers three monitoring modes — off, on while the app is open, and
+on in the background. Only the two ends are wired up here: the button is a plain
+on/off, and "on" always means the background kind.
+
+The camera has no audio-only stream, so this asks for the same **MOBILE** stream
+the phone app uses and throws the video away at home. It is one write
+(`PUT_STREAMING`) and then a pull:
+
+- `PUT_STREAMING { streaming: { id: MOBILE, status: STARTED, rtmpUrl } }`, where
+  `rtmpUrl` is `rtmps://media-secured.nanit.com/nanit/<baby_uid>.<access_token>`.
+- The **baby's `uid`, not `camera_uid`**. The two are different values on the
+  same `/babies` entry, the websocket wants the camera one, and the stream URL
+  wants the baby one. Building the URL from `camera_uid` fails to open at all.
+- ffmpeg then pulls that same URL. The camera already sends **AAC LC 44100 Hz
+  mono**, which is what both phones want, so the audio is `-c:a copy`ed into HLS
+  rather than re-encoded — the home box only demuxes.
+
+`Streaming` is field **4** of `Request`; `id`, `status`, `rtmpUrl` and `attempts`
+are fields 1-4 of `Streaming`, and `StreamIdentifier` is `DVR`/`ANALYTICS`/`MOBILE`
+= 0/1/2. Those numbers come from the community protos credited below, not from
+probing.
+
+### HLS, because it is the only thing both phones play
+
+iOS Safari plays HLS in an `<audio>` element natively, and that native path is
+also what gives lock screen playback; Android Chrome has no native HLS at all,
+so `hls.js` feeds the element through Media Source Extensions. hls.js is
+imported dynamically, so only the platforms that need it fetch it.
+
+Sound outlives a tab change, a locked screen and a backgrounded app because
+`NanitAudioProvider` sits above the router, exactly like the lullaby and noise
+providers.
+
+### The relay is demand-driven
+
+`services/nanit/audio.ts` holds one ffmpeg for the whole server, and there is no
+"start" call: playing `/api/nanit/audio/audio.m3u8` starts it, and the segment
+requests a playing phone keeps making are what keep it alive. Stop fetching and
+it shuts itself down, which is also what covers a phone that goes flat.
+
+Two details that are easy to get wrong:
+
+- An `<audio>` element cannot send headers, so the login hash rides in the query
+  string, as it does for the night light stream. A player resolves the segment
+  names in a playlist against the playlist's URL and **drops its query string**,
+  so the route stamps the hash onto every segment line on the way out.
+- The access token is inside the RTMP URL, so the stream dies with the token
+  after an hour. ffmpeg exiting while the relay is still wanted is treated as
+  normal and restarted with a fresh one, which is what makes all-night
+  monitoring work.
+
+### Stopping is not confirmed to stop the camera
+
+`PUT_STREAMING` with `status: STOPPED` is answered `200` — and the camera goes on
+publishing anyway. Both an empty `rtmpUrl` and the real one were tried, and the
+cloud kept serving live audio and video minutes later. This is the same blind
+ack described above for `PUT_CONTROL`: the `200` means the frame was accepted,
+not that anything happened.
+
+The command is still sent when monitoring is switched off, because it is what
+the protocol offers and it costs one frame. What actually stops **this** app
+listening is local: ffmpeg is killed and the segments are deleted. Treat "the
+camera has stopped streaming" as unverified.
+
 Protocol details reverse-engineered by:
 
 - https://github.com/ulm0/homebridge-nanit-next

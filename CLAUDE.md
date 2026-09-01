@@ -16,6 +16,9 @@ Treat every device call as something that can wake a child.
   passthrough is fine; `set_relay_state` is not, unless asked.
 - A page load must never _write_ to the camera. It renders cached state and
   opens the shared connection, which only ever reads — keep it that way.
+- The audio button is the one camera _write_ a person can trigger here
+  (`PUT_STREAMING`). It only ever fires from an explicit press, never from a
+  page load, and it does not touch the light. Keep both halves true.
 
 ## Design in the dark
 
@@ -240,3 +243,7 @@ build` ran without secrets present, but no longer: `APP_TITLE` is read by
   build just as a missing `APP_TITLE` would.
 - Client components must not import `services/nanit/night-light.ts` (drags in `ws`
   and protobuf). Shared constants live in `services/nanit/brightness.ts`.
+- Live room audio needs **ffmpeg on the machine**, which is a system dependency
+  rather than a yarn one. `services/nanit/audio.ts` holds one ffmpeg for the
+  whole server and is demand-driven: playing the playlist starts it and segment
+  requests keep it alive — see README.md.

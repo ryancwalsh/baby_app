@@ -4,6 +4,7 @@ import { LightbulbIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
 import { type CSSProperties, useEffect, useState, useTransition } from 'react';
 
 import { setNightLightBrightnessAction, setNightLightPowerAction } from '@/app/actions/night-light';
+import { useNanitAudio } from '@/components/nanit-audio-provider';
 import { BRIGHTNESS_PRESETS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
 import { type NightLightState } from '@/services/nanit/night-light';
 
@@ -16,7 +17,11 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
   const [state, setState] = useState(initialState);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
-  const [isSoundOn, setIsSoundOn] = useState(false);
+  /**
+   * The sound half lives in the provider above the router, not here: this
+   * section unmounts on navigation and the listening would go with it.
+   */
+  const { error: audioError, isMonitoring, isStarting, setIsMonitoring } = useNanitAudio();
 
   /**
    * Live updates, so a change made in the Nanit app shows up here without a
@@ -78,19 +83,25 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
           <LightbulbIcon className="size-6" />
         </button>
 
+        {/*
+          Two of the Nanit app's three modes: off, and on even in the
+          background. There is no "only while the app is open" here.
+        */}
         <button
-          aria-checked={isSoundOn}
-          aria-label="Nanit sound"
-          className={`shrink-0 rounded-lg border p-2 transition-colors ${isSoundOn ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`}
-          onClick={() => setIsSoundOn(!isSoundOn)}
+          aria-checked={isMonitoring}
+          aria-label="Listen to the room"
+          className={`shrink-0 rounded-lg border p-2 transition-colors disabled:opacity-60 ${isMonitoring ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`}
+          disabled={isStarting}
+          onClick={() => setIsMonitoring(!isMonitoring)}
           role="switch"
           type="button"
         >
-          {isSoundOn ? <Volume2Icon className="size-6" /> : <VolumeIcon className="size-6" />}
+          {isMonitoring ? <Volume2Icon className="size-6" /> : <VolumeIcon className="size-6" />}
         </button>
       </div>
 
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {audioError !== null && <p className="text-sm text-amber-500">{audioError}</p>}
 
       <div>
         <div className="flex items-baseline justify-between">

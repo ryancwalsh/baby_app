@@ -4,6 +4,7 @@ import { Nunito_Sans } from 'next/font/google';
 import { BottomNav } from '@/components/bottom-nav';
 import { InstallBanner } from '@/components/install-banner';
 import { LullabyAudioProvider } from '@/components/lullaby-audio-provider';
+import { NanitAudioProvider } from '@/components/nanit-audio-provider';
 import { NoiseAudioProvider } from '@/components/noise-audio-provider';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { getEnvironment } from '@/constants/environment';
@@ -52,16 +53,20 @@ export default function RootLayout({
     <html className={nunitoSans.variable} lang="en">
       <body className="bg-background text-foreground font-sans antialiased">
         {/*
-          Both audio providers sit above the router so that sound outlives a tab
-          change, and above the nav so it can show what is playing.
+          All three audio providers sit above the router so that sound outlives
+          a tab change, and above the nav so it can show what is playing. The
+          Nanit one is why "on all the time" keeps listening once the app is in
+          the background.
         */}
         <LullabyAudioProvider>
           <NoiseAudioProvider>
-            <div className="mx-auto flex min-h-screen max-w-md flex-col">
-              <InstallBanner />
-              <main className="flex-1 pb-24">{children}</main>
-            </div>
-            <BottomNav />
+            <NanitAudioProvider>
+              <div className="mx-auto flex min-h-screen max-w-md flex-col">
+                <InstallBanner />
+                <main className="flex-1 pb-24">{children}</main>
+              </div>
+              <BottomNav />
+            </NanitAudioProvider>
           </NoiseAudioProvider>
         </LullabyAudioProvider>
         <ServiceWorkerRegister />

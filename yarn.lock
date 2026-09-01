@@ -2644,6 +2644,7 @@ __metadata:
     envalid: "npm:8.2.0"
     eslint: "npm:9.39.1"
     eslint-config-prettier: "npm:10.1.8"
+    hls.js: "npm:1.7.1"
     lucide-react: "npm:1.16.0"
     mqtt: "npm:5.15.2"
     next: "npm:16.2.12"
@@ -4887,6 +4888,13 @@ __metadata:
   version: 5.0.0
   resolution: "help-me@npm:5.0.0"
   checksum: 10c0/054c0e2e9ae2231c85ab5e04f75109b9d068ffcc54e58fb22079822a5ace8ff3d02c66fd45379c902ad5ab825e5d2e1451fcc2f7eab1eb49e7d488133ba4cacb
+  languageName: node
+  linkType: hard
+
+"hls.js@npm:1.7.1":
+  version: 1.7.1
+  resolution: "hls.js@npm:1.7.1"
+  checksum: 10c0/316762dd811aaacf9e551a8a635f6b24b07333e9b45cf854f0c1031f3340d91de76b6205de9f92e7b753ce0bcb0dd69489671131071de2419e5bdecbf0d182b6
   languageName: node
   linkType: hard
 

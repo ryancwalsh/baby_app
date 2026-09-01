@@ -125,7 +125,7 @@ export async function getAccessToken(): Promise<string> {
   return tokens.accessToken;
 }
 
-export async function getFirstCamera(accessToken: string): Promise<{ babyName: string; cameraUid: string }> {
+export async function getFirstCamera(accessToken: string): Promise<{ babyName: string; babyUid: string; cameraUid: string }> {
   const response = await fetch(`${API_BASE_URL}/babies`, {
     /**
      * The REST API wants the bare token here, not a "Bearer" prefix.
@@ -135,14 +135,18 @@ export async function getFirstCamera(accessToken: string): Promise<{ babyName: s
 
   if (response.ok) {
     const body = (await response.json()) as {
-      babies: Array<{ camera_uid: string; name: string }>;
+      babies: Array<{ camera_uid: string; name: string; uid: string }>;
     };
     const [firstBaby] = body.babies;
     if (firstBaby === undefined) {
       throw new Error('The Nanit account has no babies, and so no camera.');
     }
 
-    return { babyName: firstBaby.name, cameraUid: firstBaby.camera_uid };
+    /**
+     * The two uids are not interchangeable: the websocket is addressed by
+     * `camera_uid`, while the stream URL is built from the baby's own `uid`.
+     */
+    return { babyName: firstBaby.name, babyUid: firstBaby.uid, cameraUid: firstBaby.camera_uid };
   }
 
   throw new Error(`Failed to list babies (${response.status})`);

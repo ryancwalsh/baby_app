@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "envalid": "8.2.0",
+    "hls.js": "1.7.1",
     "lucide-react": "1.16.0",
     "mqtt": "5.15.2",
     "next": "16.2.12",
