@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
   const { APP_SHORT_NAME, APP_TITLE } = getEnvironment();
 
   return {
-    background_color: '#fdfcfa',
+    background_color: '#000000',
     description: 'Nursery controls',
     display: 'standalone',
     icons: [
