@@ -14,7 +14,7 @@ import { type NightLightState } from '@/services/nanit/night-light';
  * camera gets the same bounded number of frames however bright it starts.
  */
 const FADE_TARGET_BRIGHTNESS = 1;
-const FADE_DURATION_MILLISECONDS = 30_000;
+const FADE_DURATION_MILLISECONDS = 120_000;
 const FADE_STEP_COUNT = 15;
 
 /**
@@ -225,7 +225,7 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
           type="button"
         >
           <SunsetIcon className="size-5 opacity-60" />
-          {isFading ? 'Stop fading' : `Fade to ${FADE_TARGET_BRIGHTNESS}% over 30s`}
+          {isFading ? 'Stop fading' : `Fade to ${FADE_TARGET_BRIGHTNESS}% over 2 minutes`}
         </button>
       </div>
     </section>
