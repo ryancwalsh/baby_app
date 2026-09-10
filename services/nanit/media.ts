@@ -103,21 +103,39 @@ function isAnythingWanted(relay: MediaRelay): boolean {
 }
 
 /**
- * Asks the camera to push its MOBILE stream to Nanit's cloud relay, which is
- * where ffmpeg then reads it from. The URL is built from the baby's uid and
- * carries the access token, so it has to be rebuilt for every restart.
+ * Where the camera pushes its MOBILE stream, and where ffmpeg reads it from.
+ * The URL carries the access token, so it has to be rebuilt for every restart.
  */
-async function startCameraStream(): Promise<string> {
+async function buildRtmpUrl(): Promise<string> {
   const accessToken = await getAccessToken();
   const { babyUid } = await getFirstCamera(accessToken);
-  const rtmpUrl = `rtmps://media-secured.nanit.com/nanit/${babyUid}.${accessToken}`;
 
-  const camera = await connect();
-  await camera.sendRequest('PUT_STREAMING', {
-    streaming: { attempts: 3, id: 'MOBILE', rtmpUrl, status: 'STARTED' },
-  });
+  return `rtmps://media-secured.nanit.com/nanit/${babyUid}.${accessToken}`;
+}
 
-  return rtmpUrl;
+/**
+ * Asks the camera to start pushing — and shrugs if it will not.
+ *
+ * A refusal is usually `403 Number of Mobile App connections above limit`,
+ * and it does not mean there is nothing to watch. `PUT_STREAMING STOPPED` is
+ * acked but not honoured, so the camera goes on publishing long after it has
+ * been told to stop, and it then counts that phantom viewer against the next
+ * request. Measured on 2026-09-10: with the start refused, the very same RTMP
+ * URL was still serving 1080p H.264 and AAC.
+ *
+ * So the start is an ask rather than a precondition. If it fails, ffmpeg tries
+ * the pull anyway; a camera that really is not publishing shows up as ffmpeg
+ * exiting with nothing, which the playlist wait already reports.
+ */
+async function askCameraToStream(rtmpUrl: string): Promise<void> {
+  try {
+    const camera = await connect();
+    await camera.sendRequest('PUT_STREAMING', {
+      streaming: { attempts: 3, id: 'MOBILE', rtmpUrl, status: 'STARTED' },
+    });
+  } catch (error) {
+    console.error('The camera refused to start streaming; reading the stream anyway.', error);
+  }
 }
 
 async function stopCameraStream(): Promise<void> {
@@ -181,7 +199,8 @@ function scheduleRestart() {
 
 async function runRelay(): Promise<void> {
   const relay = getRelay();
-  const rtmpUrl = await startCameraStream();
+  const rtmpUrl = await buildRtmpUrl();
+  await askCameraToStream(rtmpUrl);
 
   /**
    * Asking the camera to start takes a few seconds, which is long enough for
