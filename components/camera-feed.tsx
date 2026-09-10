@@ -109,7 +109,22 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
 
           if (video !== null) {
             hlsRef.current = await attachHlsStream(video, url);
-            await video.play();
+
+            try {
+              await video.play();
+            } catch {
+              /**
+               * Not fatal, and deliberately not reported as a camera problem.
+               * The stream is attached and buffering by this point; what
+               * fails here is the browser's own playback policy — Chrome
+               * pauses muted, video-only media whenever the page is in the
+               * background, and answers with an `AbortError`. Tearing the
+               * feed down over that would replace a picture that is about to
+               * appear with "could not reach the camera", which is simply
+               * untrue. Coming back to the page, or tapping the picture,
+               * starts it.
+               */
+            }
           }
 
           if (isCurrent) {
