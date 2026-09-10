@@ -270,3 +270,32 @@ build` ran without secrets present, but no longer: `APP_TITLE` is read by
   script that opens its own socket alongside the running app — locks streaming
   out for several minutes. Scripts should reuse the app rather than connect
   beside it, and must close their socket in a `finally`.
+- **That 403 is not a reason to give up.** Because `PUT_STREAMING STOPPED` is
+  acked but never honoured, the camera goes on publishing long after it is
+  told to stop, and then counts that phantom viewer against the next request.
+  Measured 2026-09-10: with the start refused, the same RTMP URL was still
+  serving 1080p H.264 and AAC. So `askCameraToStream` asks and shrugs, and
+  ffmpeg pulls regardless — a camera that genuinely is not publishing shows up
+  as ffmpeg exiting with nothing.
+
+### Playing HLS in a browser: two traps
+
+Both cost a whole debugging session, and both look like "the camera is broken".
+
+- **Never trust `canPlayType('application/vnd.apple.mpegurl')`.** Chrome
+  answers `"maybe"` and then plays nothing at all — no error, no frames, a
+  black rectangle. hls.js is tried first wherever Media Source Extensions
+  exist, and native playback is the fallback, not the preference; that still
+  leaves iOS on its own player, which is where native belongs. One helper,
+  `components/hls-playback.ts`, so there are not two copies of the mistake.
+- **`attachMedia` is asynchronous, and a rejected `play()` is not fatal.**
+  Calling `play()` on the line after `attachMedia` races the Media Source and
+  is rejected outright, so the attach waits for `MANIFEST_PARSED`. Separately,
+  Chrome pauses muted video-only media whenever the page is in the background
+  and rejects with `AbortError`; that is a playback policy, not a camera
+  failure, and reporting it as one throws away a stream that is attached and
+  buffering.
+- A `ResizeObserver` does not report until the browser next lays out, and a
+  page that is not being painted may never do so. Measure once on mount as
+  well, or a box reads as zero — which is what made a rotated picture render
+  unshrunk and clipped.
