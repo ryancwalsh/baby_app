@@ -1,5 +1,4 @@
 import { MonitorSection } from '@/components/monitor-section';
-import { VersionFooter } from '@/components/version-footer';
 import { getEnvironment } from '@/constants/environment';
 
 export default function MonitorPage() {
@@ -12,7 +11,6 @@ export default function MonitorPage() {
       </div>
 
       <MonitorSection />
-      <VersionFooter />
     </div>
   );
 }

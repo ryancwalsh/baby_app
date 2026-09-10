@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
+import { MONITOR_HREF, recordNavigationTap } from '@/components/navigation-tap';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
@@ -14,7 +15,7 @@ const NOISE_HREF = '/noise';
 
 const NAV_ITEMS = [
   { href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
-  { href: '/monitor', icon: VideoIcon, label: 'Monitor' },
+  { href: MONITOR_HREF, icon: VideoIcon, label: 'Monitor' },
   { href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
   { href: NOISE_HREF, icon: WavesIcon, label: 'Noise' },
 ] as const;
@@ -84,6 +85,14 @@ export function BottomNav() {
               className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs ${isCurrent ? 'font-semibold text-amber-500' : 'text-foreground/50'}`}
               href={item.href}
               key={item.href}
+              /**
+               * Recorded here rather than inferred on arrival, because this is
+               * the only place that knows a person did it: the restore below
+               * navigates too, and must not start the camera.
+               */
+              onClick={() => {
+                recordNavigationTap(item.href);
+              }}
             >
               <span className="relative">
                 <Icon className="size-5" />
