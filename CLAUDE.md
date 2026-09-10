@@ -243,7 +243,14 @@ build` ran without secrets present, but no longer: `APP_TITLE` is read by
   build just as a missing `APP_TITLE` would.
 - Client components must not import `services/nanit/night-light.ts` (drags in `ws`
   and protobuf). Shared constants live in `services/nanit/brightness.ts`.
-- Live room audio needs **ffmpeg on the machine**, which is a system dependency
-  rather than a yarn one. `services/nanit/audio.ts` holds one ffmpeg for the
-  whole server and is demand-driven: playing the playlist starts it and segment
-  requests keep it alive — see README.md.
+- Live room audio and video need **ffmpeg on the machine**, which is a system
+  dependency rather than a yarn one. `services/nanit/media.ts` holds one ffmpeg
+  for the whole server and is demand-driven: playing a playlist starts it and
+  segment requests keep it alive — see README.md. One MOBILE stream carries
+  both, so it writes an audio-only and a video-only playlist off a single pull.
+- The camera refuses new app websockets past a limit, with
+  `403 Forbidden: Number of Mobile App connections above limit`. It counts
+  sockets it has not yet timed out, so a run of quick `pm2 restart`s — or a
+  script that opens its own socket alongside the running app — locks streaming
+  out for several minutes. Scripts should reuse the app rather than connect
+  beside it, and must close their socket in a `finally`.

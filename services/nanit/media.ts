@@ -7,30 +7,45 @@ import { getAccessToken, getFirstCamera } from '@/services/nanit/auth';
 import { connect } from '@/services/nanit/connection';
 
 /**
- * Live audio from the nursery, as HLS.
+ * Live sound and pictures from the nursery, as HLS.
  *
- * The camera does not offer an audio-only stream, so this asks for the same
- * MOBILE stream the phone app uses and throws the video away locally. The
- * camera already sends AAC, which is what both phones want, so ffmpeg copies
- * the audio rather than re-encoding it — the home box only demuxes.
+ * The camera offers neither an audio-only nor a video-only stream: there is one
+ * MOBILE stream carrying both, which is what the phone app asks for. So there
+ * is one RTMP pull and one ffmpeg, and it writes two playlists — sound for the
+ * listen button, pictures for the monitor page. Splitting them is what stops
+ * the room being heard twice, a few seconds apart, when both are on.
+ *
+ * Both are copied rather than re-encoded. The camera already sends AAC and
+ * H.264, which is what both phones want, so the home box only demuxes.
  *
  * Segments live in a temp directory rather than under `secrets/`: they are a
  * few seconds of rolling cache, and ffmpeg deletes them as they age out.
  */
 
-const OUTPUT_DIRECTORY = join(tmpdir(), 'baby-app-nanit-audio');
-export const PLAYLIST_FILE_NAME = 'audio.m3u8';
+export type MediaKind = 'audio' | 'video';
+
+const OUTPUT_DIRECTORY = join(tmpdir(), 'baby-app-nanit-media');
+
+export const PLAYLIST_FILE_NAMES: Record<MediaKind, string> = {
+  audio: 'audio.m3u8',
+  video: 'video.m3u8',
+};
+
 /**
  * Short segments keep the delay down; four of them is enough of a window that
  * a phone which stalls briefly can still catch up without a gap.
+ *
+ * Two seconds is honoured rather than rounded up, because the camera emits a
+ * keyframe every second — measured, not assumed — and `-c:v copy` can only cut
+ * a segment on one.
  */
 const SEGMENT_SECONDS = 2;
 const PLAYLIST_SEGMENT_COUNT = 4;
 /**
- * How long the relay runs without anyone asking for a segment before it shuts
- * itself down. A phone that is playing — including one whose screen is off —
+ * How long a kind runs without anyone asking for a segment before it is
+ * dropped. A phone that is playing — including one whose screen is off —
  * fetches a segment every couple of seconds, so silence here means nobody is
- * listening, and there is no reason to keep the camera streaming.
+ * watching or listening. The camera is only told to stop once both are quiet.
  */
 const IDLE_TIMEOUT_MILLISECONDS = 30_000;
 /**
@@ -45,18 +60,18 @@ const RESTART_DELAY_MILLISECONDS = 2_000;
  */
 const READ_TIMEOUT_MICROSECONDS = 20_000_000;
 
-type AudioRelay = {
+type MediaRelay = {
   ffmpeg: ChildProcess | null;
   idleTimer: NodeJS.Timeout | null;
   /**
-   * What the relay is meant to be doing, as opposed to what ffmpeg is doing
+   * What each kind is meant to be doing, as opposed to what ffmpeg is doing
    * right now. A restart between processes is still "on".
    */
-  isWanted: boolean;
+  isWanted: Record<MediaKind, boolean>;
   /**
-   * When the last segment or playlist request came in.
+   * When the last segment or playlist request came in, per kind.
    */
-  lastRequestedAt: number;
+  lastRequestedAt: Record<MediaKind, number>;
   restartTimer: NodeJS.Timeout | null;
   starting: null | Promise<void>;
 };
@@ -66,21 +81,25 @@ type AudioRelay = {
  * dev` re-evaluates modules on every edit, and a module-level singleton would
  * leak an ffmpeg process per hot reload.
  */
-const globalForNanitAudio = globalThis as typeof globalThis & {
-  nanitAudioRelay?: AudioRelay;
+const globalForNanitMedia = globalThis as typeof globalThis & {
+  nanitMediaRelay?: MediaRelay;
 };
 
-function getRelay(): AudioRelay {
-  globalForNanitAudio.nanitAudioRelay ??= {
+function getRelay(): MediaRelay {
+  globalForNanitMedia.nanitMediaRelay ??= {
     ffmpeg: null,
     idleTimer: null,
-    isWanted: false,
-    lastRequestedAt: 0,
+    isWanted: { audio: false, video: false },
+    lastRequestedAt: { audio: 0, video: 0 },
     restartTimer: null,
     starting: null,
   };
 
-  return globalForNanitAudio.nanitAudioRelay;
+  return globalForNanitMedia.nanitMediaRelay;
+}
+
+function isAnythingWanted(relay: MediaRelay): boolean {
+  return relay.isWanted.audio || relay.isWanted.video;
 }
 
 /**
@@ -108,41 +127,41 @@ async function stopCameraStream(): Promise<void> {
   });
 }
 
+/**
+ * The output half of the ffmpeg command for one kind. Both playlists are
+ * written whenever the relay runs, whichever kind asked for it: they come off
+ * the same stream, so the second one is a demux rather than a second pull, and
+ * a phone that turns the picture on while the sound is already playing finds a
+ * playlist waiting instead of waiting for the camera all over again.
+ */
+function buildOutputArguments(kind: MediaKind): string[] {
+  const streamArguments = kind === 'audio' ? ['-map', '0:a', '-c:a', 'copy', '-vn'] : ['-map', '0:v', '-c:v', 'copy', '-an'];
+
+  return [
+    ...streamArguments,
+    '-f',
+    'hls',
+    '-hls_time',
+    String(SEGMENT_SECONDS),
+    '-hls_list_size',
+    String(PLAYLIST_SEGMENT_COUNT),
+    /**
+     * `delete_segments` keeps the directory from growing all night;
+     * `omit_endlist` marks the playlist live rather than finished, which is
+     * what stops a phone treating it as a short recording and stopping.
+     */
+    '-hls_flags',
+    'delete_segments+omit_endlist+independent_segments',
+    '-hls_segment_filename',
+    join(OUTPUT_DIRECTORY, `${kind}%d.ts`),
+    join(OUTPUT_DIRECTORY, PLAYLIST_FILE_NAMES[kind]),
+  ];
+}
+
 function spawnFfmpeg(rtmpUrl: string): ChildProcess {
   return spawn(
     'ffmpeg',
-    [
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-rw_timeout',
-      String(READ_TIMEOUT_MICROSECONDS),
-      '-i',
-      rtmpUrl,
-      /**
-       * Video is discarded rather than never fetched: RTMP carries both in one
-       * stream, so there is no way to ask the camera for audio alone.
-       */
-      '-vn',
-      '-c:a',
-      'copy',
-      '-f',
-      'hls',
-      '-hls_time',
-      String(SEGMENT_SECONDS),
-      '-hls_list_size',
-      String(PLAYLIST_SEGMENT_COUNT),
-      /**
-       * `delete_segments` keeps the directory from growing all night;
-       * `omit_endlist` marks the playlist live rather than finished, which is
-       * what stops a phone treating it as a short recording and stopping.
-       */
-      '-hls_flags',
-      'delete_segments+omit_endlist+independent_segments',
-      '-hls_segment_filename',
-      join(OUTPUT_DIRECTORY, 'segment%d.ts'),
-      join(OUTPUT_DIRECTORY, PLAYLIST_FILE_NAME),
-    ],
+    ['-hide_banner', '-loglevel', 'error', '-rw_timeout', String(READ_TIMEOUT_MICROSECONDS), '-i', rtmpUrl, ...buildOutputArguments('audio'), ...buildOutputArguments('video')],
     { stdio: ['ignore', 'ignore', 'pipe'] },
   );
 }
@@ -153,7 +172,7 @@ function scheduleRestart() {
   relay.restartTimer ??= setTimeout(() => {
     relay.restartTimer = null;
 
-    if (relay.isWanted) {
+    if (isAnythingWanted(relay)) {
       // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget from a timer; a failed restart is picked up by the next exit.
       runRelay().catch(() => {});
     }
@@ -167,11 +186,11 @@ async function runRelay(): Promise<void> {
   /**
    * Asking the camera to start takes a few seconds, which is long enough for
    * someone to switch the button back off in the meantime. Spawning now would
-   * leave an ffmpeg nothing owns — `stopAudio` has already been and gone, so
+   * leave an ffmpeg nothing owns — `stopMedia` has already been and gone, so
    * nothing would ever kill it — quietly relaying the nursery for the life of
    * the process.
    */
-  if (relay.isWanted) {
+  if (isAnythingWanted(relay)) {
     mkdirSync(OUTPUT_DIRECTORY, { recursive: true });
 
     const ffmpeg = spawnFfmpeg(rtmpUrl);
@@ -192,7 +211,7 @@ async function runRelay(): Promise<void> {
          * exceptional — the token in the URL only lasts the hour — so pick it
          * straight back up with a fresh one.
          */
-        if (relay.isWanted) {
+        if (isAnythingWanted(relay)) {
           scheduleRestart();
         }
       }
@@ -200,7 +219,7 @@ async function runRelay(): Promise<void> {
   }
 }
 
-function clearTimers(relay: AudioRelay) {
+function clearTimers(relay: MediaRelay) {
   if (relay.idleTimer !== null) {
     clearInterval(relay.idleTimer);
     relay.idleTimer = null;
@@ -213,14 +232,14 @@ function clearTimers(relay: AudioRelay) {
 }
 
 /**
- * Stops the relay and tells the camera to stop streaming. Safe to call when
- * nothing is running.
+ * Tears the relay down and tells the camera to stop streaming. Safe to call
+ * when nothing is running.
  */
-export async function stopAudio(): Promise<void> {
+async function shutDown(): Promise<void> {
   const relay = getRelay();
-  const wasWanted = relay.isWanted;
+  const wasRunning = isAnythingWanted(relay) || relay.ffmpeg !== null;
 
-  relay.isWanted = false;
+  relay.isWanted = { audio: false, video: false };
   clearTimers(relay);
 
   if (relay.ffmpeg !== null) {
@@ -230,8 +249,22 @@ export async function stopAudio(): Promise<void> {
 
   rmSync(OUTPUT_DIRECTORY, { force: true, recursive: true });
 
-  if (wasWanted) {
+  if (wasRunning) {
     await stopCameraStream();
+  }
+}
+
+/**
+ * Drops one kind. The camera is only told to stop once neither the sound nor
+ * the picture is wanted, so switching the monitor off does not cut the sound
+ * out from under someone listening in another tab.
+ */
+export async function stopMedia(kind: MediaKind): Promise<void> {
+  const relay = getRelay();
+  relay.isWanted[kind] = false;
+
+  if (!isAnythingWanted(relay)) {
+    await shutDown();
   }
 }
 
@@ -245,7 +278,7 @@ async function startRelay(): Promise<void> {
   try {
     await runRelay();
   } catch (error) {
-    await stopAudio();
+    await shutDown();
     throw error;
   } finally {
     relay.starting = null;
@@ -253,7 +286,7 @@ async function startRelay(): Promise<void> {
 }
 
 /**
- * Starts the relay if it is not already running, and marks it wanted for
+ * Starts the relay if it is not already running, and marks one kind wanted for
  * another `IDLE_TIMEOUT_MILLISECONDS`. Every playlist and segment request calls
  * this, so a phone that keeps playing keeps the stream alive and one that stops
  * lets it fall away on its own.
@@ -261,20 +294,30 @@ async function startRelay(): Promise<void> {
  * Idempotent, and safe to call concurrently: overlapping callers await the same
  * in-flight start rather than spawning an ffmpeg each.
  */
-export function keepAudioRunning(): Promise<void> {
+export function keepMediaRunning(kind: MediaKind): Promise<void> {
   const relay = getRelay();
-  relay.lastRequestedAt = Date.now();
+  relay.lastRequestedAt[kind] = Date.now();
 
-  if (relay.isWanted) {
-    return Promise.resolve();
+  if (isAnythingWanted(relay)) {
+    relay.isWanted[kind] = true;
+
+    return relay.starting ?? Promise.resolve();
   }
 
-  relay.isWanted = true;
+  relay.isWanted[kind] = true;
 
   relay.idleTimer ??= setInterval(() => {
-    if (Date.now() - relay.lastRequestedAt > IDLE_TIMEOUT_MILLISECONDS) {
+    const now = Date.now();
+
+    for (const candidate of ['audio', 'video'] as const) {
+      if (now - relay.lastRequestedAt[candidate] > IDLE_TIMEOUT_MILLISECONDS) {
+        relay.isWanted[candidate] = false;
+      }
+    }
+
+    if (!isAnythingWanted(relay)) {
       // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget from a timer; a camera that will not answer still leaves the relay stopped locally.
-      stopAudio().catch(() => {});
+      shutDown().catch(() => {});
     }
   }, IDLE_TIMEOUT_MILLISECONDS);
 
@@ -284,11 +327,27 @@ export function keepAudioRunning(): Promise<void> {
 }
 
 /**
+ * Which kind a requested file belongs to, or null for a name ffmpeg never
+ * writes. Both the playlists and the segments are named after their kind, so
+ * one prefix answers for both — and a name that matches nothing here is what
+ * stops a request reaching back out of the directory.
+ */
+export function getMediaKind(fileName: string): MediaKind | null {
+  for (const kind of ['audio', 'video'] as const) {
+    if (fileName === PLAYLIST_FILE_NAMES[kind] || new RegExp(`^${kind}\\d+\\.ts$`, 'u').test(fileName)) {
+      return kind;
+    }
+  }
+
+  return null;
+}
+
+/**
  * The playlist as it stands, or null until ffmpeg has written one. A phone
  * asking this early is normal: the camera takes a moment to start pushing.
  */
-export function readPlaylist(): null | string {
-  const path = join(OUTPUT_DIRECTORY, PLAYLIST_FILE_NAME);
+export function readPlaylist(kind: MediaKind): null | string {
+  const path = join(OUTPUT_DIRECTORY, PLAYLIST_FILE_NAMES[kind]);
 
   return existsSync(path) ? readFileSync(path, 'utf8') : null;
 }
@@ -298,11 +357,11 @@ export function readPlaylist(): null | string {
  * rather than trusted, so a request cannot reach back out of the directory.
  */
 export function readSegment(fileName: string): Buffer | null {
-  if (/^segment\d+\.ts$/u.test(fileName)) {
-    const path = join(OUTPUT_DIRECTORY, fileName);
-
-    return existsSync(path) ? readFileSync(path) : null;
+  if (getMediaKind(fileName) === null) {
+    return null;
   }
 
-  return null;
+  const path = join(OUTPUT_DIRECTORY, fileName);
+
+  return existsSync(path) ? readFileSync(path) : null;
 }

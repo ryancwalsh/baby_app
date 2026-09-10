@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "nanit:login": "tsx --env-file=.env scripts/nanit-login.ts"
+    "nanit:login": "tsx --env-file=.env scripts/nanit-login.ts",
+    "nanit:video-probe": "tsx --env-file=.env scripts/nanit-video-probe.ts"
   },
   "dependencies": {
     "envalid": "8.2.0",
