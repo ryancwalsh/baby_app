@@ -199,6 +199,14 @@ restarts it after a crash or a reboot, so deploying is two steps:
 yarn build && pm2 restart baby
 ```
 
+**Only ever deploy from `main`.** Check out `main` and merge the work into it
+first; never build and restart while a feature branch is checked out. The
+working tree on this machine _is_ the deployment, so whatever is checked out
+when `yarn build` runs is what the nursery gets — a branch left checked out
+overnight is the app until someone notices. `/version.json` stamps the branch
+alongside the commit, so a deploy that reports anything but `main` was done
+from the wrong place.
+
 Do not deploy with a bare `yarn start`, `nohup` or `setsid`, and do not reach
 for `next dev` to look at something. Any of those puts a **second** copy of the
 app on the machine, and the failure is quiet rather than loud:
