@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server';
 
 import { attemptLogin } from '@/auth/login';
-import { keepAudioRunning, PLAYLIST_FILE_NAME, readPlaylist, readSegment } from '@/services/nanit/audio';
+import { getMediaKind, keepMediaRunning, PLAYLIST_FILE_NAMES, readPlaylist, readSegment } from '@/services/nanit/media';
 
 /**
  * Serving a live stream needs the Node runtime, not the edge one.
@@ -18,9 +18,9 @@ const PLAYLIST_WAIT_MILLISECONDS = 15_000;
 const PLAYLIST_POLL_MILLISECONDS = 250;
 
 /**
- * An `<audio>` element cannot send headers, so the login hash arrives as a
- * query parameter — the same credential the server actions take, checked the
- * same way, exactly as the night light stream does it.
+ * An `<audio>` or `<video>` element cannot send headers, so the login hash
+ * arrives as a query parameter — the same credential the server actions take,
+ * checked the same way, exactly as the night light stream does it.
  *
  * Requesting anything here is also what keeps the relay alive: there is no
  * separate "start" call, so a phone that is playing holds the stream open and
@@ -36,22 +36,34 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { file } = await params;
   const noStore = { 'Cache-Control': 'no-store, no-transform' };
+  const kind = getMediaKind(file);
 
-  if (file === PLAYLIST_FILE_NAME) {
+  if (kind === null) {
+    return new Response('No such file.', { headers: noStore, status: 404 });
+  }
+
+  if (file === PLAYLIST_FILE_NAMES[kind]) {
     try {
-      await keepAudioRunning();
-    } catch {
+      await keepMediaRunning(kind);
+    } catch (error) {
+      /**
+       * Logged rather than swallowed: the phone is only ever told the camera
+       * could not be reached, and the reason — a refused connection, an
+       * expired token — is the only way to tell those apart afterwards.
+       */
+      console.error('Could not start the camera stream.', error);
+
       return new Response('Could not reach the camera.', { headers: noStore, status: 502 });
     }
 
     const deadline = Date.now() + PLAYLIST_WAIT_MILLISECONDS;
-    let playlist = readPlaylist();
+    let playlist = readPlaylist(kind);
 
     while (playlist === null && Date.now() < deadline) {
       await new Promise((resolve) => {
         setTimeout(resolve, PLAYLIST_POLL_MILLISECONDS);
       });
-      playlist = readPlaylist();
+      playlist = readPlaylist(kind);
     }
 
     if (playlist === null) {
@@ -81,9 +93,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   /**
    * Segments are the heartbeat: a phone playing in the background is still
-   * fetching these, which is what tells the relay somebody is listening.
+   * fetching these, which is what tells the relay somebody is watching or
+   * listening.
    */
-  await keepAudioRunning();
+  await keepMediaRunning(kind);
 
   return new Response(new Uint8Array(segment), {
     headers: { ...noStore, 'Content-Type': 'video/mp2t' },

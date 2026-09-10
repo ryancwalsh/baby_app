@@ -10,12 +10,19 @@ import { type NightLightState } from '@/services/nanit/night-light';
 
 /**
  * A walk down to a dim glow rather than an abrupt drop, for a baby who is
- * nearly asleep. Evenly spaced steps rather than one write per percent, so the
- * camera gets the same bounded number of frames however bright it starts.
+ * nearly asleep. The steps are the preset buttons themselves, so a fade only
+ * ever passes through brightnesses that are already offered by hand.
  */
 const FADE_TARGET_BRIGHTNESS = 1;
-const FADE_DURATION_MILLISECONDS = 30_000;
-const FADE_STEP_COUNT = 15;
+const FADE_DURATION_MILLISECONDS = 120_000;
+
+/**
+ * Every preset below where the fade starts, dimmest last. The total time is
+ * fixed, so a brighter start means more steps rather than a longer fade.
+ */
+function getFadeSteps(startBrightness: number) {
+  return BRIGHTNESS_PRESETS.filter((preset) => preset >= FADE_TARGET_BRIGHTNESS && preset < startBrightness).sort((first, second) => second - first);
+}
 
 /**
  * Optimistic, like the plug toggles: the shared camera connection is already
@@ -88,22 +95,20 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
   }
 
   async function fadeToTarget() {
-    const startBrightness = state.brightness;
-    let lastBrightness = startBrightness;
+    const steps = getFadeSteps(state.brightness);
 
     isFadingRef.current = true;
     setIsFading(true);
     setError(null);
 
-    for (let step = 1; step <= FADE_STEP_COUNT && isFadingRef.current; step += 1) {
-      await new Promise((resolve) => {
-        setTimeout(resolve, FADE_DURATION_MILLISECONDS / FADE_STEP_COUNT);
-      });
+    for (const brightness of steps) {
+      if (isFadingRef.current) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, FADE_DURATION_MILLISECONDS / steps.length);
+        });
+      }
 
-      const brightness = Math.round(startBrightness + ((FADE_TARGET_BRIGHTNESS - startBrightness) * step) / FADE_STEP_COUNT);
-
-      if (isFadingRef.current && brightness !== lastBrightness) {
-        lastBrightness = brightness;
+      if (isFadingRef.current) {
         setState((current) => ({ ...current, brightness }));
 
         try {
@@ -225,7 +230,7 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
           type="button"
         >
           <SunsetIcon className="size-5 opacity-60" />
-          {isFading ? 'Stop fading' : `Fade to ${FADE_TARGET_BRIGHTNESS}% over 30s`}
+          {isFading ? 'Stop fading' : `Fade to ${FADE_TARGET_BRIGHTNESS}% over 2 minutes`}
         </button>
       </div>
     </section>

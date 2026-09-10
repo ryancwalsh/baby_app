@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { stopNanitAudioAction } from '@/app/actions/nanit-audio';
+import { stopNanitMediaAction } from '@/app/actions/nanit-media';
 import { SECRET_HASH_KEY } from '@/components/login-guard';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
@@ -17,10 +17,10 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
  *
  * The relay has no separate start call. Playing the playlist is what starts it,
  * and the segment requests a playing phone makes are what keep it alive — see
- * services/nanit/audio.ts.
+ * services/nanit/media.ts.
  */
 
-const PLAYLIST_PATH = '/api/nanit/audio/audio.m3u8';
+const PLAYLIST_PATH = '/api/nanit/media/audio.m3u8';
 /**
  * How long to wait before picking the stream back up after a network error. A
  * monitor that quietly gave up at 3am would be worse than useless.
@@ -166,7 +166,7 @@ export function NanitAudioProvider({ children }: { readonly children: React.Reac
       if (secretHash !== null && secretHash !== undefined) {
         const stop = async () => {
           try {
-            await stopNanitAudioAction(secretHash);
+            await stopNanitMediaAction(secretHash, 'audio');
           } catch {
             /**
              * The sound has already stopped on this phone, which is what the

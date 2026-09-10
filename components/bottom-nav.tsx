@@ -1,6 +1,6 @@
 'use client';
 
-import { MusicIcon, SlidersHorizontalIcon, WavesIcon } from 'lucide-react';
+import { MusicIcon, SlidersHorizontalIcon, VideoIcon, WavesIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
@@ -14,6 +14,7 @@ const NOISE_HREF = '/noise';
 
 const NAV_ITEMS = [
   { href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
+  { href: '/monitor', icon: VideoIcon, label: 'Monitor' },
   { href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
   { href: NOISE_HREF, icon: WavesIcon, label: 'Noise' },
 ] as const;

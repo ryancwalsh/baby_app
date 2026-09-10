@@ -174,10 +174,19 @@ providers.
 
 ### The relay is demand-driven
 
-`services/nanit/audio.ts` holds one ffmpeg for the whole server, and there is no
-"start" call: playing `/api/nanit/audio/audio.m3u8` starts it, and the segment
+`services/nanit/media.ts` holds one ffmpeg for the whole server, and there is no
+"start" call: playing `/api/nanit/media/audio.m3u8` starts it, and the segment
 requests a playing phone keeps making are what keep it alive. Stop fetching and
 it shuts itself down, which is also what covers a phone that goes flat.
+
+The camera has no audio-only and no video-only stream — MOBILE carries both —
+so that one ffmpeg writes **two** playlists off the one pull: `audio.m3u8` for
+the listen button and `video.m3u8` for the monitor page. Each kind is kept
+alive by its own requests, and the camera is only told to stop once neither is
+wanted, so switching the picture off does not cut the sound out from under
+someone listening. They are split rather than muxed because the sound is meant
+to keep playing with the screen off, and one stream carrying both would play
+the room twice, a few seconds apart.
 
 Two details that are easy to get wrong:
 
