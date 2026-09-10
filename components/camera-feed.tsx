@@ -4,6 +4,7 @@ import { VideoIcon, VideoOffIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { stopNanitMediaAction } from '@/app/actions/nanit-media';
+import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
 import { consumeNavigationTap, MONITOR_HREF } from '@/components/navigation-tap';
 import { PinchZoomView } from '@/components/pinch-zoom-view';
 
@@ -28,24 +29,13 @@ import { PinchZoomView } from '@/components/pinch-zoom-view';
 
 const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
 
-/**
- * iOS plays HLS in a `<video>` element itself. Everywhere else — Android
- * Chrome especially — there is no native HLS at all, so hls.js feeds the
- * element through Media Source Extensions instead. It is only fetched where it
- * is needed.
- */
-function canPlayHlsNatively(video: HTMLVideoElement): boolean {
-  return video.canPlayType('application/vnd.apple.mpegurl') !== '';
-}
-
 export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   /**
-   * The hls.js instance, when one is in use. Typed loosely so this module does
-   * not have to import hls.js just to name it, which would defeat loading it
-   * only on the platforms that need it.
+   * The hls.js instance, when one is in use — null when the browser is playing
+   * the stream itself and there is nothing to tear down.
    */
-  const hlsRef = useRef<null | { destroy: () => void }>(null);
+  const hlsRef = useRef<HlsPlayer | null>(null);
   /**
    * Whether the picture has ever been on in this component's life. Without it
    * the "switched off" effect below fires on the very first render — before a
@@ -118,21 +108,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           const video = videoRef.current;
 
           if (video !== null) {
-            if (canPlayHlsNatively(video)) {
-              video.src = url;
-            } else {
-              const { default: Hls } = await import('hls.js');
-
-              if (Hls.isSupported()) {
-                const hls = new Hls({ enableWorker: true });
-                hls.loadSource(url);
-                hls.attachMedia(video);
-                hlsRef.current = hls;
-              } else {
-                throw new Error('This browser cannot play the camera stream.');
-              }
-            }
-
+            hlsRef.current = await attachHlsStream(video, url);
             await video.play();
           }
 

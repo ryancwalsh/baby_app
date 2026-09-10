@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { stopNanitMediaAction } from '@/app/actions/nanit-media';
+import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
 import { SECRET_HASH_KEY } from '@/components/login-guard';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
@@ -46,25 +47,13 @@ export function useNanitAudio() {
   return audio;
 }
 
-/**
- * iOS plays HLS in an `<audio>` element itself, and that native path is also
- * what gives us lock screen playback. Everywhere else — Android Chrome
- * especially — there is no native HLS at all, so hls.js feeds the element
- * through Media Source Extensions instead. It is only fetched where it is
- * needed.
- */
-function canPlayHlsNatively(audio: HTMLAudioElement): boolean {
-  return audio.canPlayType('application/vnd.apple.mpegurl') !== '';
-}
-
 export function NanitAudioProvider({ children }: { readonly children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   /**
-   * The hls.js instance, when one is in use. Typed loosely so this module does
-   * not have to import hls.js just to name it, which would defeat loading it
-   * only on the platforms that need it.
+   * The hls.js instance, when one is in use — null when the browser is playing
+   * the stream itself and there is nothing to tear down.
    */
-  const hlsRef = useRef<null | { destroy: () => void }>(null);
+  const hlsRef = useRef<HlsPlayer | null>(null);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -95,21 +84,7 @@ export function NanitAudioProvider({ children }: { readonly children: React.Reac
     const audio = audioRef.current;
 
     if (audio !== null) {
-      if (canPlayHlsNatively(audio)) {
-        audio.src = url;
-      } else {
-        const { default: Hls } = await import('hls.js');
-
-        if (Hls.isSupported()) {
-          const hls = new Hls({ enableWorker: true });
-          hls.loadSource(url);
-          hls.attachMedia(audio);
-          hlsRef.current = hls;
-        } else {
-          throw new Error('This browser cannot play the camera stream.');
-        }
-      }
-
+      hlsRef.current = await attachHlsStream(audio, url);
       await audio.play();
     }
   }, []);
