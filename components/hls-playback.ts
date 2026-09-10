@@ -43,8 +43,34 @@ export async function attachHlsStream(media: HTMLMediaElement, url: string): Pro
 
     if (Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
+
+      /**
+       * Waited for rather than returned straight away. `attachMedia` only
+       * starts handing the element a Media Source, so calling `play()` on the
+       * very next line races it and is rejected outright — the element
+       * genuinely has no source yet. Resolving on the parsed manifest is what
+       * makes the caller's `play()` safe.
+       */
+      const parsed = new Promise<void>((resolve, reject) => {
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          resolve();
+        });
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            reject(new Error(`The camera stream failed: ${data.details}`));
+          }
+        });
+      });
+
       hls.loadSource(url);
       hls.attachMedia(media);
+
+      try {
+        await parsed;
+      } catch (error) {
+        hls.destroy();
+        throw error;
+      }
 
       return hls;
     }

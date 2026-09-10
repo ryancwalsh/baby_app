@@ -65,9 +65,20 @@ export function PinchZoomView({ children }: { readonly children: React.ReactNode
     const container = containerRef.current;
 
     if (container !== null) {
-      const observer = new ResizeObserver(() => {
+      const measure = () => {
         setSize({ height: container.clientHeight, width: container.clientWidth });
-      });
+      };
+
+      /**
+       * Measured once here as well as observed. A ResizeObserver does not
+       * report until the browser next lays out, and a page that is not being
+       * painted — a background tab, a locked phone — may not do that for a
+       * long time. Until it reports, the box's size reads as zero and a
+       * quarter turn renders unshrunk, which clips the picture.
+       */
+      measure();
+
+      const observer = new ResizeObserver(measure);
       observer.observe(container);
 
       return () => {
