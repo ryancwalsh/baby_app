@@ -16,9 +16,17 @@ Treat every device call as something that can wake a child.
   passthrough is fine; `set_relay_state` is not, unless asked.
 - A page load must never _write_ to the camera. It renders cached state and
   opens the shared connection, which only ever reads — keep it that way.
-- The audio button is the one camera _write_ a person can trigger here
-  (`PUT_STREAMING`). It only ever fires from an explicit press, never from a
-  page load, and it does not touch the light. Keep both halves true.
+- Starting a stream is the only camera _write_ a person can trigger here
+  (`PUT_STREAMING`), from the audio button or the monitor page's picture.
+  Neither touches the light, and neither may fire from a page load.
+- **A tap on the Monitor tab counts as that press, and arriving on `/monitor`
+  does not.** The distinction is the whole point, because the bottom nav
+  restores the last tab on launch: a phone left on the monitor would otherwise
+  wake the camera every time the app was opened. Only a real tap is recorded,
+  in `components/navigation-tap.ts`, and it is deliberately a module variable
+  so that a reload forgets it — putting it in `sessionStorage` would recreate
+  the exact bug. The restore goes through `router.replace` and records
+  nothing. Keep it that way.
 
 ## Design in the dark
 
