@@ -46,6 +46,21 @@ export function getPictureBoxStyle(maximumHeightPixels: null | number, boxAspect
 
 type Point = { x: number; y: number };
 
+/**
+ * The size the picture is laid out at before any pinch: the largest 16:9 box
+ * that still fits the container once the quarter turns have been applied.
+ *
+ * It is worked out here rather than left to `object-contain` on the video,
+ * because the container is free to be any shape — a turned picture in a
+ * landscape box is limited by the box's width, not its height, and the element
+ * has to be that size before it is turned.
+ */
+function getPictureSize(boxWidth: number, boxHeight: number, isQuarterTurned: boolean): { height: number; width: number } {
+  const width = isQuarterTurned ? Math.min(boxHeight, boxWidth * VIDEO_ASPECT_RATIO) : Math.min(boxWidth, boxHeight * VIDEO_ASPECT_RATIO);
+
+  return { height: width / VIDEO_ASPECT_RATIO, width };
+}
+
 function getDistance(first: Point, second: Point): number {
   return Math.hypot(first.x - second.x, first.y - second.y);
 }
@@ -109,37 +124,36 @@ export function PinchZoomView({ children, maximumHeightPixels }: { readonly chil
   }, []);
 
   /**
-   * A quarter turn swaps the picture's width and height, so the box turns with
-   * it: landscape for an upright picture, portrait for a turned one. Both are
-   * the full width of the screen, and the turned one is simply taller.
+   * The box is the whole of what is left of the screen, whatever shape that
+   * is, and the picture is centred in it rather than stretched to its ratio.
    *
-   * The picture is letterboxed inside a portrait box before it is turned — it
-   * comes out the camera 16:9 whichever way it is being looked at — so turning
-   * alone would leave black down both sides. Growing it by the same ratio is
-   * what fills the box: the contained picture is `width` by `width / ratio`,
-   * and a quarter turn makes those the box's height and width exactly.
+   * That is what lets a zoomed-in picture use the screen: it is already wider
+   * and taller than it needs to be, so a taller box simply shows more of it.
+   * Sizing the box to the camera's ratio instead would leave the magnified
+   * picture trapped in a letterbox strip with the rest of the screen unused.
+   * Nothing about the transform depends on the box, so there is no jump at the
+   * moment a pinch begins.
    */
   const isQuarterTurned = rotationQuarters % 2 === 1;
-  const fitScale = isQuarterTurned ? VIDEO_ASPECT_RATIO : 1;
-  const effectiveScale = scale * fitScale;
+  const picture = getPictureSize(size.width, size.height, isQuarterTurned);
+  const drawnWidth = (isQuarterTurned ? picture.height : picture.width) * scale;
+  const drawnHeight = (isQuarterTurned ? picture.width : picture.height) * scale;
 
   const clampOffset = useCallback(
     (candidate: Point): Point => {
       /**
        * Panning is only allowed as far as there is picture hidden outside the
-       * box, so a zoomed-out view cannot be dragged off into the dark. The fit
-       * part of the scale is left out on purpose: it is what makes the picture
-       * fill the box, so it hides nothing to drag into view.
+       * box, so a zoomed-out view cannot be dragged off into the dark.
        */
-      const horizontalRoom = Math.max(0, (size.width * scale - size.width) / 2);
-      const verticalRoom = Math.max(0, (size.height * scale - size.height) / 2);
+      const horizontalRoom = Math.max(0, (drawnWidth - size.width) / 2);
+      const verticalRoom = Math.max(0, (drawnHeight - size.height) / 2);
 
       return {
         x: clamp(candidate.x, -horizontalRoom, horizontalRoom),
         y: clamp(candidate.y, -verticalRoom, verticalRoom),
       };
     },
-    [scale, size.height, size.width],
+    [drawnHeight, drawnWidth, size.height, size.width],
   );
 
   const reset = useCallback(() => {
@@ -153,20 +167,32 @@ export function PinchZoomView({ children, maximumHeightPixels }: { readonly chil
 
     const pointers = [...pointersRef.current.values()];
 
-    if (pointers.length === 2 && pointers[0] !== undefined && pointers[1] !== undefined) {
+    if (pointers.length === 1) {
+      const now = Date.now();
+
+      /**
+       * Only ever a second *finger*, never the second finger of a pinch. The
+       * two fingers of a pinch land within a few tens of milliseconds of each
+       * other, so counting them as a double tap threw the view back to fully
+       * zoomed out the moment a pinch began — which read as the picture
+       * jerking out on its own halfway through zooming back.
+       */
+      if (now - lastTapAtRef.current < DOUBLE_TAP_MILLISECONDS) {
+        reset();
+      }
+
+      lastTapAtRef.current = now;
+    } else if (pointers.length === 2 && pointers[0] !== undefined && pointers[1] !== undefined) {
+      /**
+       * Forgotten so that lifting out of a pinch and touching again is not a
+       * double tap either.
+       */
+      lastTapAtRef.current = 0;
       pinchRef.current = {
         distance: getDistance(pointers[0], pointers[1]),
         midpoint: getMidpoint(pointers[0], pointers[1]),
       };
     }
-
-    const now = Date.now();
-
-    if (now - lastTapAtRef.current < DOUBLE_TAP_MILLISECONDS) {
-      reset();
-    }
-
-    lastTapAtRef.current = now;
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -219,19 +245,20 @@ export function PinchZoomView({ children, maximumHeightPixels }: { readonly chil
 
   return (
     <div
-      className={`relative mx-auto w-full touch-none overflow-hidden bg-black select-none ${isQuarterTurned ? 'aspect-[9/16]' : 'aspect-video'}`}
+      className={`relative flex w-full touch-none items-center justify-center overflow-hidden bg-black select-none ${maximumHeightPixels === null ? 'aspect-video' : ''}`}
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       ref={containerRef}
-      style={getPictureBoxStyle(maximumHeightPixels, isQuarterTurned ? 1 / VIDEO_ASPECT_RATIO : VIDEO_ASPECT_RATIO)}
+      style={maximumHeightPixels === null ? {} : { height: `${maximumHeightPixels}px` }}
     >
       <div
-        className="size-full"
         style={{
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${effectiveScale}) rotate(${rotationQuarters * DEGREES_PER_QUARTER_TURN}deg)`,
+          height: `${picture.height}px`,
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotationQuarters * DEGREES_PER_QUARTER_TURN}deg)`,
           transformOrigin: 'center',
+          width: `${picture.width}px`,
         }}
       >
         {children}

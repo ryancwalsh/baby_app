@@ -1,6 +1,6 @@
 'use client';
 
-import { VideoIcon } from 'lucide-react';
+import { Loader2Icon, VideoIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { stopNanitMediaAction } from '@/app/actions/nanit-media';
@@ -227,7 +227,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
 
       {/* Pulled out through the page's own padding: the picture is the point, and every pixel of a phone's width is worth more to it than a tidy margin. */}
-      <div className="-mx-6" ref={pictureRef}>
+      <div className="relative -mx-6" ref={pictureRef}>
         {isWatching ? (
           <PinchZoomView maximumHeightPixels={availableHeightPixels}>
             {/* A live camera has nothing to caption. */}
@@ -240,6 +240,18 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           >
             <VideoIcon aria-hidden className="text-foreground/30 size-8" />
             <p className="text-foreground/40 text-sm">The camera is not streaming</p>
+          </div>
+        )}
+
+        {/*
+          The camera has to be told to stream before there is a first playlist,
+          and that is seconds of black box. It sits outside the pinch view on
+          purpose, so that it is not turned and magnified along with the
+          picture. Dim, because this is looked at in an unlit room.
+        */}
+        {isStarting && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <Loader2Icon aria-label="Starting the camera" className="text-foreground/40 size-8 animate-spin" />
           </div>
         )}
       </div>
