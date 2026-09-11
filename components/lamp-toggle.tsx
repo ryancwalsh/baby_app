@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 
 import { type ConnectedLamp, toggleLampAction, type UnreachableLamp } from '@/app/actions/lamp';
 import { getDeviceIcon } from '@/components/device-icons';
+import { ToggleSwitch } from '@/components/toggle-switch';
 
 const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left';
 
@@ -41,10 +42,7 @@ export function LampToggle({ lamp, secretHash }: { readonly lamp: ConnectedLamp;
         <span className="block opacity-60">{lamp.alias}</span>
         <span className="block text-sm opacity-60">{error ?? ''}</span>
       </span>
-      <span className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${isOn ? 'bg-amber-500' : 'bg-foreground/25'}`}>
-        {/* The knob is only full white when the lamp is on: an off switch has nothing to announce, and a white dot is the brightest thing on an unlit page. */}
-        <span className={`size-5 rounded-full transition-transform ${isOn ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white/40'}`} />
-      </span>
+      <ToggleSwitch isOn={isOn} />
     </button>
   );
 }

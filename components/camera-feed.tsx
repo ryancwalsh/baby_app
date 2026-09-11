@@ -1,12 +1,13 @@
 'use client';
 
-import { VideoIcon, VideoOffIcon } from 'lucide-react';
+import { VideoIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { stopNanitMediaAction } from '@/app/actions/nanit-media';
 import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
 import { consumeNavigationTap, MONITOR_HREF } from '@/components/navigation-tap';
 import { PinchZoomView } from '@/components/pinch-zoom-view';
+import { ToggleSwitch } from '@/components/toggle-switch';
 
 /**
  * The live picture from the nursery.
@@ -173,30 +174,39 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {isWatching ? (
-        <PinchZoomView>
-          {/* A live camera has nothing to caption. */}
-          <video className="size-full object-contain" muted playsInline ref={videoRef} />
-        </PinchZoomView>
-      ) : (
-        <div className="border-foreground/10 flex aspect-video flex-col items-center justify-center gap-2 rounded-lg border border-dashed">
-          <VideoIcon aria-hidden className="text-foreground/30 size-8" />
-          <p className="text-foreground/40 text-sm">The camera is not streaming</p>
-        </div>
-      )}
-
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
-
       <button
-        className="border-foreground/10 flex items-center justify-center gap-2 rounded-lg border py-3 text-sm"
+        aria-checked={isWatching}
+        className="border-foreground/15 bg-foreground/2 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left"
         onClick={() => {
           setIsWatching(!isWatching);
         }}
+        role="switch"
         type="button"
       >
-        {isWatching ? <VideoOffIcon className="size-4 text-amber-500" /> : <VideoIcon className="text-foreground/50 size-4" />}
-        <span className={isWatching ? 'text-amber-500' : 'text-foreground/70'}>{isStarting ? 'Starting the camera…' : isWatching ? 'Stop watching' : 'Watch the room'}</span>
+        <VideoIcon className={isWatching ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
+        <span className="flex-1">
+          <span className="block opacity-60">Live video</span>
+          <span className="block text-sm opacity-60">{isStarting ? 'Starting the camera…' : ''}</span>
+        </span>
+        <ToggleSwitch isOn={isWatching} />
       </button>
+
+      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+
+      {/* Pulled out through the page's own padding: the picture is the point, and every pixel of a phone's width is worth more to it than a tidy margin. */}
+      <div className="-mx-6">
+        {isWatching ? (
+          <PinchZoomView>
+            {/* A live camera has nothing to caption. */}
+            <video className="size-full object-contain" muted playsInline ref={videoRef} />
+          </PinchZoomView>
+        ) : (
+          <div className="border-foreground/10 flex aspect-video flex-col items-center justify-center gap-2 border-y border-dashed">
+            <VideoIcon aria-hidden className="text-foreground/30 size-8" />
+            <p className="text-foreground/40 text-sm">The camera is not streaming</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
