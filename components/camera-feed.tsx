@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { stopNanitMediaAction } from '@/app/actions/nanit-media';
 import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
 import { consumeNavigationTap, MONITOR_HREF } from '@/components/navigation-tap';
-import { PinchZoomView } from '@/components/pinch-zoom-view';
+import { getPictureBoxStyle, PinchZoomView, VIDEO_ASPECT_RATIO } from '@/components/pinch-zoom-view';
 import { ToggleSwitch } from '@/components/toggle-switch';
 
 /**
@@ -30,6 +30,13 @@ import { ToggleSwitch } from '@/components/toggle-switch';
 
 const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
 
+/**
+ * What the layout already reserves for the fixed bottom navigation, in pixels
+ * — `pb-24` on the page's `main`. Subtracted below so the picture stops above
+ * the tabs rather than under them.
+ */
+const BOTTOM_NAVIGATION_PIXELS = 96;
+
 export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   /**
@@ -44,9 +51,35 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
    * the server to stop just ahead of asking it to start.
    */
   const hasEverWatchedRef = useRef(false);
+  /**
+   * The box the picture is drawn in, measured rather than given a ratio of the
+   * screen: what is left over is whatever the night light tile and this button
+   * did not take, and that is only knowable once they are laid out. Sizing the
+   * picture to it is what keeps the page off the scrollbar, which a portrait
+   * turn of the camera would otherwise force.
+   */
+  const pictureRef = useRef<HTMLDivElement>(null);
+  const [availableHeightPixels, setAvailableHeightPixels] = useState<null | number>(null);
   const [isWatching, setIsWatching] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<null | string>(null);
+
+  useEffect(() => {
+    const measure = () => {
+      const picture = pictureRef.current;
+
+      if (picture !== null) {
+        setAvailableHeightPixels(Math.max(0, window.innerHeight - picture.getBoundingClientRect().top - BOTTOM_NAVIGATION_PIXELS));
+      }
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
 
   const detach = useCallback(() => {
     const video = videoRef.current;
@@ -194,14 +227,17 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
 
       {/* Pulled out through the page's own padding: the picture is the point, and every pixel of a phone's width is worth more to it than a tidy margin. */}
-      <div className="-mx-6">
+      <div className="-mx-6" ref={pictureRef}>
         {isWatching ? (
-          <PinchZoomView>
+          <PinchZoomView maximumHeightPixels={availableHeightPixels}>
             {/* A live camera has nothing to caption. */}
             <video className="size-full object-contain" muted playsInline ref={videoRef} />
           </PinchZoomView>
         ) : (
-          <div className="border-foreground/10 flex aspect-video flex-col items-center justify-center gap-2 border-y border-dashed">
+          <div
+            className="border-foreground/10 mx-auto flex aspect-video w-full flex-col items-center justify-center gap-2 border-y border-dashed"
+            style={getPictureBoxStyle(availableHeightPixels, VIDEO_ASPECT_RATIO)}
+          >
             <VideoIcon aria-hidden className="text-foreground/30 size-8" />
             <p className="text-foreground/40 text-sm">The camera is not streaming</p>
           </div>

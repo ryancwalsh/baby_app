@@ -1,7 +1,7 @@
 'use client';
 
 import { Minimize2Icon, RotateCwIcon } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
@@ -20,7 +20,7 @@ const DEGREES_PER_QUARTER_TURN = 90;
 /**
  * The camera's own shape, which is what the box is sized against.
  */
-const VIDEO_ASPECT_RATIO = 16 / 9;
+export const VIDEO_ASPECT_RATIO = 16 / 9;
 const MINIMUM_SCALE = 1;
 const MAXIMUM_SCALE = 6;
 /**
@@ -28,6 +28,21 @@ const MAXIMUM_SCALE = 6;
  * back after a one-handed drag in the dark has lost the cot.
  */
 const DOUBLE_TAP_MILLISECONDS = 300;
+
+/**
+ * Sized by width rather than by height, because a block's width is what CSS
+ * lets us set and `aspect-ratio` then derives the height from: capping the
+ * height directly would leave the width alone and stretch the picture. The
+ * width that lands on a given height is that height times the box's ratio, and
+ * the screen is still the upper bound.
+ */
+export function getPictureBoxStyle(maximumHeightPixels: null | number, boxAspectRatio: number): CSSProperties {
+  if (maximumHeightPixels !== null && maximumHeightPixels > 0) {
+    return { width: `min(100%, ${maximumHeightPixels * boxAspectRatio}px)` };
+  }
+
+  return {};
+}
 
 type Point = { x: number; y: number };
 
@@ -43,7 +58,7 @@ function clamp(value: number, lowest: number, highest: number): number {
   return Math.min(Math.max(value, lowest), highest);
 }
 
-export function PinchZoomView({ children }: { readonly children: React.ReactNode }) {
+export function PinchZoomView({ children, maximumHeightPixels }: { readonly children: React.ReactNode; readonly maximumHeightPixels: null | number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   /**
    * Every finger currently down, by pointer id. One is a drag, two are a
@@ -204,12 +219,13 @@ export function PinchZoomView({ children }: { readonly children: React.ReactNode
 
   return (
     <div
-      className={`relative touch-none overflow-hidden bg-black select-none ${isQuarterTurned ? 'aspect-[9/16]' : 'aspect-video'}`}
+      className={`relative mx-auto w-full touch-none overflow-hidden bg-black select-none ${isQuarterTurned ? 'aspect-[9/16]' : 'aspect-video'}`}
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       ref={containerRef}
+      style={getPictureBoxStyle(maximumHeightPixels, isQuarterTurned ? 1 / VIDEO_ASPECT_RATIO : VIDEO_ASPECT_RATIO)}
     >
       <div
         className="size-full"

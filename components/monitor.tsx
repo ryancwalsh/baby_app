@@ -36,7 +36,7 @@ export function Monitor({ secretHash }: { readonly secretHash: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col">
       <NightLight initialState={nightLight} secretHash={secretHash} />
       <CameraFeed secretHash={secretHash} />
     </div>
