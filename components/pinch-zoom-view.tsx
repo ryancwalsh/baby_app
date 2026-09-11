@@ -17,6 +17,10 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 const ROTATION_KEY = 'baby-app-camera-rotation';
 const QUARTER_TURNS = 4;
 const DEGREES_PER_QUARTER_TURN = 90;
+/**
+ * The camera's own shape, which is what the box is sized against.
+ */
+const VIDEO_ASPECT_RATIO = 16 / 9;
 const MINIMUM_SCALE = 1;
 const MAXIMUM_SCALE = 6;
 /**
@@ -74,7 +78,7 @@ export function PinchZoomView({ children }: { readonly children: React.ReactNode
        * report until the browser next lays out, and a page that is not being
        * painted — a background tab, a locked phone — may not do that for a
        * long time. Until it reports, the box's size reads as zero and a
-       * quarter turn renders unshrunk, which clips the picture.
+       * zoomed-in picture cannot be panned at all.
        */
       measure();
 
@@ -90,29 +94,37 @@ export function PinchZoomView({ children }: { readonly children: React.ReactNode
   }, []);
 
   /**
-   * A quarter turn swaps the picture's width and height, so on its own it
-   * would push the long side out through the sides of the box. Shrinking by the
-   * box's own aspect ratio is what brings it back inside.
+   * A quarter turn swaps the picture's width and height, so the box turns with
+   * it: landscape for an upright picture, portrait for a turned one. Both are
+   * the full width of the screen, and the turned one is simply taller.
+   *
+   * The picture is letterboxed inside a portrait box before it is turned — it
+   * comes out the camera 16:9 whichever way it is being looked at — so turning
+   * alone would leave black down both sides. Growing it by the same ratio is
+   * what fills the box: the contained picture is `width` by `width / ratio`,
+   * and a quarter turn makes those the box's height and width exactly.
    */
   const isQuarterTurned = rotationQuarters % 2 === 1;
-  const fitScale = isQuarterTurned && size.width > 0 && size.height > 0 ? Math.min(size.width / size.height, size.height / size.width) : 1;
+  const fitScale = isQuarterTurned ? VIDEO_ASPECT_RATIO : 1;
   const effectiveScale = scale * fitScale;
 
   const clampOffset = useCallback(
     (candidate: Point): Point => {
       /**
        * Panning is only allowed as far as there is picture hidden outside the
-       * box, so a zoomed-out view cannot be dragged off into the dark.
+       * box, so a zoomed-out view cannot be dragged off into the dark. The fit
+       * part of the scale is left out on purpose: it is what makes the picture
+       * fill the box, so it hides nothing to drag into view.
        */
-      const horizontalRoom = Math.max(0, (size.width * effectiveScale - size.width) / 2);
-      const verticalRoom = Math.max(0, (size.height * effectiveScale - size.height) / 2);
+      const horizontalRoom = Math.max(0, (size.width * scale - size.width) / 2);
+      const verticalRoom = Math.max(0, (size.height * scale - size.height) / 2);
 
       return {
         x: clamp(candidate.x, -horizontalRoom, horizontalRoom),
         y: clamp(candidate.y, -verticalRoom, verticalRoom),
       };
     },
-    [effectiveScale, size.height, size.width],
+    [scale, size.height, size.width],
   );
 
   const reset = useCallback(() => {
@@ -192,7 +204,7 @@ export function PinchZoomView({ children }: { readonly children: React.ReactNode
 
   return (
     <div
-      className="relative aspect-video touch-none overflow-hidden rounded-lg bg-black select-none"
+      className={`relative touch-none overflow-hidden bg-black select-none ${isQuarterTurned ? 'aspect-[9/16]' : 'aspect-video'}`}
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
