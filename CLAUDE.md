@@ -215,9 +215,9 @@ overnight is the app until someone notices. `/version.json` stamps the branch
 alongside the commit, so a deploy that reports anything but `main` was done
 from the wrong place.
 
-Do not deploy with a bare `yarn start`, `nohup` or `setsid`, and do not reach
-for `next dev` to look at something. Any of those puts a **second** copy of the
-app on the machine, and the failure is quiet rather than loud:
+Do not deploy with a bare `yarn start`, `nohup` or `setsid`. Any of those puts a
+**second** copy of the app on port 2026, and the failure is quiet rather than
+loud:
 
 - Whichever copy binds 2026 first wins, so pm2 can report `baby` **online**
   while the port is actually served by a stray — a deploy then appears to do
@@ -248,9 +248,14 @@ curl -s http://localhost:2026/version.json
   noise page.
 - `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
   and safe to run. Yarn, not npm; `--exact` when adding.
-- There is no dev server to attach to: the app runs as the pm2-managed
-  production build on port 2026 described above. Starting `next dev` alongside
-  it corrupts the `.next` the live app is serving from.
+- `yarn dev` is safe to run beside the live app, and is the way to look at a
+  change without touching the nursery: `next.config.ts` gives the dev server
+  its own `distDir` of `.next-dev`, so it cannot rewrite the `.next` the pm2
+  process is serving, and it binds 3000 rather than 2026. What it does still
+  share is the camera: a dev process opens its own Nanit websocket beside the
+  live one, and the camera counts both against its connection limit — so do not
+  leave one running, and remember the sleeping-baby rules apply to it exactly
+  as they do to the deployed app.
 - `constants/environment.ts` validates lazily via envalid. That once meant `next
 build` ran without secrets present, but no longer: `APP_TITLE` is read by
   `app/layout.tsx` and `app/manifest.ts`, both of which prerender, so a build
