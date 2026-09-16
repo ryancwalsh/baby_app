@@ -1,28 +1,14 @@
 'use client';
 
 import { LightbulbIcon, SunsetIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
-import { type CSSProperties, useEffect, useRef, useState, useTransition } from 'react';
+import { type CSSProperties, useEffect, useState, useTransition } from 'react';
 
-import { setNightLightBrightnessAction, setNightLightPowerAction } from '@/app/actions/night-light';
+import { setNightLightBrightnessAction, setNightLightPowerAction, startNightLightFadeAction, stopNightLightFadeAction } from '@/app/actions/night-light';
 import { useNanitAudio } from '@/components/nanit-audio-provider';
-import { BRIGHTNESS_PRESETS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
+import { BRIGHTNESS_PRESETS, FADE_DURATION_MILLISECONDS, FADE_TARGET_BRIGHTNESS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
 import { type NightLightState } from '@/services/nanit/night-light';
 
-/**
- * A walk down to a dim glow rather than an abrupt drop, for a baby who is
- * nearly asleep. The steps are the preset buttons themselves, so a fade only
- * ever passes through brightnesses that are already offered by hand.
- */
-const FADE_TARGET_BRIGHTNESS = 1;
-const FADE_DURATION_MILLISECONDS = 120_000;
-
-/**
- * Every preset below where the fade starts, dimmest last. The total time is
- * fixed, so a brighter start means more steps rather than a longer fade.
- */
-function getFadeSteps(startBrightness: number) {
-  return BRIGHTNESS_PRESETS.filter((preset) => preset >= FADE_TARGET_BRIGHTNESS && preset < startBrightness).sort((first, second) => second - first);
-}
+const FADE_MINUTES = FADE_DURATION_MILLISECONDS / 60_000;
 
 /**
  * Optimistic, like the plug toggles: the shared camera connection is already
@@ -33,12 +19,6 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
   const [state, setState] = useState(initialState);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
-  const [isFading, setIsFading] = useState(false);
-  /**
-   * The loop reads the ref rather than the state, since a stop pressed mid
-   * fade has to be visible to a closure that is already running.
-   */
-  const isFadingRef = useRef(false);
   /**
    * The sound half lives in the provider above the router, not here: this
    * section unmounts on navigation and the listening would go with it.
@@ -81,54 +61,22 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
     });
   }
 
-  function stopFading() {
-    isFadingRef.current = false;
-    setIsFading(false);
-  }
-
   /**
-   * Any hand-set brightness wins over a fade that is still running.
+   * Any hand-set brightness wins over a fade that is still running; the server
+   * cancels it, and the optimistic state says so straight away.
    */
   function setBrightness(brightness: number) {
-    stopFading();
-    run({ ...state, brightness }, () => setNightLightBrightnessAction(secretHash, brightness));
-  }
-
-  async function fadeToTarget() {
-    const steps = getFadeSteps(state.brightness);
-
-    isFadingRef.current = true;
-    setIsFading(true);
-    setError(null);
-
-    for (const brightness of steps) {
-      if (isFadingRef.current) {
-        await new Promise((resolve) => {
-          setTimeout(resolve, FADE_DURATION_MILLISECONDS / steps.length);
-        });
-      }
-
-      if (isFadingRef.current) {
-        setState((current) => ({ ...current, brightness }));
-
-        try {
-          setState(await setNightLightBrightnessAction(secretHash, brightness));
-        } catch {
-          stopFading();
-          setError('Could not reach the camera.');
-        }
-      }
-    }
-
-    stopFading();
+    run({ ...state, brightness, isFading: false }, () => setNightLightBrightnessAction(secretHash, brightness));
   }
 
   /**
-   * Navigating away should not leave a loop writing to the camera.
+   * The walk down itself belongs to the server — see services/nanit/night-light.ts.
+   * It carries on through a locked screen, a backgrounded app or a closed tab,
+   * and every step comes back over the stream above, so this only has to ask.
    */
-  useEffect(() => {
-    return stopFading;
-  }, []);
+  function toggleFading() {
+    run({ ...state, isFading: !state.isFading }, () => (state.isFading ? stopNightLightFadeAction(secretHash) : startNightLightFadeAction(secretHash)));
+  }
 
   return (
     <section className="border-foreground/15 bg-foreground/2 flex flex-col gap-4 rounded-2xl border px-5 py-4">
@@ -223,14 +171,14 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
 
         <button
           className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg border py-2 disabled:opacity-40 ${
-            isFading ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'
+            state.isFading ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'
           }`}
-          disabled={isPending || state.brightness <= FADE_TARGET_BRIGHTNESS}
-          onClick={() => (isFading ? stopFading() : fadeToTarget())}
+          disabled={isPending || (!state.isFading && state.brightness <= FADE_TARGET_BRIGHTNESS)}
+          onClick={toggleFading}
           type="button"
         >
           <SunsetIcon className="size-5 opacity-60" />
-          {isFading ? 'Stop fading' : `Fade to ${FADE_TARGET_BRIGHTNESS}% over 2 minutes`}
+          {state.isFading ? 'Stop fading' : `Fade to ${FADE_TARGET_BRIGHTNESS}% over ${FADE_MINUTES} minutes`}
         </button>
       </div>
     </section>

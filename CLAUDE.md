@@ -183,10 +183,14 @@ serverless, and the difference is structural rather than cosmetic:
   losing it costs both the quick presses and the knowable on/off state.
 - Login rate limiting and the pending Tapo MFA `terminalUUID` live in process
   memory, which is only sound because there is one process.
+- The night light's two-minute fade is a loop in this process, not in the
+  browser — a phone freezes a backgrounded page's timers, so a fade driven from
+  the page stalled the moment the screen locked. Pages only start and stop it
+  and watch the steps arrive over the night light stream.
 
-If this ever needs to move to serverless, all four have to be rehomed (a
+If this ever needs to move to serverless, all five have to be rehomed (a
 database such as Turso for the first, second and fourth; a separate always-on
-worker for the socket). Do not port it piecemeal.
+worker for the socket and the fade). Do not port it piecemeal.
 
 The app is on the public internet through the tunnel, so `LOGIN_SECRET` is the
 only thing in front of the nursery. Serve a production build rather than

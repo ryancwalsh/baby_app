@@ -28,6 +28,13 @@ const RECYCLE_MILLISECONDS = TOKEN_LIFETIME_MILLISECONDS + 60_000;
 
 export type NightLightState = {
   brightness: number;
+  /**
+   * Whether the server is part way through a fade. It belongs in the state the
+   * camera's own values travel in because that is what reaches every open page:
+   * a fade is owned by this process, so a phone that locked, backgrounded the
+   * app or reloaded finds the fade still running and its button still lit.
+   */
+  isFading: boolean;
   isOn: boolean;
 };
 
@@ -67,18 +74,25 @@ const globalForNanit = globalThis as typeof globalThis & {
   nanitConnection?: SharedConnection;
 };
 
-function readSavedState(): NightLightState | null {
-  let state: NightLightState | null = null;
+type SavedState = Omit<NightLightState, 'isFading'>;
+
+function readSavedState(): null | SavedState {
+  let state: null | SavedState = null;
   if (existsSync(STATE_FILE_PATH)) {
-    state = JSON.parse(readFileSync(STATE_FILE_PATH, 'utf8')) as NightLightState;
+    state = JSON.parse(readFileSync(STATE_FILE_PATH, 'utf8')) as SavedState;
   }
 
   return state;
 }
 
+/**
+ * Only what the camera told us. `isFading` is this process's own doing and dies
+ * with it, so persisting it would have a restart claim a fade that nothing is
+ * running.
+ */
 function saveState(state: NightLightState) {
   mkdirSync(STATE_DIRECTORY, { recursive: true });
-  writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), {
+  writeFileSync(STATE_FILE_PATH, JSON.stringify({ brightness: state.brightness, isOn: state.isOn }, null, 2), {
     mode: 0o600,
   });
 }
@@ -97,9 +111,11 @@ function getShared(): SharedConnection {
     listeners: new Set(),
     reconnectTimer: null,
     recycleTimer: null,
-    state: readSavedState() ?? {
+    state: {
       brightness: MINIMUM_BRIGHTNESS,
       isOn: false,
+      ...readSavedState(),
+      isFading: false,
     },
   };
 
@@ -110,7 +126,7 @@ function updateState(changes: Partial<NightLightState>) {
   const shared = getShared();
   const updated = { ...shared.state, ...changes };
 
-  if (updated.isOn !== shared.state.isOn || updated.brightness !== shared.state.brightness) {
+  if (updated.isOn !== shared.state.isOn || updated.brightness !== shared.state.brightness || updated.isFading !== shared.state.isFading) {
     shared.state = updated;
     saveState(updated);
 
@@ -123,6 +139,14 @@ function updateState(changes: Partial<NightLightState>) {
       listener(updated);
     }
   }
+}
+
+/**
+ * Told to every open page, like a brightness change, so the fade button on a
+ * phone that was not the one that started it is right too.
+ */
+export function setNightLightFading(isFading: boolean) {
+  updateState({ isFading });
 }
 
 /**
