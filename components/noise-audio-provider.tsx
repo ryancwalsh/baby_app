@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { NOISE_WORKLET_SOURCE, type NoiseType } from '@/audio/noise-worklet';
+import { NOISE_TYPES, NOISE_WORKLET_SOURCE, type NoiseType } from '@/audio/noise-worklet';
 
 export const MINIMUM_PERCENT = 0;
 export const MAXIMUM_PERCENT = 100;
@@ -18,12 +18,18 @@ const FULLEST_HERTZ = 20;
 const THINNEST_HERTZ = 2_000;
 const RAMP_SECONDS = 0.05;
 const FADE_OUT_SECONDS = 0.3;
+/**
+ * `setTargetAtTime` approaches its target rather than reaching it, so the
+ * element is paused a few time constants later, once the fade is inaudible.
+ */
+const PAUSE_AFTER_FADE_MILLISECONDS = 1_500;
 
 type AudioGraph = {
   context: AudioContext;
   gain: GainNode;
   highpass: BiquadFilterNode;
   lowpass: BiquadFilterNode;
+  streamDestination: MediaStreamAudioDestinationNode;
   worklets: AudioWorkletNode[];
 };
 
@@ -56,12 +62,22 @@ async function buildGraph(): Promise<AudioGraph> {
   const gain = context.createGain();
   gain.gain.value = 0;
 
+  /**
+   * The graph ends in a MediaStream played by an `<audio>` element rather than
+   * in `context.destination`, because iOS treats the two completely
+   * differently: a bare AudioContext obeys the ringer switch and is suspended
+   * when the app leaves the screen, while a playing media element keeps its
+   * sound through both — which is why the lullabies, which are an `<audio>`
+   * element, never had this problem. Android does not care either way.
+   */
+  const streamDestination = context.createMediaStreamDestination();
+
   merger.connect(lowpass);
   lowpass.connect(highpass);
   highpass.connect(gain);
-  gain.connect(context.destination);
+  gain.connect(streamDestination);
 
-  return { context, gain, highpass, lowpass, worklets };
+  return { context, gain, highpass, lowpass, streamDestination, worklets };
 }
 
 function applySettings(graph: AudioGraph, settings: NoiseSettings) {
@@ -103,6 +119,8 @@ export function useNoiseAudio() {
  */
 export function NoiseAudioProvider({ children }: { readonly children: React.ReactNode }) {
   const graphRef = useRef<AudioGraph | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const pauseTimeoutRef = useRef<null | ReturnType<typeof setTimeout>>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [noiseType, setNoiseType] = useState<NoiseType>('pink');
   const [volume, setVolume] = useState(70);
@@ -146,15 +164,39 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
         const graph = graphRef.current;
         if (graph !== null) {
           /**
-           * Faded rather than cut, because an abrupt stop is startling.
+           * Faded rather than cut, because an abrupt stop is startling. The
+           * element is paused only afterwards: pausing it outright would cut
+           * the fade, and leaving it playing would hold the lock screen's
+           * transport open over silence.
            */
           graph.gain.gain.setTargetAtTime(0, graph.context.currentTime, FADE_OUT_SECONDS);
         }
 
+        pauseTimeoutRef.current = setTimeout(() => {
+          pauseTimeoutRef.current = null;
+
+          if (audioRef.current !== null) {
+            audioRef.current.pause();
+          }
+        }, PAUSE_AFTER_FADE_MILLISECONDS);
+
         setIsPlaying(false);
       } else {
+        if (pauseTimeoutRef.current !== null) {
+          clearTimeout(pauseTimeoutRef.current);
+          pauseTimeoutRef.current = null;
+        }
+
         // eslint-disable-next-line require-atomic-updates -- Guarded by the play button, which is disabled to a single press at a time.
         graphRef.current ??= await buildGraph();
+        const audio = audioRef.current;
+
+        if (audio !== null) {
+          audio.srcObject ??= graphRef.current.streamDestination.stream;
+
+          await audio.play();
+        }
+
         await graphRef.current.context.resume();
         applySettings(graphRef.current, { noiseType, texture, volume, warmth });
         setIsPlaying(true);
@@ -164,7 +206,33 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
     }
   }, [isPlaying, noiseType, texture, volume, warmth]);
 
+  /**
+   * A backgrounded phone shows the lock screen transport for whatever is
+   * playing, and hands its buttons here. Without handlers its pause would stop
+   * the element while this still believed it was playing, and the button on
+   * the page would then be lying.
+   */
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      const label = NOISE_TYPES.find((type) => type.value === noiseType)?.label;
+
+      navigator.mediaSession.metadata = new MediaMetadata({ title: `${label} noise` });
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+      navigator.mediaSession.setActionHandler('pause', () => {
+        void togglePlay();
+      });
+      navigator.mediaSession.setActionHandler('play', () => {
+        void togglePlay();
+      });
+    }
+  }, [isPlaying, noiseType, togglePlay]);
+
   const value = useMemo(() => ({ isPlaying, noiseType, texture, togglePlay, update, volume, warmth }), [isPlaying, noiseType, texture, togglePlay, update, volume, warmth]);
 
-  return <NoiseAudioContext value={value}>{children}</NoiseAudioContext>;
+  return (
+    <NoiseAudioContext value={value}>
+      {children}
+      <audio ref={audioRef} />
+    </NoiseAudioContext>
+  );
 }
