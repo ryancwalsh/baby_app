@@ -26,6 +26,11 @@ type Platform = {
 
 type BatteryManager = { charging: boolean };
 
+/**
+ * Said alongside every screen-awake state, because wanting the screen to stay on is the opposite of what most people want from a phone in a dark nursery.
+ */
+const SCREEN_AWAKE_REASON = 'This matters because a locked screen stops the camera and sets off the alert. The screen stays on, but shows only black.';
+
 function ChecklistItem({ children, status }: { readonly children: React.ReactNode; readonly status: 'ok' | 'problem' | 'reminder' }) {
   return (
     <li className="flex gap-3">
@@ -78,7 +83,7 @@ export function WebcamChecklist({ error, onBack, onStart }: { readonly error: nu
           Keep the phone/tablet and its charging cable out of the baby’s reach, at least 3 feet (1 m) from the crib, as with any monitor cord.
         </ChecklistItem>
         <ChecklistItem status="reminder">
-          Stay in this app. Switching apps, locking the phone or taking a call stops the camera, and the watching phone will sound its alert.
+          Stay in this app. Switching apps, locking the phone/tablet or taking a call stops the camera, and the watching phone/tablet will sound its alert.
         </ChecklistItem>
         <ChecklistItem status="reminder">Most cameras cannot see in the dark. A dim night light in the room makes the picture usable.</ChecklistItem>
         <ChecklistItem status="reminder">Leave the microphone uncovered.</ChecklistItem>
@@ -96,10 +101,10 @@ export function WebcamChecklist({ error, onBack, onStart }: { readonly error: nu
         {platform !== null && (
           <ChecklistItem status={platform.supportsWakeLock ? 'ok' : 'problem'}>
             {platform.supportsWakeLock
-              ? 'This browser can keep the screen awake.'
+              ? `This browser can keep the screen awake. ${SCREEN_AWAKE_REASON}`
               : platform.isIos
-                ? 'This browser cannot keep the screen awake. Set Settings › Display & Brightness › Auto-Lock to Never, and switch it back afterwards.'
-                : 'This browser cannot keep the screen awake. Set the screen timeout to its longest in the phone/tablet’s display settings.'}
+                ? `This browser cannot keep the screen awake. ${SCREEN_AWAKE_REASON} Set Settings › Display & Brightness › Auto-Lock to Never, and switch it back afterwards.`
+                : `This browser cannot keep the screen awake. ${SCREEN_AWAKE_REASON} Set the screen timeout to its longest in the phone/tablet’s display settings.`}
           </ChecklistItem>
         )}
       </ul>

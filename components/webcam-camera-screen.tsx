@@ -86,13 +86,13 @@ export function WebcamCameraScreen({
       {areControlsVisible && (
         <div className="mt-auto flex flex-col gap-3 text-white/50">
           <p className="text-sm">
-            <span className="text-amber-500/70">●</span> Live · {watcherCount === 1 ? '1 phone watching' : `${watcherCount} phones watching`}
+            <span className="text-amber-500/70">●</span> Live · {watcherCount === 1 ? '1 phone/tablet watching' : `${watcherCount} phones/tablets watching`}
           </p>
 
           {!isWakeLockHeld && (
             <p className="flex gap-2 text-sm text-amber-500/70">
               <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
-              The screen may lock and stop the camera. Set Auto-Lock to Never in the phone’s display settings.
+              The screen may lock and stop the camera. Set Auto-Lock to Never in the phone/tablet’s display settings.
             </p>
           )}
 

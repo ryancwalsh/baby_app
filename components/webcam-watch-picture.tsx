@@ -63,10 +63,10 @@ export function WebcamWatchPicture({ isStale, status, videoRef }: { readonly isS
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
           {(status === 'waiting' || status === 'connecting') && <Loader2Icon aria-hidden className="text-foreground/40 size-8 animate-spin" />}
           <p className="text-foreground/50 text-sm">
-            {status === 'waiting' && 'Waiting for a camera. Start one on the other phone.'}
+            {status === 'waiting' && 'Waiting for a camera. Start one on the other phone/tablet.'}
             {status === 'connecting' && 'Connecting to the camera…'}
             {status === 'stopped' && 'The camera was stopped.'}
-            {status === 'failed' && 'Could not connect on this network. Try putting both phones on the same wifi.'}
+            {status === 'failed' && 'Could not connect on this network. Try putting both phones/tablets on the same wifi.'}
           </p>
         </div>
       )}
