@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { getIsInstalled, getIsIos } from '@/components/platform';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 const INSTALL_BANNER_DISMISSED_KEY = 'baby-app-install-banner-dismissed';
@@ -14,25 +15,6 @@ const INSTALL_BANNER_DISMISSED_KEY = 'baby-app-install-banner-dismissed';
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
 };
-
-/**
- * Both ways a launcher can have opened this page: `display-mode` is the
- * standard, and `navigator.standalone` is the one iOS has always answered.
- */
-function getIsInstalled() {
-  const iosNavigator = window.navigator as Navigator & { standalone?: boolean };
-
-  return window.matchMedia('(display-mode: standalone)').matches || iosNavigator.standalone === true;
-}
-
-/**
- * iOS has no install event to wait for — WebKit has never implemented one — so
- * the only offer that can be made there is the manual one, and the only way to
- * know it applies is the platform itself.
- */
-function getIsIos() {
-  return /iphone|ipad|ipod/iu.test(window.navigator.userAgent);
-}
 
 /**
  * Chrome shows install UI of its own, but at its own discretion: once, and

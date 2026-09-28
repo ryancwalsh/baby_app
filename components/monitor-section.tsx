@@ -1,7 +1,7 @@
 'use client';
 
-import { CameraFeed } from '@/components/camera-feed';
 import { LoginGuard } from '@/components/login-guard';
+import { MonitorModes } from '@/components/monitor-modes';
 
 /**
  * The gate takes a render prop, which a server component cannot hand it, so the
@@ -12,5 +12,5 @@ import { LoginGuard } from '@/components/login-guard';
  * lights tab, so nothing here competes with the cot for the screen.
  */
 export function MonitorSection() {
-  return <LoginGuard>{(secretHash) => <CameraFeed secretHash={secretHash} />}</LoginGuard>;
+  return <LoginGuard>{(secretHash) => <MonitorModes secretHash={secretHash} />}</LoginGuard>;
 }
