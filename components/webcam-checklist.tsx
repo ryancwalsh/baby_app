@@ -29,7 +29,9 @@ type BatteryManager = { charging: boolean };
 /**
  * Said alongside every screen-awake state, because wanting the screen to stay on is the opposite of what most people want from a phone in a dark nursery.
  */
-const SCREEN_AWAKE_REASON = 'This matters because a locked screen stops the camera and sets off the alert. The screen stays on, but shows only black.';
+const SCREEN_AWAKE_REASON = 'A screen locking or sleeping would stop the camera and trigger the alert.';
+const SCREEN_STAYS_DARK = 'Even though the screen must stay on, it will be mostly black, and you might want to dim your device’s brightness too.';
+const REVERT_SETTINGS = 'Remember to revert your device settings afterwards.';
 
 function ChecklistItem({ children, status }: { readonly children: React.ReactNode; readonly status: 'ok' | 'problem' | 'reminder' }) {
   return (
@@ -101,10 +103,10 @@ export function WebcamChecklist({ error, onBack, onStart }: { readonly error: nu
         {platform !== null && (
           <ChecklistItem status={platform.supportsWakeLock ? 'ok' : 'problem'}>
             {platform.supportsWakeLock
-              ? `This browser can keep the screen awake. ${SCREEN_AWAKE_REASON}`
+              ? `This browser can keep the screen awake, which is great because a screen locking or sleeping would stop the camera and trigger the alert. ${SCREEN_STAYS_DARK}`
               : platform.isIos
-                ? `This browser cannot keep the screen awake. ${SCREEN_AWAKE_REASON} Set Settings › Display & Brightness › Auto-Lock to Never, and switch it back afterwards.`
-                : `This browser cannot keep the screen awake. ${SCREEN_AWAKE_REASON} Set the screen timeout to its longest in the phone/tablet’s display settings.`}
+                ? `Important: Set Settings › Display & Brightness › Auto-Lock to Never. ${SCREEN_AWAKE_REASON} ${SCREEN_STAYS_DARK} ${REVERT_SETTINGS}`
+                : `Set the screen timeout to its longest in the phone/tablet’s display settings. ${SCREEN_AWAKE_REASON} ${SCREEN_STAYS_DARK} ${REVERT_SETTINGS}`}
           </ChecklistItem>
         )}
       </ul>
