@@ -284,5 +284,5 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
     );
   }
 
-  return <WebcamChecklist error={error} facingMode={facingMode} onBack={onExit} onChooseFacingMode={chooseFacingMode} onStart={start} />;
+  return <WebcamChecklist error={error} onBack={onExit} onStart={start} />;
 }

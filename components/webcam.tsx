@@ -80,7 +80,9 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
     <div className="flex flex-col gap-3">
       {isConfirmingReplace && cameraStartedAt !== null && cameraStartedAt !== undefined ? (
         <div className="border-foreground/15 flex flex-col gap-3 rounded-2xl border px-5 py-4">
-          <p className="opacity-70">Another phone has been the camera since {formatTime(cameraStartedAt)}. Make this phone the camera instead? The other one will stop.</p>
+          <p className="opacity-70">
+            Another phone/tablet has been the camera since {formatTime(cameraStartedAt)}. Make this phone/tablet the camera instead? The other one will stop.
+          </p>
           <div className="flex gap-2">
             <button
               className="border-foreground/15 flex-1 rounded-xl border py-3 text-sm opacity-70"
@@ -117,7 +119,7 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
           <WebcamIcon aria-hidden className="size-6 opacity-50" />
           <span className="flex-1">
             <span className="block opacity-80">Camera</span>
-            <span className="block text-sm opacity-60">Put this phone near the baby.</span>
+            <span className="block text-sm opacity-60">Put this phone/tablet near the baby.</span>
           </span>
         </button>
       )}
@@ -137,7 +139,7 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
         <EyeIcon aria-hidden className="size-6 opacity-50" />
         <span className="flex-1">
           <span className="block opacity-80">Watch</span>
-          <span className="block text-sm opacity-60">See and hear the camera phone.</span>
+          <span className="block text-sm opacity-60">See and hear the camera phone/tablet.</span>
         </span>
       </button>
 

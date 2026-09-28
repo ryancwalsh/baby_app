@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleAlertIcon, CircleCheckIcon, CircleIcon, TriangleAlertIcon } from 'lucide-react';
+import { CircleAlertIcon, CircleCheckIcon, CircleIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { getIsAndroid, getIsInstalled, getIsIos } from '@/components/platform';
@@ -37,19 +37,7 @@ function ChecklistItem({ children, status }: { readonly children: React.ReactNod
   );
 }
 
-export function WebcamChecklist({
-  error,
-  facingMode,
-  onBack,
-  onChooseFacingMode,
-  onStart,
-}: {
-  readonly error: null | string;
-  readonly facingMode: FacingMode;
-  readonly onBack: () => void;
-  readonly onChooseFacingMode: (facingMode: FacingMode) => void;
-  readonly onStart: () => void;
-}) {
+export function WebcamChecklist({ error, onBack, onStart }: { readonly error: null | string; readonly onBack: () => void; readonly onStart: () => void }) {
   const [platform, setPlatform] = useState<null | Platform>(null);
 
   useEffect(() => {
@@ -79,22 +67,21 @@ export function WebcamChecklist({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="opacity-70">Before starting this phone as the camera:</p>
+      <p className="opacity-70">Before starting this phone/tablet as the camera:</p>
 
       <ul className="flex flex-col gap-3">
-        <li className="flex gap-3">
-          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-500" />
-          <span className="text-sm opacity-90">Keep the phone and its charging cable out of the baby’s reach, at least 3 feet (1 m) from the crib, as with any monitor cord.</span>
-        </li>
         <ChecklistItem status="reminder">Turn on Do Not Disturb and silence the ringer, so a call or notification cannot wake the baby.</ChecklistItem>
         <ChecklistItem status={platform?.isCharging === true ? 'ok' : platform?.isCharging === false ? 'problem' : 'reminder'}>
-          {platform?.isCharging === false ? 'Not charging. Plug the phone in: this runs all night.' : 'Plug the phone in: this runs all night.'}
+          {platform?.isCharging === false ? 'Not charging. Plug the phone/tablet in: this runs all night.' : 'Plug the phone/tablet in: this runs all night.'}
         </ChecklistItem>
         <ChecklistItem status="reminder">
-          Stay in this app. Switching apps, locking the phone or taking a call stops the camera, and the watching phone will sound its alarm.
+          Keep the phone/tablet and its charging cable out of the baby’s reach, at least 3 feet (1 m) from the crib, as with any monitor cord.
         </ChecklistItem>
-        <ChecklistItem status="reminder">Phone cameras cannot see in the dark. A dim night light in the room makes the picture usable.</ChecklistItem>
-        <ChecklistItem status="reminder">Point the phone at the crib and leave the microphone uncovered.</ChecklistItem>
+        <ChecklistItem status="reminder">
+          Stay in this app. Switching apps, locking the phone or taking a call stops the camera, and the watching phone will sound its alert.
+        </ChecklistItem>
+        <ChecklistItem status="reminder">Most cameras cannot see in the dark. A dim night light in the room makes the picture usable.</ChecklistItem>
+        <ChecklistItem status="reminder">Leave the microphone uncovered.</ChecklistItem>
 
         {platform?.isIos === true && (
           <ChecklistItem status={platform.isInstalled ? 'ok' : 'problem'}>
@@ -112,22 +99,10 @@ export function WebcamChecklist({
               ? 'This browser can keep the screen awake.'
               : platform.isIos
                 ? 'This browser cannot keep the screen awake. Set Settings › Display & Brightness › Auto-Lock to Never, and switch it back afterwards.'
-                : 'This browser cannot keep the screen awake. Set the screen timeout to its longest in the phone’s display settings.'}
+                : 'This browser cannot keep the screen awake. Set the screen timeout to its longest in the phone/tablet’s display settings.'}
           </ChecklistItem>
         )}
       </ul>
-
-      <label className="flex items-center gap-3 text-sm opacity-70">
-        <input
-          checked={facingMode === 'user'}
-          className="accent-amber-500"
-          onChange={(event) => {
-            onChooseFacingMode(event.target.checked ? 'user' : 'environment');
-          }}
-          type="checkbox"
-        />
-        Use the front camera (the back one is sharper)
-      </label>
 
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
 

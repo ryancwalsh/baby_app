@@ -14,7 +14,7 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
  * camera — the stream is the same whichever way it is being looked at.
  */
 
-const ROTATION_KEY = 'baby-app-camera-rotation';
+const NANIT_ROTATION_KEY = 'baby-app-camera-rotation';
 const QUARTER_TURNS = 4;
 const DEGREES_PER_QUARTER_TURN = 90;
 /**
@@ -47,18 +47,18 @@ export function getPictureBoxStyle(maximumHeightPixels: null | number, boxAspect
 type Point = { x: number; y: number };
 
 /**
- * The size the picture is laid out at before any pinch: the largest 16:9 box
- * that still fits the container once the quarter turns have been applied.
+ * The size the picture is laid out at before any pinch: the largest box of the
+ * picture's own shape that still fits the container once the quarter turns have been applied.
  *
  * It is worked out here rather than left to `object-contain` on the video,
  * because the container is free to be any shape — a turned picture in a
  * landscape box is limited by the box's width, not its height, and the element
  * has to be that size before it is turned.
  */
-function getPictureSize(boxWidth: number, boxHeight: number, isQuarterTurned: boolean): { height: number; width: number } {
-  const width = isQuarterTurned ? Math.min(boxHeight, boxWidth * VIDEO_ASPECT_RATIO) : Math.min(boxWidth, boxHeight * VIDEO_ASPECT_RATIO);
+function getPictureSize(boxWidth: number, boxHeight: number, isQuarterTurned: boolean, aspectRatio: number): { height: number; width: number } {
+  const width = isQuarterTurned ? Math.min(boxHeight, boxWidth * aspectRatio) : Math.min(boxWidth, boxHeight * aspectRatio);
 
-  return { height: width / VIDEO_ASPECT_RATIO, width };
+  return { height: width / aspectRatio, width };
 }
 
 function getDistance(first: Point, second: Point): number {
@@ -73,7 +73,24 @@ function clamp(value: number, lowest: number, highest: number): number {
   return Math.min(Math.max(value, lowest), highest);
 }
 
-export function PinchZoomView({ children, maximumHeightPixels }: { readonly children: React.ReactNode; readonly maximumHeightPixels: null | number }) {
+export function PinchZoomView({
+  aspectRatio = VIDEO_ASPECT_RATIO,
+  children,
+  maximumHeightPixels,
+  rotationKey = NANIT_ROTATION_KEY,
+}: {
+  /**
+   * The picture's width over its height. A phone used as the camera sends
+   * whatever shape it is being held in, so this can change mid-stream.
+   */
+  readonly aspectRatio?: number;
+  readonly children: React.ReactNode;
+  readonly maximumHeightPixels: null | number;
+  /**
+   * Where the turn is remembered. Each camera stands its own way round.
+   */
+  readonly rotationKey?: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   /**
    * Every finger currently down, by pointer id. One is a drag, two are a
@@ -87,7 +104,7 @@ export function PinchZoomView({ children, maximumHeightPixels }: { readonly chil
   const [size, setSize] = useState({ height: 0, width: 0 });
   const [scale, setScale] = useState(MINIMUM_SCALE);
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
-  const { store: storeRotation, value: storedRotation } = useLocalStorage(ROTATION_KEY);
+  const { store: storeRotation, value: storedRotation } = useLocalStorage(rotationKey);
 
   /**
    * The camera is screwed to the wall one way round, so which way up the
@@ -135,7 +152,7 @@ export function PinchZoomView({ children, maximumHeightPixels }: { readonly chil
    * moment a pinch begins.
    */
   const isQuarterTurned = rotationQuarters % 2 === 1;
-  const picture = getPictureSize(size.width, size.height, isQuarterTurned);
+  const picture = getPictureSize(size.width, size.height, isQuarterTurned, aspectRatio);
   const drawnWidth = (isQuarterTurned ? picture.height : picture.width) * scale;
   const drawnHeight = (isQuarterTurned ? picture.width : picture.height) * scale;
 

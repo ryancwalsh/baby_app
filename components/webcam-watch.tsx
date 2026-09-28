@@ -1,6 +1,6 @@
 'use client';
 
-import { BellIcon, BellOffIcon, Loader2Icon, SquareIcon, TriangleAlertIcon, Volume2Icon } from 'lucide-react';
+import { BellIcon, BellOffIcon, SquareIcon, Volume2Icon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { sendWebcamSignalAction } from '@/app/actions/webcam';
@@ -8,6 +8,7 @@ import { getIsIos } from '@/components/platform';
 import { soundAlarm, unlockAlarm } from '@/components/webcam-alarm';
 import { getLocalDescription, ICE_SERVERS, openWebcamStream, waitForIceGathering } from '@/components/webcam-connection';
 import { playWithSound } from '@/components/webcam-media';
+import { type Status, WebcamWatchPicture } from '@/components/webcam-watch-picture';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { CAMERA_ADDRESS, type WebcamServerMessage } from '@/services/webcam/messages';
 
@@ -35,8 +36,6 @@ const ALARM_REPEAT_MILLISECONDS = 2_000;
  * camera that restarted, answers with a new connection.
  */
 const RETRY_MILLISECONDS = 10_000;
-
-type Status = 'connecting' | 'failed' | 'live' | 'stopped' | 'waiting';
 
 export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => void; readonly secretHash: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -216,30 +215,7 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative -mx-6">
-        <video autoPlay className="mx-auto max-h-[65vh] w-full bg-black object-contain" playsInline ref={videoRef} />
-
-        {status !== 'live' && !isStale && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
-            {(status === 'waiting' || status === 'connecting') && <Loader2Icon aria-hidden className="text-foreground/40 size-8 animate-spin" />}
-            <p className="text-foreground/50 text-sm">
-              {status === 'waiting' && 'Waiting for a camera. Start one on the other phone.'}
-              {status === 'connecting' && 'Connecting to the camera…'}
-              {status === 'stopped' && 'The camera was stopped.'}
-              {status === 'failed' && 'Could not connect on this network. Try putting both phones on the same wifi.'}
-            </p>
-          </div>
-        )}
-
-        {/* Deliberately loud for this app: this is the one moment the screen should demand attention. */}
-        {isStale && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 px-6 text-center">
-            <TriangleAlertIcon aria-hidden className="size-10 text-amber-500" />
-            <p className="text-lg font-semibold text-amber-500">No picture: connection lost</p>
-            <p className="text-foreground/60 text-sm">Reconnecting…</p>
-          </div>
-        )}
-      </div>
+      <WebcamWatchPicture isStale={isStale} status={status} videoRef={videoRef} />
 
       {needsTapForSound && (
         <button
@@ -261,7 +237,7 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
       <div className="flex gap-2">
         <button
           aria-checked={isAlarmOn}
-          className="border-foreground/15 flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm opacity-70"
+          className={`flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm ${isAlarmOn ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 opacity-70'}`}
           onClick={() => {
             storeAlarmSetting(isAlarmOn ? ALARM_OFF : null);
           }}
@@ -269,7 +245,7 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
           type="button"
         >
           {isAlarmOn ? <BellIcon aria-hidden className="size-4" /> : <BellOffIcon aria-hidden className="size-4" />}
-          {isAlarmOn ? 'Alarm on' : 'Alarm off'}
+          {isAlarmOn ? 'Alerts are on' : 'Alerts are off'}
         </button>
         <button className="border-foreground/15 flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm opacity-70" onClick={onExit} type="button">
           <SquareIcon aria-hidden className="size-4" /> Stop watching
