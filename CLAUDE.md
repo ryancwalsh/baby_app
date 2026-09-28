@@ -28,6 +28,31 @@ Treat every device call as something that can wake a child.
   the exact bug. The restore goes through `router.replace` and records
   nothing. Keep it that way.
 
+## Webcam mode: two phones instead of the Nanit
+
+For nights away from the nursery, the Monitor tab switches between **Nanit**
+and **Webcam**. In webcam mode one phone is the camera and another watches it,
+over WebRTC. The picture and sound go phone to phone and never through this
+process; `services/webcam/signaling.ts` only introduces them, over one event
+stream per phone and `sendWebcamSignalAction`, and holds the one camera slot in
+memory.
+
+- **STUN only, no TURN relay, by choice.** Phones on a network that keeps its
+  devices apart (hotel or guest wifi, some carriers) will not connect, and the
+  watch screen says so rather than retrying forever.
+- Neither role is remembered, and the camera starts only from its Start button.
+  A tap on the Monitor tab in webcam mode is consumed and thrown away, so it
+  cannot start the Nanit later when someone switches back.
+- The watching phone trusts only frames moving. A frozen last frame looks
+  exactly like a sleeping baby, so a picture that stops for 5 seconds is
+  covered over and, unless turned off, sounds an alarm. A camera that is
+  stopped on purpose says `bye` first, so that does not alarm.
+- Offers and answers carry their candidates (no trickle ICE), which keeps the
+  exchange to one message each way.
+- Not yet run on real phones. In particular, whether iOS keeps playing the
+  sound with the screen locked is untested, and the watch screen warns that it
+  may not.
+
 ## Design in the dark
 
 The phone is used in an unlit room at night. Keep large surfaces dim — no
@@ -247,9 +272,9 @@ curl -s http://localhost:2026/version.json
 ## Working here
 
 - Each top-level folder is named for what it holds: `services/{nanit,snoo,tapo}/`
-  are the clients for the three external services, `constants/` the app-wide
-  values, `auth/` the app's own login, `audio/` the browser audio behind the
-  noise page.
+  are the clients for the three external services, `services/webcam/` the
+  signaling for webcam mode, `constants/` the app-wide values, `auth/` the
+  app's own login, `audio/` the browser audio behind the noise page.
 - `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
   and safe to run. Yarn, not npm; `--exact` when adding.
 - `yarn dev` is safe to run beside the live app, and is the way to look at a
