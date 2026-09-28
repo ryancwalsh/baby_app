@@ -257,7 +257,7 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
   if (phase === 'replaced') {
     return (
       <div className="flex flex-col gap-3">
-        <p className="opacity-70">Another phone is the camera now, so this one has stopped.</p>
+        <p className="opacity-70">Another phone/tablet is the camera now, so this one has stopped.</p>
         <button className="border-foreground/15 rounded-2xl border px-5 py-3 opacity-70" onClick={onExit} type="button">
           Back
         </button>
@@ -284,5 +284,5 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
     );
   }
 
-  return <WebcamChecklist error={error} facingMode={facingMode} onBack={onExit} onChooseFacingMode={chooseFacingMode} onStart={start} />;
+  return <WebcamChecklist error={error} onBack={onExit} onStart={start} />;
 }
