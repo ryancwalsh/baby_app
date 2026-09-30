@@ -1,10 +1,11 @@
 'use client';
 
-import { BellIcon, BellOffIcon, Loader2Icon, VideoIcon } from 'lucide-react';
+import { BellIcon, BellOffIcon, Loader2Icon, VideoIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { stopNanitMediaAction } from '@/app/actions/nanit-media';
 import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
+import { useNanitAudio } from '@/components/nanit-audio-provider';
 import { consumeNavigationTap, MONITOR_HREF } from '@/components/navigation-tap';
 import { getPictureBoxStyle, PinchZoomView, VIDEO_ASPECT_RATIO } from '@/components/pinch-zoom-view';
 import { ToggleSwitch } from '@/components/toggle-switch';
@@ -25,9 +26,10 @@ import { usePictureWatchdog } from '@/hooks/use-picture-watchdog';
  * otherwise wake the camera on its own. Only a tap is recorded — see
  * components/navigation-tap.ts.
  *
- * The picture carries no sound. The room's audio is the listen button, which
- * lives above the router so it keeps playing with the screen off — see
- * components/nanit-audio-provider.tsx.
+ * The picture carries no sound. The room's audio is the listen button — the
+ * same one the night light has, repeated here beside the picture — which lives
+ * above the router so it keeps playing with the screen off and across tabs —
+ * see components/nanit-audio-provider.tsx.
  */
 
 const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
@@ -69,6 +71,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
    */
   const [attachment, setAttachment] = useState(0);
   const [error, setError] = useState<null | string>(null);
+  const { error: audioError, isMonitoring, isStarting: isAudioStarting, setIsMonitoring } = useNanitAudio();
 
   useEffect(() => {
     const measure = () => {
@@ -261,9 +264,23 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
         >
           {isAlarmOn ? <BellIcon className="size-5 text-amber-500" /> : <BellOffIcon className="size-5 opacity-50" />}
         </button>
+        <button
+          aria-checked={isMonitoring}
+          aria-label="Listen to the room"
+          className="border-foreground/15 bg-foreground/2 flex items-center rounded-2xl border px-5 disabled:opacity-60"
+          disabled={isAudioStarting}
+          onClick={() => {
+            setIsMonitoring(!isMonitoring);
+          }}
+          role="switch"
+          type="button"
+        >
+          {isMonitoring ? <Volume2Icon className="size-5 text-amber-500" /> : <VolumeIcon className="size-5 opacity-50" />}
+        </button>
       </div>
 
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {audioError !== null && <p className="text-sm text-amber-500">{audioError}</p>}
 
       {/* Pulled out through the page's own padding: the picture is the point, and every pixel of a phone's width is worth more to it than a tidy margin. */}
       <div className="relative -mx-6" ref={pictureRef}>
