@@ -30,6 +30,21 @@ const MAXIMUM_SCALE = 6;
 const DOUBLE_TAP_MILLISECONDS = 300;
 
 /**
+ * The zoom and where it is pointed, with the offset as a share of the drawn
+ * picture rather than in pixels, so it lands on the same part of the cot
+ * whatever size the box turns out to be next time.
+ */
+type StoredView = { scale: number; x: number; y: number };
+
+function readStoredView(key: string): null | StoredView {
+  try {
+    return JSON.parse(window.localStorage.getItem(key) ?? 'null') as null | StoredView;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Sized by width rather than by height, because a block's width is what CSS
  * lets us set and `aspect-ratio` then derives the height from: capping the
  * height directly would leave the width alone and stretch the picture. The
@@ -101,8 +116,20 @@ export function PinchZoomView({
   const pinchRef = useRef<null | { distance: number; midpoint: Point }>(null);
   const lastTapAtRef = useRef(0);
 
+  /**
+   * Remembered like the turn, so that looking at another tab and coming back
+   * finds the picture still pointed at the cot. The view unmounts with the
+   * page, so nothing held in state would survive the trip.
+   */
+  const viewKey = `${rotationKey}-view`;
+  /**
+   * The stored offset waits here until the box has been measured, since a
+   * share of a picture that has no size yet is nothing.
+   */
+  const pendingViewRef = useRef(readStoredView(viewKey));
+
   const [size, setSize] = useState({ height: 0, width: 0 });
-  const [scale, setScale] = useState(MINIMUM_SCALE);
+  const [scale, setScale] = useState(() => clamp(pendingViewRef.current?.scale ?? MINIMUM_SCALE, MINIMUM_SCALE, MAXIMUM_SCALE));
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
   const { store: storeRotation, value: storedRotation } = useLocalStorage(rotationKey);
 
@@ -172,6 +199,19 @@ export function PinchZoomView({
     },
     [drawnHeight, drawnWidth, size.height, size.width],
   );
+
+  useEffect(() => {
+    const pending = pendingViewRef.current;
+
+    if (drawnWidth > 0 && drawnHeight > 0) {
+      if (pending === null) {
+        window.localStorage.setItem(viewKey, JSON.stringify({ scale, x: offset.x / drawnWidth, y: offset.y / drawnHeight }));
+      } else {
+        pendingViewRef.current = null;
+        setOffset(clampOffset({ x: pending.x * drawnWidth, y: pending.y * drawnHeight }));
+      }
+    }
+  }, [clampOffset, drawnHeight, drawnWidth, offset, scale, viewKey]);
 
   const reset = useCallback(() => {
     setScale(MINIMUM_SCALE);
