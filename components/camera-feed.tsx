@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2Icon, VideoIcon } from 'lucide-react';
+import { BellIcon, BellOffIcon, Loader2Icon, VideoIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { stopNanitMediaAction } from '@/app/actions/nanit-media';
@@ -8,6 +8,8 @@ import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
 import { consumeNavigationTap, MONITOR_HREF } from '@/components/navigation-tap';
 import { getPictureBoxStyle, PinchZoomView, VIDEO_ASPECT_RATIO } from '@/components/pinch-zoom-view';
 import { ToggleSwitch } from '@/components/toggle-switch';
+import { unlockAlarm } from '@/components/webcam-alarm';
+import { usePictureWatchdog } from '@/hooks/use-picture-watchdog';
 
 /**
  * The live picture from the nursery.
@@ -37,18 +39,6 @@ const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
  */
 const BOTTOM_NAVIGATION_PIXELS = 96;
 
-const WATCHDOG_MILLISECONDS = 1_000;
-/**
- * How long the picture may stand still before it counts as lost. Segments are
- * two seconds long and the player keeps several in hand, so an ordinary live
- * picture never stops this long.
- */
-const STALE_AFTER_MILLISECONDS = 5_000;
-/**
- * How often to attach the stream afresh while the picture is lost.
- */
-const RETRY_MILLISECONDS = 10_000;
-
 export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   /**
@@ -74,12 +64,6 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
   const [availableHeightPixels, setAvailableHeightPixels] = useState<null | number>(null);
   const [isWatching, setIsWatching] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  /**
-   * Whether the picture has stopped moving. A frozen last frame of a sleeping
-   * baby is indistinguishable from a sleeping baby, so a stopped picture is
-   * covered over rather than left on screen.
-   */
-  const [isStale, setIsStale] = useState(false);
   /**
    * Bumped to attach the stream again after the picture is lost.
    */
@@ -117,6 +101,17 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
       video.load();
     }
   }, []);
+
+  const retry = useCallback(() => {
+    detach();
+    setAttachment((previous) => previous + 1);
+  }, [detach]);
+
+  /**
+   * Whether the picture has stopped moving, covered over below rather than
+   * left on screen.
+   */
+  const { isAlarmOn, isStale, isStaleRef, toggleAlarm } = usePictureWatchdog({ isStarting, isWatching, retry, videoRef });
 
   /**
    * Told to the server rather than only done here, because the relay would
@@ -189,8 +184,16 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
         } catch {
           if (isCurrent) {
             setIsStarting(false);
-            setError('Could not reach the camera.');
-            setIsWatching(false);
+
+            /**
+             * A retry that fails leaves the picture covered and the watchdog
+             * trying again. Only a first start that fails switches it off, as
+             * the answer to the tap that asked for it.
+             */
+            if (!isStaleRef.current) {
+              setError('Could not reach the camera.');
+              setIsWatching(false);
+            }
           }
         }
       };
@@ -201,62 +204,13 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
     return () => {
       isCurrent = false;
     };
-  }, [attachment, isWatching, secretHash]);
-
-  /**
-   * Checks every second that the picture is actually moving, rather than
-   * trusting the player to report a stream that has stopped: a playlist that
-   * stops growing is not an error to hls.js, it simply waits on the last frame.
-   *
-   * Not judged while starting, which takes seconds from cold, nor while the page
-   * is hidden, where the browser pauses the picture on purpose.
-   */
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-
-    if (isWatching && !isStarting) {
-      let lastTime = -1;
-      let lastProgressAt = Date.now();
-      let lastRetryAt = Date.now();
-
-      interval = setInterval(() => {
-        const video = videoRef.current;
-        const now = Date.now();
-
-        if (video === null || document.visibilityState !== 'visible') {
-          lastProgressAt = now;
-        } else if (video.currentTime !== lastTime) {
-          lastTime = video.currentTime;
-          lastProgressAt = now;
-          setIsStale(false);
-        } else if (now - lastProgressAt > STALE_AFTER_MILLISECONDS) {
-          setIsStale(true);
-
-          if (now - lastRetryAt > RETRY_MILLISECONDS) {
-            lastRetryAt = now;
-            detach();
-            setAttachment((previous) => previous + 1);
-          } else if (video.paused) {
-            // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget: the next tick tries again.
-            video.play().catch(() => {});
-          }
-        }
-      }, WATCHDOG_MILLISECONDS);
-    }
-
-    return () => {
-      if (interval !== null) {
-        clearInterval(interval);
-      }
-    };
-  }, [detach, isStarting, isWatching]);
+  }, [attachment, isStaleRef, isWatching, secretHash]);
 
   /**
    * Turning it off is the one direction that has to reach the server.
    */
   useEffect(() => {
     if (!isWatching && hasEverWatchedRef.current) {
-      setIsStale(false);
       detach();
       stopWatchingOnServer();
     }
@@ -278,22 +232,36 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <button
-        aria-checked={isWatching}
-        className="border-foreground/15 bg-foreground/2 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left"
-        onClick={() => {
-          setIsWatching(!isWatching);
-        }}
-        role="switch"
-        type="button"
-      >
-        <VideoIcon className={isWatching ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
-        <span className="flex-1">
-          <span className="block opacity-60">Live video</span>
-          <span className="block text-sm opacity-60">{isStarting ? 'Starting the camera…' : ''}</span>
-        </span>
-        <ToggleSwitch isOn={isWatching} />
-      </button>
+      <div className="flex gap-2">
+        <button
+          aria-checked={isWatching}
+          className="border-foreground/15 bg-foreground/2 flex flex-1 items-center gap-4 rounded-2xl border px-5 py-4 text-left"
+          onClick={() => {
+            unlockAlarm();
+            setIsWatching(!isWatching);
+          }}
+          role="switch"
+          type="button"
+        >
+          <VideoIcon className={isWatching ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
+          <span className="flex-1">
+            <span className="block opacity-60">Live video</span>
+            <span className="block text-sm opacity-60">{isStarting ? 'Starting the camera…' : ''}</span>
+          </span>
+          <ToggleSwitch isOn={isWatching} />
+        </button>
+        {/* Its own button rather than a setting elsewhere, because the one time it matters is the night it was left off. */}
+        <button
+          aria-checked={isAlarmOn}
+          aria-label={isAlarmOn ? 'Alarm on when the picture is lost' : 'Alarm off when the picture is lost'}
+          className="border-foreground/15 bg-foreground/2 flex items-center rounded-2xl border px-5"
+          onClick={toggleAlarm}
+          role="switch"
+          type="button"
+        >
+          {isAlarmOn ? <BellIcon className="size-5 text-amber-500" /> : <BellOffIcon className="size-5 opacity-50" />}
+        </button>
+      </div>
 
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
 

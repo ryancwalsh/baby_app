@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'react';
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { MONITOR_HREF, recordNavigationTap } from '@/components/navigation-tap';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
+import { unlockAlarm } from '@/components/webcam-alarm';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 const LULLABIES_HREF = '/lullabies';
@@ -92,6 +93,14 @@ export function BottomNav() {
                */
               onClick={() => {
                 recordNavigationTap(item.href);
+
+                /**
+                 * The same tap starts the picture, and iOS only lets the alarm
+                 * for a lost picture make sound once a tap has unlocked it.
+                 */
+                if (item.href === MONITOR_HREF) {
+                  unlockAlarm();
+                }
               }}
             >
               <span className="relative">
