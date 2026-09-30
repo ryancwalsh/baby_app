@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -41,6 +41,16 @@ export const PLAYLIST_FILE_NAMES: Record<MediaKind, string> = {
  */
 const SEGMENT_SECONDS = 2;
 const PLAYLIST_SEGMENT_COUNT = 4;
+/**
+ * How old a playlist file may be and still count as live. ffmpeg rewrites it
+ * with every segment, so one that has not changed for the whole span it covers
+ * belongs to an ffmpeg that has stopped receiving or has exited.
+ *
+ * Serving it anyway is the dangerous failure: a phone plays those last few
+ * seconds and then holds the final frame, which looks exactly like a sleeping
+ * baby. Refusing it makes the phone wait for a fresh one or say it cannot.
+ */
+const STALE_PLAYLIST_MILLISECONDS = SEGMENT_SECONDS * PLAYLIST_SEGMENT_COUNT * 1_000;
 /**
  * How long a kind runs without anyone asking for a segment before it is
  * dropped. A phone that is playing — including one whose screen is off —
@@ -362,13 +372,16 @@ export function getMediaKind(fileName: string): MediaKind | null {
 }
 
 /**
- * The playlist as it stands, or null until ffmpeg has written one. A phone
- * asking this early is normal: the camera takes a moment to start pushing.
+ * The playlist as it stands, or null until ffmpeg has written a fresh one. A
+ * phone asking this early is normal: the camera takes a moment to start
+ * pushing. A playlist that has stopped changing is null too — see
+ * `STALE_PLAYLIST_MILLISECONDS`.
  */
 export function readPlaylist(kind: MediaKind): null | string {
   const path = join(OUTPUT_DIRECTORY, PLAYLIST_FILE_NAMES[kind]);
+  const modifiedAt = statSync(path, { throwIfNoEntry: false })?.mtimeMs ?? 0;
 
-  return existsSync(path) ? readFileSync(path, 'utf8') : null;
+  return Date.now() - modifiedAt < STALE_PLAYLIST_MILLISECONDS ? readFileSync(path, 'utf8') : null;
 }
 
 /**

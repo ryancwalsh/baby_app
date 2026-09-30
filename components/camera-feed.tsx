@@ -37,6 +37,18 @@ const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
  */
 const BOTTOM_NAVIGATION_PIXELS = 96;
 
+const WATCHDOG_MILLISECONDS = 1_000;
+/**
+ * How long the picture may stand still before it counts as lost. Segments are
+ * two seconds long and the player keeps several in hand, so an ordinary live
+ * picture never stops this long.
+ */
+const STALE_AFTER_MILLISECONDS = 5_000;
+/**
+ * How often to attach the stream afresh while the picture is lost.
+ */
+const RETRY_MILLISECONDS = 10_000;
+
 export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   /**
@@ -62,6 +74,16 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
   const [availableHeightPixels, setAvailableHeightPixels] = useState<null | number>(null);
   const [isWatching, setIsWatching] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  /**
+   * Whether the picture has stopped moving. A frozen last frame of a sleeping
+   * baby is indistinguishable from a sleeping baby, so a stopped picture is
+   * covered over rather than left on screen.
+   */
+  const [isStale, setIsStale] = useState(false);
+  /**
+   * Bumped to attach the stream again after the picture is lost.
+   */
+  const [attachment, setAttachment] = useState(0);
   const [error, setError] = useState<null | string>(null);
 
   useEffect(() => {
@@ -179,13 +201,62 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
     return () => {
       isCurrent = false;
     };
-  }, [isWatching, secretHash]);
+  }, [attachment, isWatching, secretHash]);
+
+  /**
+   * Checks every second that the picture is actually moving, rather than
+   * trusting the player to report a stream that has stopped: a playlist that
+   * stops growing is not an error to hls.js, it simply waits on the last frame.
+   *
+   * Not judged while starting, which takes seconds from cold, nor while the page
+   * is hidden, where the browser pauses the picture on purpose.
+   */
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isWatching && !isStarting) {
+      let lastTime = -1;
+      let lastProgressAt = Date.now();
+      let lastRetryAt = Date.now();
+
+      interval = setInterval(() => {
+        const video = videoRef.current;
+        const now = Date.now();
+
+        if (video === null || document.visibilityState !== 'visible') {
+          lastProgressAt = now;
+        } else if (video.currentTime !== lastTime) {
+          lastTime = video.currentTime;
+          lastProgressAt = now;
+          setIsStale(false);
+        } else if (now - lastProgressAt > STALE_AFTER_MILLISECONDS) {
+          setIsStale(true);
+
+          if (now - lastRetryAt > RETRY_MILLISECONDS) {
+            lastRetryAt = now;
+            detach();
+            setAttachment((previous) => previous + 1);
+          } else if (video.paused) {
+            // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget: the next tick tries again.
+            video.play().catch(() => {});
+          }
+        }
+      }, WATCHDOG_MILLISECONDS);
+    }
+
+    return () => {
+      if (interval !== null) {
+        clearInterval(interval);
+      }
+    };
+  }, [detach, isStarting, isWatching]);
 
   /**
    * Turning it off is the one direction that has to reach the server.
    */
   useEffect(() => {
     if (!isWatching && hasEverWatchedRef.current) {
+      setIsStale(false);
       detach();
       stopWatchingOnServer();
     }
@@ -240,6 +311,16 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           >
             <VideoIcon aria-hidden className="text-foreground/30 size-8" />
             <p className="text-foreground/40 text-sm">The camera is not streaming</p>
+          </div>
+        )}
+
+        {/*
+          Opaque, so the frozen frame underneath cannot be mistaken for the
+          room. Outside the pinch view for the same reason as the spinner.
+        */}
+        {isWatching && isStale && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black">
+            <p className="text-sm text-amber-500">The picture has stopped. Reconnecting…</p>
           </div>
         )}
 
