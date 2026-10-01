@@ -298,6 +298,18 @@ build` ran without secrets present, but no longer: `APP_TITLE` is read by
   for the whole server and is demand-driven: playing a playlist starts it and
   segment requests keep it alive — see README.md. One MOBILE stream carries
   both, so it writes an audio-only and a video-only playlist off a single pull.
+- The relay restarts its ffmpeg about once an hour, when the token in the RTMP
+  URL ages out, and the phone must not see that as a frozen picture. Three
+  things cover it, and each was a real failure before it existed: a playlist
+  ffmpeg has stopped rewriting is refused rather than served
+  (`services/nanit/media-files.ts`); segments are numbered from the clock
+  (`-hls_start_number_source epoch`), because hls.js stalls for the length of
+  the previous run when the numbers restart from zero; and the monitor page
+  covers a picture that stops moving and attaches again
+  (`hooks/use-picture-watchdog.ts`).
+- Stopping the picture or the sound is held for 20 seconds on the server
+  before the relay is dropped, so that flipping to another tab and back does
+  not start the camera from cold.
 - The camera refuses new app websockets past a limit, with
   `403 Forbidden: Number of Mobile App connections above limit`. It counts
   sockets it has not yet timed out, so a run of quick `pm2 restart`s — or a

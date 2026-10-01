@@ -9,6 +9,15 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 export const SECRET_HASH_KEY = 'baby-app-secret-hash';
 
 /**
+ * The hash the server last accepted. Every tab has its own guard, and each
+ * mounts afresh on arrival, so without this every tab change showed
+ * "Unlocking…" for a round trip through the tunnel before anything else could
+ * start. It is still checked again on every arrival; this only lets the page
+ * get on with it meanwhile. A module variable, so a reload forgets it.
+ */
+let acceptedSecretHash: null | string = null;
+
+/**
  * Nothing about the room is fetched until the password has been accepted, so an
  * unlocked page never reveals device state — and the actions themselves check
  * the hash again, because a client-side gate alone would be decoration.
@@ -27,8 +36,10 @@ export function LoginGuard({ children }: { readonly children: (secretHash: strin
       const attempt = await logInAction(hash);
 
       if (attempt.isLoggedIn) {
+        acceptedSecretHash = hash;
         setIsLoggedIn(true);
       } else if (attempt.lockedForSeconds === null) {
+        acceptedSecretHash = null;
         store(null);
         setError('That login is no longer valid.');
       } else {
@@ -65,7 +76,7 @@ export function LoginGuard({ children }: { readonly children: (secretHash: strin
     );
   }
 
-  if (isLoggedIn) {
+  if (isLoggedIn || acceptedSecretHash === secretHash) {
     return children(secretHash);
   }
 

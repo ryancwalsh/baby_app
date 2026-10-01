@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { SECRET_HASH_KEY } from '@/components/login-guard';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
+const REPOSITORY_URL = 'https://github.com/ryancwalsh/baby_app';
 const SHORT_COMMIT_LENGTH = 7;
 const MILLISECONDS_PER_SECOND = 1_000;
 const SECONDS_PER_MINUTE = 60;
@@ -92,14 +93,18 @@ export function VersionFooter() {
           Notes
         </a>{' '}
         |{' '}
-        <a href="https://github.com/ryancwalsh/baby_app" rel="noopener noreferrer" target="_blank">
+        <a href={REPOSITORY_URL} rel="noopener noreferrer" target="_blank">
           Source
         </a>
       </p>
       {version !== null && (
         <>
           <p>
-            Version <span className="font-semibold">{version.commit.slice(0, SHORT_COMMIT_LENGTH)}</span> on {version.branch}
+            Version{' '}
+            <a className="font-semibold" href={`${REPOSITORY_URL}/commit/${version.commit}`} rel="noopener noreferrer" target="_blank">
+              {version.commit.slice(0, SHORT_COMMIT_LENGTH)}
+            </a>{' '}
+            on {version.branch}
           </p>
           <p>
             Built {describeTimeSinceBuild(version.build_time_UTC, now)} ({version.build_time_UTC} UTC)

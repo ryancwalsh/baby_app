@@ -1,7 +1,8 @@
 'use server';
 
 import { requireLogin } from '@/auth/login';
-import { type MediaKind, stopMedia } from '@/services/nanit/media';
+import { stopMedia } from '@/services/nanit/media';
+import { type MediaKind } from '@/services/nanit/media-files';
 
 /**
  * Starting is not an action: a phone starts listening or watching simply by
@@ -13,5 +14,5 @@ import { type MediaKind, stopMedia } from '@/services/nanit/media';
  */
 export async function stopNanitMediaAction(secretHash: string, kind: MediaKind): Promise<void> {
   await requireLogin(secretHash);
-  await stopMedia(kind);
+  stopMedia(kind);
 }
