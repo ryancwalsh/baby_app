@@ -1,7 +1,8 @@
 import { type NextRequest } from 'next/server';
 
 import { attemptLogin } from '@/auth/login';
-import { getMediaKind, keepMediaRunning, PLAYLIST_FILE_NAMES, readPlaylist, readSegment } from '@/services/nanit/media';
+import { keepMediaRunning } from '@/services/nanit/media';
+import { getMediaKind, PLAYLIST_FILE_NAMES, readPlaylist, readSegment } from '@/services/nanit/media-files';
 
 /**
  * Serving a live stream needs the Node runtime, not the edge one.

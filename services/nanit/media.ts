@@ -1,10 +1,10 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { getAccessToken, getFirstCamera } from '@/services/nanit/auth';
 import { connect } from '@/services/nanit/connection';
+import { type MediaKind, OUTPUT_DIRECTORY, PLAYLIST_FILE_NAMES, PLAYLIST_SEGMENT_COUNT, SEGMENT_SECONDS } from '@/services/nanit/media-files';
 
 /**
  * Live sound and pictures from the nursery, as HLS.
@@ -19,38 +19,11 @@ import { connect } from '@/services/nanit/connection';
  * H.264, which is what both phones want, so the home box only demuxes.
  *
  * Segments live in a temp directory rather than under `secrets/`: they are a
- * few seconds of rolling cache, and ffmpeg deletes them as they age out.
+ * few seconds of rolling cache, and ffmpeg deletes them as they age out. What
+ * is in that directory, and reading it for a phone, is
+ * services/nanit/media-files.ts.
  */
 
-export type MediaKind = 'audio' | 'video';
-
-const OUTPUT_DIRECTORY = join(tmpdir(), 'baby-app-nanit-media');
-
-export const PLAYLIST_FILE_NAMES: Record<MediaKind, string> = {
-  audio: 'audio.m3u8',
-  video: 'video.m3u8',
-};
-
-/**
- * Short segments keep the delay down; four of them is enough of a window that
- * a phone which stalls briefly can still catch up without a gap.
- *
- * Two seconds is honoured rather than rounded up, because the camera emits a
- * keyframe every second — measured, not assumed — and `-c:v copy` can only cut
- * a segment on one.
- */
-const SEGMENT_SECONDS = 2;
-const PLAYLIST_SEGMENT_COUNT = 4;
-/**
- * How old a playlist file may be and still count as live. ffmpeg rewrites it
- * with every segment, so one that has not changed for the whole span it covers
- * belongs to an ffmpeg that has stopped receiving or has exited.
- *
- * Serving it anyway is the dangerous failure: a phone plays those last few
- * seconds and then holds the final frame, which looks exactly like a sleeping
- * baby. Refusing it makes the phone wait for a fresh one or say it cannot.
- */
-const STALE_PLAYLIST_MILLISECONDS = SEGMENT_SECONDS * PLAYLIST_SEGMENT_COUNT * 1_000;
 /**
  * How long a kind runs without anyone asking for a segment before it is
  * dropped. A phone that is playing — including one whose screen is off —
@@ -58,6 +31,13 @@ const STALE_PLAYLIST_MILLISECONDS = SEGMENT_SECONDS * PLAYLIST_SEGMENT_COUNT * 1
  * watching or listening. The camera is only told to stop once both are quiet.
  */
 const IDLE_TIMEOUT_MILLISECONDS = 30_000;
+/**
+ * How long a kind carries on after being told to stop. Leaving the monitor tab
+ * stops the picture, and a look at the switches and back used to mean starting
+ * the camera from cold — seconds of black box each time. Held this long, a
+ * quick return finds a playlist already waiting.
+ */
+const LINGER_MILLISECONDS = 20_000;
 /**
  * How long to wait before picking the stream back up after ffmpeg exits. The
  * usual cause is the access token in the RTMP URL ageing out, and the restart
@@ -174,6 +154,15 @@ function buildOutputArguments(kind: MediaKind): string[] {
     '-hls_list_size',
     String(PLAYLIST_SEGMENT_COUNT),
     /**
+     * Numbered from the clock rather than from zero, so the playlist of an
+     * ffmpeg restarted mid-watch carries on upwards from the last one. hls.js
+     * waits for segment numbers past the ones it has played: measured against
+     * a test stream on 2026-09-30, a restart from zero froze the picture for
+     * 22 seconds, and one numbered this way for the 2 the restart itself took.
+     */
+    '-hls_start_number_source',
+    'epoch',
+    /**
      * `delete_segments` keeps the directory from growing all night;
      * `omit_endlist` marks the playlist live rather than finished, which is
      * what stops a phone treating it as a short recording and stopping.
@@ -220,6 +209,11 @@ async function runRelay(): Promise<void> {
    * the process.
    */
   if (isAnythingWanted(relay)) {
+    /**
+     * Cleared first, because an ffmpeg only deletes segments it wrote itself
+     * and the clock numbering means a new one never overwrites the last one's.
+     */
+    rmSync(OUTPUT_DIRECTORY, { force: true, recursive: true });
     mkdirSync(OUTPUT_DIRECTORY, { recursive: true });
 
     const ffmpeg = spawnFfmpeg(rtmpUrl);
@@ -284,17 +278,25 @@ async function shutDown(): Promise<void> {
 }
 
 /**
- * Drops one kind. The camera is only told to stop once neither the sound nor
- * the picture is wanted, so switching the monitor off does not cut the sound
- * out from under someone listening in another tab.
+ * Drops one kind, `LINGER_MILLISECONDS` from now and only if nobody has asked
+ * for it again in the meantime. The camera is only told to stop once neither
+ * the sound nor the picture is wanted, so switching the monitor off does not
+ * cut the sound out from under someone listening in another tab.
  */
-export async function stopMedia(kind: MediaKind): Promise<void> {
+export function stopMedia(kind: MediaKind): void {
   const relay = getRelay();
-  relay.isWanted[kind] = false;
+  const stoppedAt = Date.now();
 
-  if (!isAnythingWanted(relay)) {
-    await shutDown();
-  }
+  setTimeout(() => {
+    if (relay.lastRequestedAt[kind] <= stoppedAt) {
+      relay.isWanted[kind] = false;
+
+      if (!isAnythingWanted(relay)) {
+        // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget from a timer; a camera that will not answer still leaves the relay stopped locally.
+        shutDown().catch(() => {});
+      }
+    }
+  }, LINGER_MILLISECONDS);
 }
 
 /**
@@ -353,47 +355,4 @@ export function keepMediaRunning(kind: MediaKind): Promise<void> {
   relay.starting ??= startRelay();
 
   return relay.starting;
-}
-
-/**
- * Which kind a requested file belongs to, or null for a name ffmpeg never
- * writes. Both the playlists and the segments are named after their kind, so
- * one prefix answers for both — and a name that matches nothing here is what
- * stops a request reaching back out of the directory.
- */
-export function getMediaKind(fileName: string): MediaKind | null {
-  for (const kind of ['audio', 'video'] as const) {
-    if (fileName === PLAYLIST_FILE_NAMES[kind] || new RegExp(`^${kind}\\d+\\.ts$`, 'u').test(fileName)) {
-      return kind;
-    }
-  }
-
-  return null;
-}
-
-/**
- * The playlist as it stands, or null until ffmpeg has written a fresh one. A
- * phone asking this early is normal: the camera takes a moment to start
- * pushing. A playlist that has stopped changing is null too — see
- * `STALE_PLAYLIST_MILLISECONDS`.
- */
-export function readPlaylist(kind: MediaKind): null | string {
-  const path = join(OUTPUT_DIRECTORY, PLAYLIST_FILE_NAMES[kind]);
-  const modifiedAt = statSync(path, { throwIfNoEntry: false })?.mtimeMs ?? 0;
-
-  return Date.now() - modifiedAt < STALE_PLAYLIST_MILLISECONDS ? readFileSync(path, 'utf8') : null;
-}
-
-/**
- * One segment by name. The name is checked against the pattern ffmpeg writes
- * rather than trusted, so a request cannot reach back out of the directory.
- */
-export function readSegment(fileName: string): Buffer | null {
-  if (getMediaKind(fileName) === null) {
-    return null;
-  }
-
-  const path = join(OUTPUT_DIRECTORY, fileName);
-
-  return existsSync(path) ? readFileSync(path) : null;
 }
