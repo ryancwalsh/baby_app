@@ -15,7 +15,18 @@ const FADE_MINUTES = FADE_DURATION_MILLISECONDS / 60_000;
  * open, so a press is one frame on an existing socket and the real answer
  * lands quickly. On failure the control snaps back to where it started.
  */
-export function NightLight({ initialState, secretHash }: { readonly initialState: NightLightState; readonly secretHash: string }) {
+export function NightLight({
+  initialState,
+  onChange,
+  secretHash,
+}: {
+  readonly initialState: NightLightState;
+  /**
+   * Told every state the tile shows. Must be stable across renders.
+   */
+  readonly onChange: (state: NightLightState) => void;
+  readonly secretHash: string;
+}) {
   const [state, setState] = useState(initialState);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
@@ -24,6 +35,10 @@ export function NightLight({ initialState, secretHash }: { readonly initialState
    * section unmounts on navigation and the listening would go with it.
    */
   const { error: audioError, isMonitoring, isStarting, setIsMonitoring } = useNanitAudio();
+
+  useEffect(() => {
+    onChange(state);
+  }, [onChange, state]);
 
   /**
    * Live updates, so a change made in the Nanit app shows up here without a

@@ -1,7 +1,7 @@
 'use client';
 
 import { PlugZapIcon } from 'lucide-react';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 import { type ConnectedLamp, toggleLampAction, type UnreachableLamp } from '@/app/actions/lamp';
 import { getDeviceIcon } from '@/components/device-icons';
@@ -14,11 +14,26 @@ const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 flex w-full items-
  * a switch that lags behind the tap reads as broken. If the call fails the
  * switch snaps back to the state we started from.
  */
-export function LampToggle({ lamp, secretHash }: { readonly lamp: ConnectedLamp; readonly secretHash: string }) {
+export function LampToggle({
+  lamp,
+  onChange,
+  secretHash,
+}: {
+  readonly lamp: ConnectedLamp;
+  /**
+   * Told every state the switch shows. Must be stable across renders.
+   */
+  readonly onChange: (deviceId: string, isOn: boolean) => void;
+  readonly secretHash: string;
+}) {
   const [isOn, setIsOn] = useState(lamp.isOn);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
   const Icon = getDeviceIcon(lamp.iconName);
+
+  useEffect(() => {
+    onChange(lamp.deviceId, isOn);
+  }, [isOn, lamp.deviceId, onChange]);
 
   function handleClick() {
     const previous = isOn;
