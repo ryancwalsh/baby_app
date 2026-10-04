@@ -74,7 +74,7 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-2">
       <NightLight initialState={state.nightLight} onChange={rememberNightLight} secretHash={secretHash} />
 
       <ClockAndLullaby secretHash={secretHash} />

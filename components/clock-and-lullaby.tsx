@@ -62,7 +62,7 @@ export function ClockAndLullaby({ secretHash }: { readonly secretHash: string })
 
   return (
     <div className="flex items-center gap-3 px-5">
-      <span className="flex-1 text-xl tabular-nums opacity-70">{time}</span>
+      <span className="flex-1 text-2xl tabular-nums opacity-70">{time}</span>
 
       <button
         aria-label={firstLullaby === undefined ? 'No lullaby to play' : `${isSounding ? 'Pause' : 'Play'} ${firstLullaby.name}`}

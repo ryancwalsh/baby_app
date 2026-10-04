@@ -63,7 +63,7 @@ export default function RootLayout({
             <NanitAudioProvider>
               <div className="mx-auto flex min-h-screen max-w-md flex-col">
                 <InstallBanner />
-                <main className="flex-1 pb-24">{children}</main>
+                <main className="flex-1">{children}</main>
               </div>
               <BottomNav />
             </NanitAudioProvider>

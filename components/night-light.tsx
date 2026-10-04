@@ -185,7 +185,7 @@ export function NightLight({
         </div>
 
         <button
-          className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg border py-2 disabled:opacity-40 ${
+          className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg border p-2 disabled:opacity-40 ${
             state.isFading ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'
           }`}
           disabled={isPending || (!state.isFading && state.brightness <= FADE_TARGET_BRIGHTNESS)}
