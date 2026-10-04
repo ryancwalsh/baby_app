@@ -244,6 +244,8 @@ overnight is the app until someone notices. `/version.json` stamps the branch
 alongside the commit, so a deploy that reports anything but `main` was done
 from the wrong place.
 
+Always delete local and remote branches after they're merged to `main`.
+
 Do not deploy with a bare `yarn start`, `nohup` or `setsid`. Any of those puts a
 **second** copy of the app on port 2026, and the failure is quiet rather than
 loud:
