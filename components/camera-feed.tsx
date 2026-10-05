@@ -238,7 +238,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
       <div className="flex gap-2">
         <button
           aria-checked={isWatching}
-          className="border-foreground/15 bg-foreground/2 flex flex-1 items-center gap-4 rounded-2xl border px-5 py-4 text-left"
+          className="border-foreground/15 bg-foreground/2 dark:bg-black flex flex-1 items-center gap-4 rounded-2xl border px-5 py-4 text-left"
           onClick={() => {
             unlockAlarm();
             setIsWatching(!isWatching);
@@ -257,7 +257,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
         <button
           aria-checked={isAlarmOn}
           aria-label={isAlarmOn ? 'Alarm on when the picture is lost' : 'Alarm off when the picture is lost'}
-          className="border-foreground/15 bg-foreground/2 flex items-center rounded-2xl border px-5"
+          className="border-foreground/15 bg-foreground/2 dark:bg-black flex items-center rounded-2xl border px-5"
           onClick={toggleAlarm}
           role="switch"
           type="button"
@@ -267,7 +267,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
         <button
           aria-checked={isMonitoring}
           aria-label="Listen to the room"
-          className="border-foreground/15 bg-foreground/2 flex items-center rounded-2xl border px-5 disabled:opacity-60"
+          className="border-foreground/15 bg-foreground/2 dark:bg-black flex items-center rounded-2xl border px-5 disabled:opacity-60"
           disabled={isAudioStarting}
           onClick={() => {
             setIsMonitoring(!isMonitoring);

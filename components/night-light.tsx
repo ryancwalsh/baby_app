@@ -94,7 +94,7 @@ export function NightLight({
   }
 
   return (
-    <section className="border-foreground/15 bg-foreground/2 flex flex-col gap-4 rounded-2xl border px-5 py-4">
+    <section className="border-foreground/15 bg-foreground/2 dark:bg-black flex flex-col gap-4 rounded-2xl border px-5 py-4">
       <div className="flex items-center gap-3">
         <h2 className="text-foreground/60 flex flex-1 items-center gap-2 text-lg font-semibold">
           <LightbulbIcon className="size-5 opacity-60" />

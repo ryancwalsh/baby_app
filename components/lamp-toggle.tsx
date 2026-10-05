@@ -7,7 +7,7 @@ import { type ConnectedLamp, toggleLampAction, type UnreachableLamp } from '@/ap
 import { getDeviceIcon } from '@/components/device-icons';
 import { ToggleSwitch } from '@/components/toggle-switch';
 
-const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left';
+const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 dark:bg-black flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left';
 
 /**
  * Optimistic on purpose: the plug takes a moment to answer over the cloud, and

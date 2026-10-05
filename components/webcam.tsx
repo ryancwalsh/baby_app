@@ -106,7 +106,7 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
         </div>
       ) : (
         <button
-          className="border-foreground/15 bg-foreground/2 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left"
+          className="border-foreground/15 bg-foreground/2 dark:bg-black flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left"
           onClick={() => {
             if (cameraStartedAt === null) {
               setRole('camera');
@@ -125,7 +125,7 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
       )}
 
       <button
-        className="border-foreground/15 bg-foreground/2 flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left"
+        className="border-foreground/15 bg-foreground/2 dark:bg-black flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left"
         onClick={() => {
           /**
            * Here, inside the tap, because iOS only lets the alarm make a sound
