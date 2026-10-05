@@ -15,6 +15,8 @@ const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycl
  * can be started from the switches without walking to the Lullabies tab. The
  * playing itself is `LullabyAudioProvider`'s, so the button and that tab always
  * agree.
+ *
+ * Tapping the time blacks out the whole screen but for the time itself, for a phone left propped up in the dark, and a tap anywhere brings the page back.
  */
 export function ClockAndLullaby({ secretHash }: { readonly secretHash: string }) {
   const { currentUrl, isPlaying, lullabies, playTrack, setLullabies } = useLullabyAudio();
@@ -23,6 +25,7 @@ export function ClockAndLullaby({ secretHash }: { readonly secretHash: string })
    * time zone are not the phone's and the two would disagree.
    */
   const [time, setTime] = useState<null | string>(null);
+  const [isBlackedOut, setIsBlackedOut] = useState(false);
 
   useEffect(() => {
     function tick() {
@@ -62,7 +65,29 @@ export function ClockAndLullaby({ secretHash }: { readonly secretHash: string })
 
   return (
     <div className="flex items-center gap-3 px-5">
-      <span className="flex-1 text-2xl tabular-nums opacity-70">{time}</span>
+      <button
+        aria-label="Black out the screen"
+        className="flex-1 text-left text-2xl tabular-nums opacity-70"
+        onClick={() => {
+          setIsBlackedOut(true);
+        }}
+        type="button"
+      >
+        {time}
+      </button>
+
+      {isBlackedOut && (
+        <button
+          aria-label="Leave the blacked out screen"
+          className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black text-4xl text-white/70 tabular-nums"
+          onClick={() => {
+            setIsBlackedOut(false);
+          }}
+          type="button"
+        >
+          {time}
+        </button>
+      )}
 
       <button
         aria-label={firstLullaby === undefined ? 'No lullaby to play' : `${isSounding ? 'Pause' : 'Play'} ${firstLullaby.name}`}
