@@ -8,8 +8,8 @@ import { MonitorModes } from '@/components/monitor-modes';
  * pairing lives here — that keeps the page itself on the server, where the
  * room's name can be read from the environment.
  *
- * The picture is the whole page: the night light and the listening live on the
- * lights tab, so nothing here competes with the cot for the screen.
+ * The picture is the whole page: the night light lives on the lights tab and
+ * the listening in the navigation, so nothing here competes with the cot for the screen.
  */
 export function MonitorSection() {
   return <LoginGuard>{(secretHash) => <MonitorModes secretHash={secretHash} />}</LoginGuard>;

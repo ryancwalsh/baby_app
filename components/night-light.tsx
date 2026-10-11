@@ -1,6 +1,6 @@
 'use client';
 
-import { LightbulbIcon, SunsetIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
+import { LightbulbIcon, SunsetIcon } from 'lucide-react';
 import { type CSSProperties, useEffect, useState, useTransition } from 'react';
 
 import { setNightLightBrightnessAction, setNightLightPowerAction, startNightLightFadeAction, stopNightLightFadeAction } from '@/app/actions/night-light';
@@ -31,10 +31,10 @@ export function NightLight({
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
   /**
-   * The sound half lives in the provider above the router, not here: this
-   * section unmounts on navigation and the listening would go with it.
+   * The listen button is in the bottom navigation, but a camera that could not
+   * be reached for sound is still reported here, beside the camera's own tile.
    */
-  const { error: audioError, isMonitoring, isStarting, setIsMonitoring } = useNanitAudio();
+  const { error: audioError } = useNanitAudio();
 
   useEffect(() => {
     onChange(state);
@@ -111,22 +111,6 @@ export function NightLight({
           type="button"
         >
           <LightbulbIcon className="size-6" />
-        </button>
-
-        {/*
-          Two of the Nanit app's three modes: off, and on even in the
-          background. There is no "only while the app is open" here.
-        */}
-        <button
-          aria-checked={isMonitoring}
-          aria-label="Listen to the room"
-          className={`shrink-0 rounded-lg border p-2 transition-colors disabled:opacity-60 ${isMonitoring ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`}
-          disabled={isStarting}
-          onClick={() => setIsMonitoring(!isMonitoring)}
-          role="switch"
-          type="button"
-        >
-          {isMonitoring ? <Volume2Icon className="size-6" /> : <VolumeIcon className="size-6" />}
         </button>
       </div>
 

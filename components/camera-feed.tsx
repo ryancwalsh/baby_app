@@ -27,7 +27,7 @@ import { usePictureWatchdog } from '@/hooks/use-picture-watchdog';
  * components/navigation-tap.ts.
  *
  * The picture carries no sound. The room's audio is the listen button — the
- * same one the night light has, repeated here beside the picture — which lives
+ * same one the bottom navigation has, repeated here beside the picture — which lives
  * above the router so it keeps playing with the screen off and across tabs —
  * see components/nanit-audio-provider.tsx.
  */
@@ -36,10 +36,10 @@ const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
 
 /**
  * What the layout already reserves for the fixed bottom navigation, in pixels
- * — `pb-24` on the page's `main`. Subtracted below so the picture stops above
+ * — `pb-28` on the layout's `main`. Subtracted below so the picture stops above
  * the tabs rather than under them.
  */
-const BOTTOM_NAVIGATION_PIXELS = 96;
+const BOTTOM_NAVIGATION_PIXELS = 112;
 
 export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);

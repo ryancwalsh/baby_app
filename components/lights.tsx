@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getLampsAction, type Lamp } from '@/app/actions/lamp';
 import { getNightLightAction } from '@/app/actions/night-light';
 import { getTapoCloudStatusAction } from '@/app/actions/tapo-login';
-import { ClockAndLullaby } from '@/components/clock-and-lullaby';
+import { Clock } from '@/components/clock';
 import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
 import { NightLight } from '@/components/night-light';
 import { TapoCloudLogin } from '@/components/tapo-cloud-login';
@@ -77,7 +77,7 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
     <div className="flex flex-col gap-2">
       <NightLight initialState={state.nightLight} onChange={rememberNightLight} secretHash={secretHash} />
 
-      <ClockAndLullaby secretHash={secretHash} />
+      <Clock />
 
       <div className="flex flex-col gap-3">
         {state.lamps.map((lamp) =>

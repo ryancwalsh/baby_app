@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
+import { ListenAction, LullabyAction, NightLightAction, NoiseAction } from '@/components/bottom-nav-actions';
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { MONITOR_HREF, recordNavigationTap } from '@/components/navigation-tap';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
@@ -15,10 +16,10 @@ const LULLABIES_HREF = '/lullabies';
 const NOISE_HREF = '/noise';
 
 const NAV_ITEMS = [
-  { href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
-  { href: MONITOR_HREF, icon: VideoIcon, label: 'Monitor' },
-  { href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
-  { href: NOISE_HREF, icon: WavesIcon, label: 'Noise' },
+  { Action: NightLightAction, href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
+  { Action: ListenAction, href: MONITOR_HREF, icon: VideoIcon, label: 'Monitor' },
+  { Action: LullabyAction, href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
+  { Action: NoiseAction, href: NOISE_HREF, icon: WavesIcon, label: 'Noise' },
 ] as const;
 
 const CURRENT_PAGE_KEY = 'baby-app-current-page';
@@ -27,6 +28,10 @@ const DEFAULT_HREF = '/';
 /**
  * Fixed to the bottom so it is reachable one-handed in the dark, and kept dim:
  * only the current tab lights up, in the same amber the device controls use.
+ *
+ * Above each tab sits the one control most wanted from it, so the light, the
+ * listening and both sounds can be switched from whichever tab is on screen —
+ * see components/bottom-nav-actions.tsx.
  *
  * The tab is remembered per device, because the app is launched from a home
  * screen icon that always opens `/`, and whoever ends a night on the noise
@@ -73,47 +78,49 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="border-foreground/10 bg-background/95 fixed inset-x-0 bottom-0 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="border-foreground/10 bg-background/95 fixed inset-x-0 bottom-0 border-t pt-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-md">
         {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
+          const { Action, icon: Icon } = item;
           const isCurrent = pathname === item.href;
           const isSounding = isPlayingByHref[item.href] === true;
 
           return (
-            <Link
-              aria-current={isCurrent ? 'page' : undefined}
-              className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs ${isCurrent ? 'font-semibold text-amber-500' : 'text-foreground/50'}`}
-              href={item.href}
-              key={item.href}
-              /**
-               * Recorded here rather than inferred on arrival, because this is
-               * the only place that knows a person did it: the restore below
-               * navigates too, and must not start the camera.
-               */
-              onClick={() => {
-                recordNavigationTap(item.href);
-
+            <div className="flex flex-1 flex-col items-center" key={item.href}>
+              <Action />
+              <Link
+                aria-current={isCurrent ? 'page' : undefined}
+                className={`flex flex-col items-center gap-1 self-stretch py-2 text-xs ${isCurrent ? 'font-semibold text-amber-500' : 'text-foreground/50'}`}
+                href={item.href}
                 /**
-                 * The same tap starts the picture, and iOS only lets the alarm
-                 * for a lost picture make sound once a tap has unlocked it.
+                 * Recorded here rather than inferred on arrival, because this is
+                 * the only place that knows a person did it: the restore below
+                 * navigates too, and must not start the camera.
                  */
-                if (item.href === MONITOR_HREF) {
-                  unlockAlarm();
-                }
-              }}
-            >
-              <span className="relative">
-                <Icon className="size-5" />
-                {/*
+                onClick={() => {
+                  recordNavigationTap(item.href);
+
+                  /**
+                   * The same tap starts the picture, and iOS only lets the alarm
+                   * for a lost picture make sound once a tap has unlocked it.
+                   */
+                  if (item.href === MONITOR_HREF) {
+                    unlockAlarm();
+                  }
+                }}
+              >
+                <span className="relative">
+                  <Icon className="size-5" />
+                  {/*
                   A small amber dot, the same accent the device controls use, so
                   a tab that is still making sound says so from any other tab.
                 */}
-                {isSounding && <span aria-hidden className="absolute -top-0.5 -right-1 size-1.5 rounded-full bg-amber-500" />}
-              </span>
-              {item.label}
-              {isSounding && <span className="sr-only">, playing</span>}
-            </Link>
+                  {isSounding && <span aria-hidden className="absolute -top-0.5 -right-1 size-1.5 rounded-full bg-amber-500" />}
+                </span>
+                {item.label}
+                {isSounding && <span className="sr-only">, playing</span>}
+              </Link>
+            </div>
           );
         })}
       </div>
