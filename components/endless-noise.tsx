@@ -4,6 +4,9 @@ import { PauseIcon, PlayIcon, WavesIcon } from 'lucide-react';
 
 import { NOISE_TYPES } from '@/audio/noise-worklet';
 import { MAXIMUM_PERCENT, MINIMUM_PERCENT, useNoiseAudio } from '@/components/noise-audio-provider';
+import { formatNoiseLogTime } from '@/components/noise-log';
+
+const VISIBLE_LOG_ENTRIES = 12;
 
 const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 dark:bg-black rounded-2xl border px-5 py-4';
 
@@ -12,7 +15,7 @@ const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 dark:bg-black roun
  * it survives leaving this tab. Everything here is the panel that drives it.
  */
 export function EndlessNoise() {
-  const { isPlaying, noiseType, texture, togglePlay, update, volume, warmth } = useNoiseAudio();
+  const { isPlaying, log, noiseType, texture, togglePlay, update, volume, warmth } = useNoiseAudio();
 
   return (
     <section className="flex flex-col gap-3">
@@ -88,6 +91,24 @@ export function EndlessNoise() {
           </div>
         ))}
       </div>
+
+      {/*
+        What started and stopped the noise, newest first, so that finding it
+        silent comes with a reason.
+      */}
+      {log.length > 0 && (
+        <ol className="flex flex-col gap-1 px-5 text-xs opacity-50">
+          {log
+            .toReversed()
+            .slice(0, VISIBLE_LOG_ENTRIES)
+            .map((entry) => (
+              <li className="flex gap-3" key={`${entry.at}-${entry.what}`}>
+                <span className="tabular-nums">{formatNoiseLogTime(entry.at)}</span>
+                <span>{entry.what}</span>
+              </li>
+            ))}
+        </ol>
+      )}
     </section>
   );
 }
