@@ -25,10 +25,19 @@ export function useNoiseLog(isPlaying: boolean, audioRef: RefObject<HTMLAudioEle
    * on that page lived to say so, so this one says it.
    */
   useEffect(() => {
-    const lastAliveAt = takeNoiseAlive();
+    const alive = takeNoiseAlive();
 
-    if (lastAliveAt !== null) {
-      appendToNoiseLog(`The page was reloaded while the noise was playing (last alive ${formatNoiseLogTime(lastAliveAt)})`);
+    if (alive !== null) {
+      /**
+       * Chrome sets this on a page it threw away to save memory and has now
+       * loaded again. False on a page that was killed or crashed instead,
+       * which is the difference worth knowing.
+       */
+      const { wasDiscarded } = document as unknown as { wasDiscarded?: boolean };
+      const memory = alive.megabytes === null ? 'memory unknown' : `memory ${alive.megabytesAtStart} MB at the start, ${alive.megabytes} MB at the end`;
+      const discarded = wasDiscarded === undefined ? 'unknown' : wasDiscarded ? 'yes' : 'no';
+
+      appendToNoiseLog(`The page was reloaded while the noise was playing (last alive ${formatNoiseLogTime(alive.at)}, ${memory}, discarded by the browser: ${discarded})`);
     }
 
     setLog(readNoiseLog());
