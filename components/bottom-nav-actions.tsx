@@ -20,8 +20,12 @@ import { type NightLightState } from '@/services/nanit/night-light';
  * the stored hash itself and stays disabled until there is one.
  */
 
+/**
+ * The margin beneath is dead space on purpose: a thumb reaching for a tab in
+ * the dark must not land on something that changes the light or the sound.
+ */
 function getActionClassName(isActive: boolean) {
-  return `rounded-lg border p-2 transition-colors disabled:opacity-60 ${isActive ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`;
+  return `mb-3 rounded-lg border p-1.5 transition-colors disabled:opacity-60 ${isActive ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`;
 }
 
 /**
@@ -82,7 +86,7 @@ export function NightLightAction() {
       role="switch"
       type="button"
     >
-      <LightbulbIcon className="size-6" />
+      <LightbulbIcon className="size-5" />
     </button>
   );
 }
@@ -105,7 +109,7 @@ export function ListenAction() {
       role="switch"
       type="button"
     >
-      {isMonitoring ? <Volume2Icon className="size-6" /> : <VolumeIcon className="size-6" />}
+      {isMonitoring ? <Volume2Icon className="size-5" /> : <VolumeIcon className="size-5" />}
     </button>
   );
 }
@@ -154,7 +158,7 @@ export function LullabyAction() {
       }}
       type="button"
     >
-      {isSounding ? <PauseIcon className="size-6" /> : <PlayIcon className="size-6" />}
+      {isSounding ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5" />}
     </button>
   );
 }
@@ -171,7 +175,7 @@ export function NoiseAction() {
       }}
       type="button"
     >
-      {isPlaying ? <PauseIcon className="size-6" /> : <PlayIcon className="size-6" />}
+      {isPlaying ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5" />}
     </button>
   );
 }
