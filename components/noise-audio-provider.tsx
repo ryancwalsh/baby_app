@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { applySettings, type AudioGraph, buildGraph, type NoiseSettings } from '@/audio/noise-graph';
-import { NOISE_TYPES, type NoiseType } from '@/audio/noise-worklet';
+import { NOISE_TYPES, type NoiseType } from '@/audio/noise-samples';
 import { createSilenceUrl } from '@/audio/silence';
 import { type NoiseLogEntry } from '@/components/noise-log';
 import { getIsAndroid } from '@/components/platform';
@@ -38,9 +38,9 @@ export function useNoiseAudio() {
 }
 
 /**
- * Procedural noise rather than a looping sample, so it never repeats and never
- * has a seam. Two independent generators are panned hard left and right, which
- * is what makes it sound wide rather than like a point source.
+ * Generated noise rather than a recording: the samples are made in the page
+ * when the noise is first played, and looped without a seam — see
+ * audio/noise-graph.ts.
  *
  * The audio graph is built on first play: browsers refuse to start an
  * AudioContext until a gesture, and there is no reason to hold one open before.
@@ -188,7 +188,7 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
           const audio = audioRef.current;
 
           if (graphRef.current === null) {
-            const graph = await buildGraph();
+            const graph = buildGraph();
 
             /**
              * A phone can suspend the context under a playing element — iOS does
@@ -205,7 +205,6 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
               }
             });
 
-            // eslint-disable-next-line require-atomic-updates -- Guarded by `isTogglingRef`, which lets only one toggle run at a time.
             graphRef.current = graph;
           }
 

@@ -2,7 +2,7 @@
 
 import { PauseIcon, PlayIcon, WavesIcon } from 'lucide-react';
 
-import { NOISE_TYPES } from '@/audio/noise-worklet';
+import { NOISE_TYPES } from '@/audio/noise-samples';
 import { MAXIMUM_PERCENT, MINIMUM_PERCENT, useNoiseAudio } from '@/components/noise-audio-provider';
 import { formatNoiseLogTime } from '@/components/noise-log';
 
@@ -35,7 +35,7 @@ export function EndlessNoise() {
         {isPlaying ? <PauseIcon className="size-6 text-amber-500" /> : <PlayIcon className="size-6 opacity-50" />}
         <span className="flex-1">
           <span className="block font-semibold capitalize">{noiseType} noise</span>
-          <span className="block text-sm opacity-70">{isPlaying ? 'Playing — never loops' : 'Stopped'}</span>
+          <span className="block text-sm opacity-70">{isPlaying ? 'Playing' : 'Stopped'}</span>
         </span>
       </button>
 
