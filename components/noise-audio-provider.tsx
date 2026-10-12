@@ -121,6 +121,7 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
   const graphRef = useRef<AudioGraph | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const pauseTimeoutRef = useRef<null | ReturnType<typeof setTimeout>>(null);
+  const isTogglingRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [noiseType, setNoiseType] = useState<NoiseType>('pink');
   const [volume, setVolume] = useState(70);
@@ -159,6 +160,20 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
    * which is the truth.
    */
   const togglePlay = useCallback(async () => {
+    /**
+     * A start takes a moment — the graph is built and the element has to begin
+     * playing — and the button shows nothing until it is done, which invites a
+     * second tap. That tap used to start again alongside the first: two graphs
+     * were built, the element kept the first one's stream and this kept the
+     * second one's nodes, so the sound that was heard was held by nothing and
+     * answered to no control. A press that lands mid-toggle is dropped instead.
+     */
+    if (isTogglingRef.current) {
+      return;
+    }
+
+    isTogglingRef.current = true;
+
     try {
       if (isPlaying) {
         const graph = graphRef.current;
@@ -187,9 +202,27 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
           pauseTimeoutRef.current = null;
         }
 
-        // eslint-disable-next-line require-atomic-updates -- Guarded by the play button, which is disabled to a single press at a time.
-        graphRef.current ??= await buildGraph();
         const audio = audioRef.current;
+
+        if (graphRef.current === null) {
+          const graph = await buildGraph();
+
+          /**
+           * A phone can suspend the context under a playing element — iOS does
+           * it for a call or another app's sound — and nothing brings it back
+           * by itself. The element is paused only when the noise is meant to
+           * be off, so while it plays the context is asked to carry on.
+           */
+          graph.context.addEventListener('statechange', () => {
+            if (graph.context.state !== 'running' && audioRef.current?.paused === false) {
+              // eslint-disable-next-line promise/prefer-await-to-then -- An event listener is synchronous; a refused resume is tried again on the next change.
+              graph.context.resume().catch(() => {});
+            }
+          });
+
+          // eslint-disable-next-line require-atomic-updates -- Guarded by `isTogglingRef`, which lets only one toggle run at a time.
+          graphRef.current = graph;
+        }
 
         if (audio !== null) {
           audio.srcObject ??= graphRef.current.streamDestination.stream;
@@ -203,6 +236,9 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
       }
     } catch {
       setIsPlaying(false);
+    } finally {
+      // eslint-disable-next-line require-atomic-updates -- Only the toggle that set this gets here; every other press returned above.
+      isTogglingRef.current = false;
     }
   }, [isPlaying, noiseType, texture, volume, warmth]);
 
@@ -232,7 +268,13 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
   return (
     <NoiseAudioContext value={value}>
       {children}
-      <audio ref={audioRef} />
+      {/*
+        The phone can pause the element without asking — another app taking the
+        sound, a headset button — and the buttons must not go on saying playing
+        over silence. The pause this makes itself, after a fade, arrives once
+        the state is already stopped.
+      */}
+      <audio onPause={() => setIsPlaying(false)} ref={audioRef} />
     </NoiseAudioContext>
   );
 }
