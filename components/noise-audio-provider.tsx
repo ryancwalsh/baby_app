@@ -206,6 +206,16 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
             if (audioRef.current !== null) {
               audioRef.current.pause();
             }
+
+            /**
+             * The context is stopped too, after the element so that the
+             * listener above does not take it for an interruption. Left
+             * running it went on generating noise nobody could hear, and
+             * Android's media notification went on showing the noise as
+             * playing after it had been paused.
+             */
+            // eslint-disable-next-line promise/prefer-await-to-then -- A timer callback is synchronous; a context that will not suspend is only the waste it was before.
+            graphRef.current?.context.suspend().catch(() => {});
           }, PAUSE_AFTER_FADE_MILLISECONDS);
 
           setIsPlaying(false);
