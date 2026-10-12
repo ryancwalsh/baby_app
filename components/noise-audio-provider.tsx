@@ -2,23 +2,15 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { NOISE_TYPES, NOISE_WORKLET_SOURCE, type NoiseType } from '@/audio/noise-worklet';
+import { applySettings, type AudioGraph, buildGraph, type NoiseSettings } from '@/audio/noise-graph';
+import { NOISE_TYPES, type NoiseType } from '@/audio/noise-worklet';
+import { createSilenceUrl } from '@/audio/silence';
 import { type NoiseLogEntry } from '@/components/noise-log';
+import { getIsAndroid } from '@/components/platform';
 import { useNoiseLog } from '@/hooks/use-noise-log';
 
-export const MINIMUM_PERCENT = 0;
-export const MAXIMUM_PERCENT = 100;
-/**
- * Warmth sweeps a low-pass filter between these, so 100% is properly muffled.
- */
-const BRIGHTEST_HERTZ = 20_000;
-const WARMEST_HERTZ = 400;
-/**
- * Texture sweeps a high-pass filter, thinning the sound as it rises.
- */
-const FULLEST_HERTZ = 20;
-const THINNEST_HERTZ = 2_000;
-const RAMP_SECONDS = 0.05;
+export { MAXIMUM_PERCENT, MINIMUM_PERCENT } from '@/audio/noise-graph';
+
 const FADE_OUT_SECONDS = 0.3;
 /**
  * `setTargetAtTime` approaches its target rather than reaching it, so the
@@ -26,75 +18,12 @@ const FADE_OUT_SECONDS = 0.3;
  */
 const PAUSE_AFTER_FADE_MILLISECONDS = 1_500;
 
-type AudioGraph = {
-  context: AudioContext;
-  gain: GainNode;
-  highpass: BiquadFilterNode;
-  lowpass: BiquadFilterNode;
-  streamDestination: MediaStreamAudioDestinationNode;
-  worklets: AudioWorkletNode[];
-};
-
-type NoiseSettings = { noiseType: NoiseType; texture: number; volume: number; warmth: number };
-
 type NoiseAudio = NoiseSettings & {
   isPlaying: boolean;
   log: NoiseLogEntry[];
   togglePlay: () => Promise<void>;
   update: (changes: Partial<NoiseSettings>) => void;
 };
-
-async function buildGraph(): Promise<AudioGraph> {
-  const context = new AudioContext();
-  const blob = new Blob([NOISE_WORKLET_SOURCE], { type: 'application/javascript' });
-  const moduleUrl = URL.createObjectURL(blob);
-  await context.audioWorklet.addModule(moduleUrl);
-  URL.revokeObjectURL(moduleUrl);
-
-  const merger = context.createChannelMerger(2);
-  const worklets = [0, 1].map((channel) => {
-    const worklet = new AudioWorkletNode(context, 'noise-proc', { outputChannelCount: [1] });
-    worklet.connect(merger, 0, channel);
-    return worklet;
-  });
-
-  const lowpass = context.createBiquadFilter();
-  lowpass.type = 'lowpass';
-  const highpass = context.createBiquadFilter();
-  highpass.type = 'highpass';
-  const gain = context.createGain();
-  gain.gain.value = 0;
-
-  /**
-   * The graph ends in a MediaStream played by an `<audio>` element rather than
-   * in `context.destination`, because iOS treats the two completely
-   * differently: a bare AudioContext obeys the ringer switch and is suspended
-   * when the app leaves the screen, while a playing media element keeps its
-   * sound through both — which is why the lullabies, which are an `<audio>`
-   * element, never had this problem. Android does not care either way.
-   */
-  const streamDestination = context.createMediaStreamDestination();
-
-  merger.connect(lowpass);
-  lowpass.connect(highpass);
-  highpass.connect(gain);
-  gain.connect(streamDestination);
-
-  return { context, gain, highpass, lowpass, streamDestination, worklets };
-}
-
-function applySettings(graph: AudioGraph, settings: NoiseSettings) {
-  const now = graph.context.currentTime;
-
-  graph.gain.gain.setTargetAtTime(settings.volume / MAXIMUM_PERCENT, now, RAMP_SECONDS);
-  graph.lowpass.frequency.setTargetAtTime(BRIGHTEST_HERTZ * (WARMEST_HERTZ / BRIGHTEST_HERTZ) ** (settings.warmth / MAXIMUM_PERCENT), now, RAMP_SECONDS);
-  graph.highpass.frequency.setTargetAtTime(FULLEST_HERTZ * (THINNEST_HERTZ / FULLEST_HERTZ) ** (settings.texture / MAXIMUM_PERCENT), now, RAMP_SECONDS);
-
-  for (const worklet of graph.worklets) {
-    // eslint-disable-next-line unicorn/require-post-message-target-origin -- An AudioWorkletNode port is not a window; there is no origin to target.
-    worklet.port.postMessage({ noiseType: settings.noiseType });
-  }
-}
 
 const NoiseAudioContext = createContext<NoiseAudio | null>(null);
 
@@ -123,6 +52,7 @@ export function useNoiseAudio() {
 export function NoiseAudioProvider({ children }: { readonly children: React.ReactNode }) {
   const graphRef = useRef<AudioGraph | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const keepAliveRef = useRef<HTMLAudioElement>(null);
   const pauseTimeoutRef = useRef<null | ReturnType<typeof setTimeout>>(null);
   const isTogglingRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -158,6 +88,34 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
     },
     [isPlaying, noiseType, texture, volume, warmth],
   );
+
+  /**
+   * Android does not count the noise as media. Chrome files an element that
+   * plays a MediaStream as a passing sound: it gets no notification in the
+   * shade, and so none of the standing that keeps a page alive behind another
+   * app — the noise was killed, page and all, about seven minutes after the
+   * app left the screen. A real file is what earns that standing, so a silent
+   * one loops beside the noise for as long as it plays. iOS is left alone: the
+   * MediaStream element is already what keeps the sound there.
+   */
+  const startKeepAlive = useCallback(async () => {
+    const keepAlive = keepAliveRef.current;
+
+    if (keepAlive !== null && getIsAndroid()) {
+      if (keepAlive.getAttribute('src') === null) {
+        keepAlive.src = createSilenceUrl();
+      }
+
+      try {
+        await keepAlive.play();
+      } catch (error) {
+        /**
+         * The noise itself is playing by now, and is worth more than this.
+         */
+        record(`Could not start the silent track that keeps the noise alive: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }, [record]);
 
   /**
    * A start that never got its audio graph leaves the button showing stopped,
@@ -207,6 +165,8 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
               audioRef.current.pause();
             }
 
+            keepAliveRef.current?.pause();
+
             /**
              * The context is stopped too, after the element so that the
              * listener above does not take it for an interruption. Left
@@ -255,6 +215,8 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
             await audio.play();
           }
 
+          await startKeepAlive();
+
           await graphRef.current.context.resume();
           applySettings(graphRef.current, { noiseType, texture, volume, warmth });
           record(`Started by ${source}`);
@@ -268,7 +230,7 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
         isTogglingRef.current = false;
       }
     },
-    [isPlaying, noiseType, record, texture, volume, warmth],
+    [isPlaying, noiseType, record, startKeepAlive, texture, volume, warmth],
   );
 
   const togglePlay = useCallback(async () => {
@@ -320,9 +282,19 @@ export function NoiseAudioProvider({ children }: { readonly children: React.Reac
           if (isPlaying) {
             record('The phone paused the sound');
             setIsPlaying(false);
+            keepAliveRef.current?.pause();
           }
         }}
         ref={audioRef}
+      />
+      <audio
+        loop
+        onPause={() => {
+          if (isPlaying) {
+            record('The phone paused the silent track that keeps the noise alive');
+          }
+        }}
+        ref={keepAliveRef}
       />
     </NoiseAudioContext>
   );
