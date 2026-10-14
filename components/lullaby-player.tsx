@@ -1,10 +1,11 @@
 'use client';
 
-import { CheckIcon, MusicIcon, PauseIcon, PencilIcon, PlayIcon, Repeat1Icon, RepeatIcon, XIcon } from 'lucide-react';
+import { CheckIcon, MusicIcon, PauseIcon, PencilIcon, PlayIcon, Repeat1Icon, RepeatIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { type Lullaby, renameLullabyAction } from '@/app/actions/lullaby';
 import { type LoopMode, useLullabyAudio } from '@/components/lullaby-audio-provider';
+import { LullabyDeleteConfirmation } from '@/components/lullaby-delete-confirmation';
 import { LullabyRecorder } from '@/components/lullaby-recorder';
 
 const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 dark:bg-black rounded-2xl border px-5 py-4';
@@ -20,7 +21,8 @@ const LOOP_MODES: Record<LoopMode, { icon: typeof RepeatIcon; label: string }> =
 type LullabyPlayerProps = {
   readonly lullabies: Lullaby[];
   /**
-   * Fetches the list again after a recording or a rename changed the folder.
+   * Fetches the list again after a recording, a rename or a deletion changed
+   * the folder.
    */
   readonly onChanged: () => Promise<void>;
   readonly secretHash: string;
@@ -96,6 +98,7 @@ function RenameForm({ lullaby, onChanged, onDone, secretHash }: Omit<LullabyPlay
 export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlayerProps) {
   const { currentUrl, cycleLoopMode, isPlaying, loopMode, nextLoopMode, playTrack } = useLullabyAudio();
   const [renamingFileName, setRenamingFileName] = useState<null | string>(null);
+  const [deletingFileName, setDeletingFileName] = useState<null | string>(null);
 
   const currentLullaby = lullabies.find((lullaby) => lullaby.url === currentUrl);
   const LoopIcon = LOOP_MODES[loopMode].icon;
@@ -139,6 +142,10 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
                 return <RenameForm key={lullaby.url} lullaby={lullaby} onChanged={onChanged} onDone={() => setRenamingFileName(null)} secretHash={secretHash} />;
               }
 
+              if (lullaby.fileName === deletingFileName) {
+                return <LullabyDeleteConfirmation key={lullaby.url} lullaby={lullaby} onChanged={onChanged} onDone={() => setDeletingFileName(null)} secretHash={secretHash} />;
+              }
+
               return (
                 <div className="flex items-center gap-2" key={lullaby.url}>
                   <button
@@ -149,15 +156,30 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
                     {isSounding ? <PauseIcon className="size-4 shrink-0" /> : <PlayIcon className="size-4 shrink-0" />}
                     <span className="flex-1 break-all">{lullaby.name}</span>
                   </button>
-                  {/* A playing track cannot be renamed: the audio element is still reading it by its old name, and would stop. */}
+                  {/* A playing track cannot be renamed or deleted: the audio element is still reading it, and would stop. */}
                   <button
                     aria-label={isSounding ? `Pause ${lullaby.name} to rename it` : `Rename ${lullaby.name}`}
                     className="border-foreground/15 shrink-0 rounded-lg border p-3 opacity-70 disabled:opacity-30"
                     disabled={isSounding}
-                    onClick={() => setRenamingFileName(lullaby.fileName)}
+                    onClick={() => {
+                      setDeletingFileName(null);
+                      setRenamingFileName(lullaby.fileName);
+                    }}
                     type="button"
                   >
                     <PencilIcon className="size-4" />
+                  </button>
+                  <button
+                    aria-label={isSounding ? `Pause ${lullaby.name} to delete it` : `Delete ${lullaby.name}`}
+                    className="border-foreground/15 shrink-0 rounded-lg border p-3 opacity-70 disabled:opacity-30"
+                    disabled={isSounding}
+                    onClick={() => {
+                      setRenamingFileName(null);
+                      setDeletingFileName(lullaby.fileName);
+                    }}
+                    type="button"
+                  >
+                    <Trash2Icon className="size-4" />
                   </button>
                 </div>
               );
