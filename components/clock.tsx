@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 const TICK_MILLISECONDS = 1_000;
 
@@ -8,8 +8,9 @@ const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycl
 
 /**
  * The time. Tapping it blacks out the whole screen but for the time itself, for a phone left propped up in the dark, and a tap anywhere brings the page back.
+ * Anything passed as children sits at the right of the same row.
  */
-export function Clock() {
+export function Clock({ children }: { readonly children?: ReactNode }) {
   /**
    * Read after mount rather than during render, because the server's clock and
    * time zone are not the phone's and the two would disagree.
@@ -43,10 +44,12 @@ export function Clock() {
         {time}
       </button>
 
+      {children}
+
       {isBlackedOut && (
         <button
           aria-label="Leave the blacked out screen"
-          className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black text-4xl text-white/70 tabular-nums"
+          className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black text-8xl text-white/70 tabular-nums"
           onClick={() => {
             setIsBlackedOut(false);
           }}

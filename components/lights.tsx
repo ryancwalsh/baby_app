@@ -1,5 +1,6 @@
 'use client';
 
+import { RefreshCwIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { getLampsAction, type Lamp } from '@/app/actions/lamp';
@@ -48,6 +49,14 @@ function rememberNightLight(nightLight: NightLightState) {
 export function Lights({ secretHash }: { readonly secretHash: string }) {
   const [state, setState] = useState<LightsState | null>(() => (remembered?.secretHash === secretHash ? remembered.state : null));
   const [error, setError] = useState<null | string>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  /**
+   * Bumped on every read, and part of each control's key, so a fresh read
+   * replaces the controls outright. Keying on the read state alone is not
+   * enough: a switch flipped since the last read already disagrees with it,
+   * and a read that agrees with the old state would leave that switch stale.
+   */
+  const [generation, setGeneration] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +65,7 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
 
       remembered = { secretHash, state: loaded };
       setState(loaded);
+      setGeneration((previous) => previous + 1);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Could not load the lights.');
     }
@@ -64,6 +74,22 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  /**
+   * Reads every device again without reloading the page. Only reads: the plugs
+   * are asked for their state and the camera for its settings, exactly as a
+   * page load does.
+   */
+  async function refresh() {
+    setIsRefreshing(true);
+    setError(null);
+
+    try {
+      await load();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
 
   if (error !== null) {
     return <p className="text-sm text-amber-500">{error}</p>;
@@ -75,19 +101,29 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <NightLight initialState={state.nightLight} onChange={rememberNightLight} secretHash={secretHash} />
+      <NightLight initialState={state.nightLight} key={generation} onChange={rememberNightLight} secretHash={secretHash} />
 
-      <Clock />
+      <Clock>
+        <button
+          aria-label="Refresh the switches"
+          className="text-foreground/40 shrink-0 rounded-lg p-2 disabled:opacity-60"
+          disabled={isRefreshing}
+          onClick={refresh}
+          type="button"
+        >
+          <RefreshCwIcon className={`size-6 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </Clock>
 
       <div className="flex flex-col gap-3">
         {state.lamps.map((lamp) =>
           /**
-           * Keyed on the state as well, so a fresh read that disagrees with
-           * what was remembered replaces the switch rather than being ignored
-           * by one that only looks at its lamp when it mounts.
+           * Keyed on the read as well, so a fresh read replaces the switch
+           * rather than being ignored by one that only looks at its lamp when
+           * it mounts.
            */
           lamp.isReachable ? (
-            <LampToggle key={`${lamp.deviceId}-${lamp.isOn}`} lamp={lamp} onChange={rememberLamp} secretHash={secretHash} />
+            <LampToggle key={`${generation}-${lamp.deviceId}`} lamp={lamp} onChange={rememberLamp} secretHash={secretHash} />
           ) : (
             <UnreachableLampRow key={lamp.deviceId} lamp={lamp} />
           ),
