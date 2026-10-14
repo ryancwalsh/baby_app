@@ -1,7 +1,7 @@
 'use server';
 
 import { requireLogin } from '@/auth/login';
-import { getLullabyName, listLullabyFiles, renameLullaby } from '@/storage/lullabies';
+import { deleteLullaby, getLullabyName, listLullabyFiles, renameLullaby } from '@/storage/lullabies';
 
 const API_PATH = '/api/lullabies';
 
@@ -42,5 +42,17 @@ export async function renameLullabyAction(secretHash: string, fileName: string, 
     return { error: null };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Could not rename the lullaby.' };
+  }
+}
+
+export async function deleteLullabyAction(secretHash: string, fileName: string): Promise<{ error: null | string }> {
+  await requireLogin(secretHash);
+
+  try {
+    deleteLullaby(fileName);
+
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Could not delete the lullaby.' };
   }
 }

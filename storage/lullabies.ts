@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
@@ -123,6 +123,19 @@ export function renameLullaby(fileName: string, newName: string): string {
   renameSync(oldPath, newPath);
 
   return newFileName;
+}
+
+/**
+ * For good: the folder is not in git and there is no bin to fish it out of.
+ */
+export function deleteLullaby(fileName: string) {
+  const path = resolveLullabyPath(fileName);
+
+  if (path === null) {
+    throw new Error('That lullaby is no longer there.');
+  }
+
+  unlinkSync(path);
 }
 
 function runFfmpeg(inputPath: string, outputPath: string) {
