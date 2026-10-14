@@ -276,7 +276,13 @@ curl -s http://localhost:2026/version.json
 - Each top-level folder is named for what it holds: `services/{nanit,snoo,tapo}/`
   are the clients for the three external services, `services/webcam/` the
   signaling for webcam mode, `constants/` the app-wide values, `auth/` the
-  app's own login, `audio/` the browser audio behind the noise page.
+  app's own login, `audio/` the browser audio behind the noise page,
+  `storage/` the files the app keeps on disk besides `secrets/`.
+- Lullabies live in the gitignored `lullabies/` folder, not `public/`: a
+  production server lists `public/` once at start, so a recording or a rename
+  would not be served until the next restart, and they are runtime data like
+  `secrets/`. They are served by `app/api/lullabies/`, behind the login.
+  Recordings arrive as WebM or MP4 and ffmpeg turns them into mp3.
 - `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
   and safe to run. Yarn, not npm; `--exact` when adding.
 - `yarn dev` is safe to run beside the live app, and is the way to look at a

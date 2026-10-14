@@ -1,38 +1,46 @@
 'use server';
 
-import { readdirSync } from 'node:fs';
-
 import { requireLogin } from '@/auth/login';
+import { getLullabyName, listLullabyFiles, renameLullaby } from '@/storage/lullabies';
 
-const LULLABIES_DIRECTORY = 'public/lullabies';
-const PUBLIC_PATH = '/lullabies';
+const API_PATH = '/api/lullabies';
 
 export type Lullaby = {
+  fileName: string;
   name: string;
   url: string;
 };
 
 /**
- * Read at request time rather than baked in at build, so dropping an mp3 into
- * `public/lullabies` is enough to have it show up on the next load.
+ * Read at request time rather than baked in at build, so a new recording or a
+ * rename shows up on the next load.
+ *
+ * An `<audio>` element cannot send headers, so the login hash rides along in
+ * the url, exactly as the camera's media does it.
  */
 export async function getLullabiesAction(secretHash: string): Promise<Lullaby[]> {
   await requireLogin(secretHash);
 
-  let files: string[] = [];
-  try {
-    files = readdirSync(LULLABIES_DIRECTORY);
-  } catch {
-    /**
-     * No folder yet means no lullabies, which is not an error.
-     */
-  }
+  return listLullabyFiles().map((fileName) => ({
+    fileName,
+    name: getLullabyName(fileName),
+    url: `${API_PATH}/${encodeURIComponent(fileName)}?secretHash=${encodeURIComponent(secretHash)}`,
+  }));
+}
 
-  return files
-    .filter((file) => file.toLowerCase().endsWith('.mp3'))
-    .sort((first, second) => first.localeCompare(second))
-    .map((file) => ({
-      name: file.replace(/\.mp3$/iu, '').replaceAll(/[_-]+/gu, ' '),
-      url: `${PUBLIC_PATH}/${encodeURIComponent(file)}`,
-    }));
+/**
+ * A refused name is answered rather than thrown, because a production build
+ * hides a thrown message from the page and the person renaming needs to see
+ * why.
+ */
+export async function renameLullabyAction(secretHash: string, fileName: string, newName: string): Promise<{ error: null | string }> {
+  await requireLogin(secretHash);
+
+  try {
+    renameLullaby(fileName, newName);
+
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Could not rename the lullaby.' };
+  }
 }
