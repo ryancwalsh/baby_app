@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { getLullabiesAction } from '@/app/actions/lullaby';
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
@@ -15,17 +15,17 @@ export function Lullabies({ secretHash }: { readonly secretHash: string }) {
   const { lullabies, setLullabies } = useLullabyAudio();
   const [error, setError] = useState<null | string>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLullabies(await getLullabiesAction(secretHash));
-      } catch (caughtError) {
-        setError(caughtError instanceof Error ? caughtError.message : 'Could not load the lullabies.');
-      }
+  const reload = useCallback(async () => {
+    try {
+      setLullabies(await getLullabiesAction(secretHash));
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Could not load the lullabies.');
     }
-
-    load();
   }, [secretHash, setLullabies]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
   if (error !== null) {
     return <p className="text-sm text-amber-500">{error}</p>;
@@ -35,5 +35,5 @@ export function Lullabies({ secretHash }: { readonly secretHash: string }) {
     return <p className="text-sm opacity-60">Loading the lullabies…</p>;
   }
 
-  return <LullabyPlayer lullabies={lullabies} />;
+  return <LullabyPlayer lullabies={lullabies} onChanged={reload} secretHash={secretHash} />;
 }

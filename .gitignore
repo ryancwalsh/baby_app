@@ -22,3 +22,6 @@ secrets/
 
 # Generated at build time by scripts/record_commit_hash_and_build_time.sh.
 public/version.json
+
+# Lullabies, recorded and renamed at runtime. See storage/lullabies.ts.
+/lullabies/
