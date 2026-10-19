@@ -10,7 +10,10 @@ export type Sleep = {
 };
 
 export type Bottle = {
-  amountMilliliters: number;
+  /**
+   * The prepared amount, which is optional.
+   */
+  amountMilliliters: null | number;
   drankMilliliters: null | number;
   id: number;
   note: string;

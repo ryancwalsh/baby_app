@@ -49,11 +49,13 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ReportDay[
   }
 
   for (const bottle of log.bottles) {
-    const touchedLips = bottle.touchedLipsAt === null ? '' : `, touched lips ${formatClockTime(bottle.touchedLipsAt, is24Hour)}`;
-    const drank = bottle.drankMilliliters === null ? '' : `, drank ${bottle.drankMilliliters} ml`;
+    const details = [
+      bottle.drankMilliliters === null ? '' : `drank ${bottle.drankMilliliters} ml`,
+      bottle.touchedLipsAt === null ? '' : `touched lips ${formatClockTime(bottle.touchedLipsAt, is24Hour)}`,
+    ];
     events.push({
       colorClassName: TILE_COLORS.bottle.label,
-      details: `${bottle.amountMilliliters} ml${drank}${touchedLips}`,
+      details: details.filter((detail) => detail !== '').join(', '),
       href: `/track/bottle?id=${bottle.id}`,
       key: `bottle-${bottle.id}`,
       label: 'Bottle',

@@ -9,6 +9,7 @@ import { predictNextSleeps } from '@/components/sleep-predictions';
 import { formatAgo, formatClockTime, formatDuration, formatRunningDuration } from '@/components/tracking-format';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useNow } from '@/hooks/use-now';
+import { useTileTextSize } from '@/hooks/use-tile-text-size';
 
 /**
  * Dark tiles tinted with each colour rather than filled with it, so the screen stays dim in the nursery at night.
@@ -20,8 +21,12 @@ export const TILE_COLORS = {
 } as const;
 
 function Note({ note }: { readonly note: string }) {
-  return note === '' ? null : <p className="text-foreground/50 truncate text-sm italic">{note}</p>;
+  const { tileTextClassName } = useTileTextSize();
+
+  return note === '' ? null : <p className={`text-foreground/50 truncate italic ${tileTextClassName}`}>{note}</p>;
 }
+
+const TILE_BUTTON_CLASS_NAME = 'self-start rounded-lg border px-3 py-1.5 text-sm disabled:opacity-60';
 
 function SleepTile({
   now,
@@ -35,10 +40,12 @@ function SleepTile({
   readonly summary: TrackingSummary;
 }) {
   const { is24Hour } = useClockFormat();
+  const { tileTextClassName } = useTileTextSize();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<null | string>(null);
   const active = summary.recentSleeps.find((sleep) => sleep.endedAt === null);
   const latest = summary.recentSleeps.find((sleep) => sleep.endedAt !== null);
+  const [mostRecent] = summary.recentSleeps;
   const predictions = predictNextSleeps(summary.recentSleeps, summary.settings, now);
   const colors = TILE_COLORS.sleep;
 
@@ -56,60 +63,87 @@ function SleepTile({
         <span className={`text-lg font-semibold ${colors.label}`}>Sleep</span>
         {active !== undefined && <span className="text-2xl tabular-nums">Sleeping {formatRunningDuration(now - new Date(active.startedAt).getTime())}</span>}
         {latest !== undefined && latest.endedAt !== null && (
-          <span className="text-foreground/70 text-sm tabular-nums">
-            Last started {formatAgo(now - new Date(latest.startedAt).getTime())}, woke {formatAgo(now - new Date(latest.endedAt).getTime())}, slept{' '}
-            {formatDuration(new Date(latest.endedAt).getTime() - new Date(latest.startedAt).getTime())}
+          <span className={`text-foreground/70 tabular-nums ${tileTextClassName}`}>
+            Slept {formatDuration(new Date(latest.endedAt).getTime() - new Date(latest.startedAt).getTime())} from {formatAgo(now - new Date(latest.startedAt).getTime())} to{' '}
+            {formatAgo(now - new Date(latest.endedAt).getTime())}
           </span>
         )}
         {latest !== undefined && <Note note={latest.note} />}
         {predictions.map((prediction) => (
-          <span className="text-foreground/70 text-sm tabular-nums" key={prediction.napCount}>
+          <span className={`text-foreground/70 tabular-nums ${tileTextClassName}`} key={prediction.napCount}>
             {prediction.napCount}-nap day: {prediction.label} at {formatClockTime(prediction.time, is24Hour)} ({formatAgo(now - prediction.time)})
           </span>
         ))}
-        {active === undefined && latest === undefined && <span className="text-foreground/50 text-sm">No sleeps yet.</span>}
+        {active === undefined && latest === undefined && <span className={`text-foreground/50 ${tileTextClassName}`}>No sleeps yet.</span>}
       </Link>
-      <button
-        className={`self-start rounded-lg border px-3 py-1.5 text-sm disabled:opacity-60 ${colors.border} ${colors.label}`}
-        disabled={isPending}
-        onClick={() => {
-          run(active === undefined ? startSleepNowAction : endSleepNowAction);
-        }}
-        type="button"
-      >
-        {active === undefined ? 'Start sleep now' : 'Woke up'}
-      </button>
+      <div className="flex gap-2">
+        <button
+          className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`}
+          disabled={isPending}
+          onClick={() => {
+            run(active === undefined ? startSleepNowAction : endSleepNowAction);
+          }}
+          type="button"
+        >
+          {active === undefined ? 'Start sleep now' : 'Woke up'}
+        </button>
+        {mostRecent !== undefined && (
+          <Link className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`} href={`/track/sleep?id=${mostRecent.id}&from=track`}>
+            Edit
+          </Link>
+        )}
+      </div>
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
     </div>
   );
 }
 
+/**
+ * The whole tile adds a bottle, through a link stretched underneath everything else; the content lets taps fall through to it. Edit is the one thing on top that catches its own taps. New does nothing of its own — it is there to say what tapping the tile does.
+ */
 function BottleTile({ now, summary }: { readonly now: number; readonly summary: TrackingSummary }) {
+  const { tileTextClassName } = useTileTextSize();
   const bottle = summary.latestBottle;
   const colors = TILE_COLORS.bottle;
+  const amounts =
+    bottle === null
+      ? []
+      : [bottle.amountMilliliters === null ? '' : `${bottle.amountMilliliters} ml`, bottle.drankMilliliters === null ? '' : `drank ${bottle.drankMilliliters} ml`].filter(
+          (amount) => amount !== '',
+        );
 
   return (
-    <Link className={`flex flex-col gap-1 rounded-2xl border p-4 ${colors.border} ${colors.surface}`} href="/track/bottle">
-      <span className={`text-lg font-semibold ${colors.label}`}>Bottle</span>
-      {bottle === null ? (
-        <span className="text-foreground/50 text-sm">No bottles yet.</span>
-      ) : (
-        <>
-          <span className="text-foreground/70 text-sm tabular-nums">Prepared {formatAgo(now - new Date(bottle.preparedAt).getTime())}</span>
-          {bottle.touchedLipsAt !== null && (
-            <span className="text-foreground/70 text-sm tabular-nums">Touched lips {formatAgo(now - new Date(bottle.touchedLipsAt).getTime())}</span>
-          )}
-          <span className="text-foreground/70 text-sm">
-            {bottle.amountMilliliters} ml{bottle.drankMilliliters !== null && `, drank ${bottle.drankMilliliters} ml`}
-          </span>
-          <Note note={bottle.note} />
-        </>
-      )}
-    </Link>
+    <div className={`relative flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
+      <Link aria-label="New bottle" className="absolute inset-0 rounded-2xl" href="/track/bottle" />
+      <div className="pointer-events-none relative flex flex-col gap-1">
+        <span className={`text-lg font-semibold ${colors.label}`}>Bottle</span>
+        {bottle === null ? (
+          <span className={`text-foreground/50 ${tileTextClassName}`}>No bottles yet.</span>
+        ) : (
+          <>
+            <span className={`text-foreground/70 tabular-nums ${tileTextClassName}`}>Prepared {formatAgo(now - new Date(bottle.preparedAt).getTime())}</span>
+            {bottle.touchedLipsAt !== null && (
+              <span className={`text-foreground/70 tabular-nums ${tileTextClassName}`}>Touched lips {formatAgo(now - new Date(bottle.touchedLipsAt).getTime())}</span>
+            )}
+            {amounts.length > 0 && <span className={`text-foreground/70 ${tileTextClassName}`}>{amounts.join(', ')}</span>}
+            <Note note={bottle.note} />
+          </>
+        )}
+      </div>
+      <div className="pointer-events-none relative flex gap-2">
+        <span className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`}>New</span>
+        {bottle !== null && (
+          <Link className={`pointer-events-auto ${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`} href={`/track/bottle?id=${bottle.id}&from=track`}>
+            Edit
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
 
 function DiaperTile({ now, summary }: { readonly now: number; readonly summary: TrackingSummary }) {
+  const { tileTextClassName } = useTileTextSize();
   const diaper = summary.latestDiaper;
   const colors = TILE_COLORS.diaper;
 
@@ -117,10 +151,10 @@ function DiaperTile({ now, summary }: { readonly now: number; readonly summary: 
     <Link className={`flex flex-col gap-1 rounded-2xl border p-4 ${colors.border} ${colors.surface}`} href="/track/diaper">
       <span className={`text-lg font-semibold ${colors.label}`}>Diaper</span>
       {diaper === null ? (
-        <span className="text-foreground/50 text-sm">No diapers yet.</span>
+        <span className={`text-foreground/50 ${tileTextClassName}`}>No diapers yet.</span>
       ) : (
         <>
-          <span className="text-foreground/70 text-sm tabular-nums">{formatAgo(now - new Date(diaper.changedAt).getTime())}</span>
+          <span className={`text-foreground/70 tabular-nums ${tileTextClassName}`}>{formatAgo(now - new Date(diaper.changedAt).getTime())}</span>
           <Note note={diaper.note} />
         </>
       )}

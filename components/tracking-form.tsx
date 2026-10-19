@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 
 import { type ActionResult } from '@/app/actions/tracking';
@@ -58,7 +58,7 @@ function DeleteButton({ onDelete }: { readonly onDelete: () => void }) {
 }
 
 /**
- * The frame every tracking form shares: a title, the fields, and save, cancel, and — for an entry that already exists — delete. A new entry goes back to the tiles once saved; an edited one goes back to the report it was opened from.
+ * The frame every tracking form shares: a title, the fields, and save, cancel, and — for an entry that already exists — delete. A new entry goes back to the tiles once saved; an edited one goes back to the report, unless `?from=track` says it was opened from the tiles.
  */
 export function TrackingForm({
   children,
@@ -78,9 +78,10 @@ export function TrackingForm({
   readonly title: string;
 }) {
   const router = useRouter();
+  const searchParameters = useSearchParams();
   const [error, setError] = useState<null | string>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const returnHref = isEditing ? '/reports' : '/track';
+  const returnHref = isEditing && searchParameters.get('from') !== 'track' ? '/reports' : '/track';
 
   async function finish(work: () => Promise<ActionResult>) {
     setIsBusy(true);

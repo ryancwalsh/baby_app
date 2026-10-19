@@ -22,7 +22,7 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
       if (bottle !== null) {
         setPreparedAt(toDateTimeInputValue(bottle.preparedAt));
         setTouchedLipsAt(bottle.touchedLipsAt === null ? '' : toDateTimeInputValue(bottle.touchedLipsAt));
-        setAmount(String(bottle.amountMilliliters));
+        setAmount(bottle.amountMilliliters === null ? '' : String(bottle.amountMilliliters));
         setDrank(bottle.drankMilliliters === null ? '' : String(bottle.drankMilliliters));
         setNote(bottle.note);
       }
@@ -43,7 +43,7 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
       onDelete={async () => deleteBottleAction(secretHash, id ?? 0)}
       onSave={async () =>
         saveBottleAction(secretHash, id, {
-          amountMilliliters: Number(amount),
+          amountMilliliters: toOptionalMilliliters(amount),
           drankMilliliters: toOptionalMilliliters(drank),
           note,
           preparedAt: fromDateTimeInputValue(preparedAt) ?? '',
@@ -54,7 +54,7 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
     >
       <DateTimeField label="Prepared" onChange={setPreparedAt} value={preparedAt} />
       <DateTimeField isOptional label="Touched lips" onChange={setTouchedLipsAt} value={touchedLipsAt} />
-      <MillilitersField label="Amount" onChange={setAmount} value={amount} />
+      <MillilitersField isOptional label="Prepared amount" onChange={setAmount} value={amount} />
       <MillilitersField isOptional label="Drank" onChange={setDrank} value={drank} />
       <NoteField onChange={setNote} value={note} />
     </TrackingForm>
