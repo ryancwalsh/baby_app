@@ -1,6 +1,6 @@
 /**
  * Minimal subset of Nanit's reverse-engineered camera websocket protocol, just
- * enough to read and write the night light. Field numbers come from the
+ * enough to read and write the night light and read the temperature. Field numbers come from the
  * community projects listed in README.md.
  *
  * The schema is a string rather than a `.proto` file because protobufjs loads
@@ -108,6 +108,29 @@ message GetSettings {
 }
 
 /**
+ * One reading from the camera's sensors. Field numbers were read off the wire
+ * from firmware 6.58.615, not taken from a published proto. \`sensorType\` is
+ * a plain int32 rather than an enum so that a sensor this schema does not name
+ * is kept rather than dropped: 2 is temperature, 3 humidity, 4 light and 5
+ * night. \`valueMilli\` is the value in thousandths (degrees Celsius for
+ * temperature), and \`timestamp\` is when it was measured, in milliseconds.
+ */
+message SensorData {
+  optional int32 sensorType = 1;
+  optional int32 value = 3;
+  optional int32 valueMilli = 6;
+  optional int64 timestamp = 7;
+}
+
+/**
+ * Found by probing, like \`getSettings\`: GET_SENSOR_DATA answers "Bad Request:
+ * missed 'getsensorsdata' field" until field 12 is set.
+ */
+message GetSensorData {
+  optional bool all = 1;
+}
+
+/**
  * Everything is optional, including fields the protocol treats as mandatory:
  * the camera emits frames that omit them (a request carrying only an id, for
  * one), and a missing \`required\` field makes protobufjs throw away the entire
@@ -124,6 +147,11 @@ message Request {
    * protos declare it.
    */
   optional GetSettings getSettings = 6;
+  optional GetSensorData getSensorData = 12;
+  /**
+   * What the camera pushes, unprompted, as PUT_SENSOR_DATA.
+   */
+  repeated SensorData sensorData = 13;
   optional Control control = 15;
 }
 
@@ -133,6 +161,10 @@ message Response {
   optional int32 statusCode = 3;
   optional string statusMessage = 4;
   optional Settings settings = 6;
+  /**
+   * The answer to GET_SENSOR_DATA.
+   */
+  repeated SensorData sensorData = 9;
   optional Control control = 15;
 }
 

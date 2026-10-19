@@ -52,6 +52,7 @@ async function main() {
     onBrightness: () => {},
     onClose: () => {},
     onNightLight: () => {},
+    onTemperature: () => {},
   });
   /**
    * Everything past the connection goes in the `try`, including the start

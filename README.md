@@ -117,6 +117,14 @@ Things the published community projects do not document:
   otherwise the camera answers `400 Bad Request: missed 'getsettings' field`. No
   published proto declares this field; it was found by trying each unused field
   number. `GET_STATUS` wants a `getStatus` field the same way.
+- `GET_SENSOR_DATA` likewise wants `getSensorData` on **field 12** of `Request`
+  (`{ all: true }`), or it answers `400 Bad Request: missed 'getsensorsdata'
+field`. The answer carries the readings on **field 9** of `Response`, and the
+  camera also pushes them unprompted as `PUT_SENSOR_DATA`, on **field 13** of
+  `Request`. Each reading is `sensorType` 1 (2 temperature, 3 humidity, 4
+  light, 5 night), `value` 3, `valueMilli` 6 (thousandths of a degree Celsius
+  for temperature), and `timestamp` 7 in milliseconds. All read off the wire on
+  2026-10-18.
 - Declare every `RequestType` the camera might send, and mark **all** fields
   `optional` even where the protocol treats them as mandatory. The camera emits
   frames omitting them (one carried only an `id`), and protobuf2 responds to a
