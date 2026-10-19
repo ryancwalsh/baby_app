@@ -1,6 +1,8 @@
 'use client';
 
-import { LightbulbIcon, PauseIcon, PlayIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
+import { ChartColumnIncreasingIcon, LightbulbIcon, PauseIcon, PlayIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 
 import { getLullabiesAction } from '@/app/actions/lullaby';
@@ -177,5 +179,20 @@ export function NoiseAction() {
     >
       {isPlaying ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5" />}
     </button>
+  );
+}
+
+export const REPORTS_HREF = '/reports';
+
+/**
+ * The one action that is a page rather than a switch: the log of everything tracked. It changes nothing, so unlike the others it needs no login to show.
+ */
+export function ReportsAction() {
+  const pathname = usePathname();
+
+  return (
+    <Link aria-label="Reports" className={getActionClassName(pathname === REPORTS_HREF)} href={REPORTS_HREF}>
+      <ChartColumnIncreasingIcon className="size-5" />
+    </Link>
   );
 }

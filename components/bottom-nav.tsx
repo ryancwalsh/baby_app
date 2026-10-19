@@ -1,11 +1,11 @@
 'use client';
 
-import { MusicIcon, SlidersHorizontalIcon, VideoIcon, WavesIcon } from 'lucide-react';
+import { CirclePlusIcon, MusicIcon, SlidersHorizontalIcon, VideoIcon, WavesIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
-import { ListenAction, LullabyAction, NightLightAction, NoiseAction } from '@/components/bottom-nav-actions';
+import { ListenAction, LullabyAction, NightLightAction, NoiseAction, REPORTS_HREF, ReportsAction } from '@/components/bottom-nav-actions';
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { MONITOR_HREF, recordNavigationTap } from '@/components/navigation-tap';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
@@ -14,10 +14,17 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 
 const LULLABIES_HREF = '/lullabies';
 const NOISE_HREF = '/noise';
+const TRACK_HREF = '/track';
+
+/**
+ * The pages reached from the Track tab, which keep it lit.
+ */
+const TRACK_SECTION_HREFS = [TRACK_HREF, '/track/sleep', '/track/bottle', '/track/diaper', '/settings'];
 
 const NAV_ITEMS = [
   { Action: NightLightAction, href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
   { Action: ListenAction, href: MONITOR_HREF, icon: VideoIcon, label: 'Monitor' },
+  { Action: ReportsAction, href: TRACK_HREF, icon: CirclePlusIcon, label: 'Track' },
   { Action: LullabyAction, href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
   { Action: NoiseAction, href: NOISE_HREF, icon: WavesIcon, label: 'Noise' },
 ] as const;
@@ -60,7 +67,7 @@ export function BottomNav() {
          * falls back to the switches rather than stranding the app somewhere it
          * cannot navigate away from.
          */
-        const isKnown = NAV_ITEMS.some((item) => item.href === storedHref);
+        const isKnown = NAV_ITEMS.some((item) => item.href === storedHref) || storedHref === REPORTS_HREF || TRACK_SECTION_HREFS.includes(storedHref ?? '');
         const target = isKnown && storedHref !== null && storedHref !== undefined ? storedHref : DEFAULT_HREF;
 
         if (target === pathname) {
@@ -82,7 +89,7 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-md">
         {NAV_ITEMS.map((item) => {
           const { Action, icon: Icon } = item;
-          const isCurrent = pathname === item.href;
+          const isCurrent = pathname === item.href || (item.href === TRACK_HREF && TRACK_SECTION_HREFS.includes(pathname));
           const isSounding = isPlayingByHref[item.href] === true;
 
           return (
