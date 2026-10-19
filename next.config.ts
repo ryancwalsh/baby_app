@@ -13,6 +13,11 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants';
  */
 export default function nextConfig(phase: string): NextConfig {
   return {
+    /**
+     * Otherwise `next dev` writes its own block into AGENTS.md whenever it sees a coding agent, and AGENTS.md is written by hand.
+     */
+    agentRules: false,
+
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
 
     /**
