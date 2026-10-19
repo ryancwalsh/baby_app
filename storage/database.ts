@@ -59,6 +59,13 @@ const MIGRATIONS: Migration[] = [
       `INSERT INTO settings (id, two_nap_wake_window_minutes, three_nap_wake_window_minutes) VALUES (1, '[180,210,240]', '[135,150,165,180]')`,
     ],
   },
+  /**
+   * The prepared amount became optional, but `amount_milliliters` is `NOT NULL` and SQLite cannot relax that without rebuilding the table. So the amount moves to a nullable column, and `amount_milliliters` is still written — as 0 when no amount was given — so the build before this one keeps working after a rollback.
+   */
+  {
+    name: '2026-10-19_optional_prepared_amount',
+    statements: ['ALTER TABLE bottles ADD COLUMN prepared_milliliters INTEGER', 'UPDATE bottles SET prepared_milliliters = amount_milliliters'],
+  },
 ];
 
 function quote(value: unknown): string {

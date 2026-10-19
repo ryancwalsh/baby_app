@@ -13,6 +13,10 @@ export function toOptionalString(value: Value) {
   return value === null || value === undefined ? null : String(value);
 }
 
+function toOptionalNumber(value: Value) {
+  return value === null || value === undefined ? null : Number(value);
+}
+
 function toFirst<T>(rows: Row[], convert: (row: Row) => T): null | T {
   const [row] = rows;
 
@@ -30,8 +34,8 @@ function toSleep(row: Row): Sleep {
 
 function toBottle(row: Row): Bottle {
   return {
-    amountMilliliters: Number(row.amount_milliliters),
-    drankMilliliters: row.drank_milliliters === null || row.drank_milliliters === undefined ? null : Number(row.drank_milliliters),
+    amountMilliliters: toOptionalNumber(row.prepared_milliliters),
+    drankMilliliters: toOptionalNumber(row.drank_milliliters),
     id: Number(row.id),
     note: String(row.note),
     preparedAt: String(row.prepared_at),
@@ -83,7 +87,7 @@ function validateSleep(input: SleepInput): SleepInput {
 
 function validateBottle(input: BottleInput): BottleInput {
   return {
-    amountMilliliters: toMilliliters(input.amountMilliliters, 'Amount'),
+    amountMilliliters: input.amountMilliliters === null ? null : toMilliliters(input.amountMilliliters, 'Prepared amount'),
     drankMilliliters: input.drankMilliliters === null ? null : toMilliliters(input.drankMilliliters, 'Drank'),
     note: input.note.trim(),
     preparedAt: toTime(input.preparedAt, 'Prepared'),
@@ -157,17 +161,19 @@ export async function saveSleep(id: null | number, input: SleepInput) {
 export async function saveBottle(id: null | number, input: BottleInput) {
   const { amountMilliliters, drankMilliliters, note, preparedAt, touchedLipsAt } = validateBottle(input);
   if (id === null) {
-    await query('INSERT INTO bottles (prepared_at, touched_lips_at, amount_milliliters, drank_milliliters, note) VALUES (?, ?, ?, ?, ?)', [
+    await query('INSERT INTO bottles (prepared_at, touched_lips_at, amount_milliliters, prepared_milliliters, drank_milliliters, note) VALUES (?, ?, ?, ?, ?, ?)', [
       preparedAt,
       touchedLipsAt,
+      amountMilliliters ?? 0,
       amountMilliliters,
       drankMilliliters,
       note,
     ]);
   } else {
-    await query('UPDATE bottles SET prepared_at = ?, touched_lips_at = ?, amount_milliliters = ?, drank_milliliters = ?, note = ? WHERE id = ?', [
+    await query('UPDATE bottles SET prepared_at = ?, touched_lips_at = ?, amount_milliliters = ?, prepared_milliliters = ?, drank_milliliters = ?, note = ? WHERE id = ?', [
       preparedAt,
       touchedLipsAt,
+      amountMilliliters ?? 0,
       amountMilliliters,
       drankMilliliters,
       note,
