@@ -2,9 +2,12 @@
 
 import { type ReactNode, useEffect, useState } from 'react';
 
+import { useClockFormat } from '@/hooks/use-clock-format';
+
 const TICK_MILLISECONDS = 1_000;
 
 const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' });
+const TWELVE_HOUR_TIME_FORMAT = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h12', minute: '2-digit' });
 
 /**
  * The time. Tapping it blacks out the whole screen but for the time itself, for a phone left propped up in the dark, and a tap anywhere brings the page back.
@@ -16,11 +19,12 @@ export function Clock({ children }: { readonly children?: ReactNode }) {
    * time zone are not the phone's and the two would disagree.
    */
   const [time, setTime] = useState<null | string>(null);
+  const { is24Hour } = useClockFormat();
   const [isBlackedOut, setIsBlackedOut] = useState(false);
 
   useEffect(() => {
     function tick() {
-      setTime(TIME_FORMAT.format(new Date()));
+      setTime((is24Hour ? TIME_FORMAT : TWELVE_HOUR_TIME_FORMAT).format(new Date()));
     }
 
     tick();
@@ -29,7 +33,7 @@ export function Clock({ children }: { readonly children?: ReactNode }) {
     return () => {
       window.clearInterval(interval);
     };
-  }, []);
+  }, [is24Hour]);
 
   return (
     <div className="flex items-center gap-3 px-5">

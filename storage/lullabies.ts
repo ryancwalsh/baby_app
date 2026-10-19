@@ -27,7 +27,7 @@ function pad(value: number) {
   return String(value).padStart(2, '0');
 }
 
-function formatTimestamp(date: Date) {
+export function formatTimestamp(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
 }
 

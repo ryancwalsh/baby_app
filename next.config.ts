@@ -16,8 +16,8 @@ export default function nextConfig(phase: string): NextConfig {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
 
     /**
-     * The device libraries are Node-only, so keep them out of the bundle.
+     * The device libraries and the database client are Node-only, so keep them out of the bundle.
      */
-    serverExternalPackages: ['mqtt', 'protobufjs', 'ws'],
+    serverExternalPackages: ['@libsql/client', 'mqtt', 'protobufjs', 'ws'],
   };
 }

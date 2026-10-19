@@ -25,3 +25,7 @@ public/version.json
 
 # Lullabies, recorded and renamed at runtime. See storage/lullabies.ts.
 /lullabies/
+
+# The local development database, and copies taken before each migration. See storage/database.ts.
+/database/
+/backups/
