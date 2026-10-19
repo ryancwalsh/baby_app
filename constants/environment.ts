@@ -37,6 +37,11 @@ function validate() {
     TAPO_DEVICES: json<Array<[string, string, string, string?]>>(),
     TAPO_EMAIL_ADDRESS: str(),
     TAPO_PASSWORD: str(),
+    /**
+     * Where the tracked sleeps, bottles, and diapers live. Turso in production; in development a local SQLite file, so trying the tracking pages out never writes to the real log.
+     */
+    TURSO_AUTH_TOKEN: str({ default: '' }),
+    TURSO_DATABASE_URL: str({ devDefault: 'file:database/tracking.db' }),
   });
 }
 
