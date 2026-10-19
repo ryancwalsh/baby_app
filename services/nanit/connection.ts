@@ -2,18 +2,21 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { getAccessToken, getFirstCamera, TOKEN_LIFETIME_MILLISECONDS } from '@/services/nanit/auth';
 import { MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
-import { type CameraConnection, connectToCamera } from '@/services/nanit/camera';
+import { type CameraConnection, connectToCamera, type TemperatureReading } from '@/services/nanit/camera';
 
 const STATE_DIRECTORY = 'secrets';
 const STATE_FILE_PATH = `${STATE_DIRECTORY}/nanit-night-light.json`;
 const RECONNECT_DELAY_MILLISECONDS = 5_000;
 /**
- * How often to re-read brightness. The camera announces on/off the moment it
- * changes but says nothing about brightness, so that one value has to be asked
- * for. This is one frame on an already-open socket, not a new connection, and
- * it happens once for the whole server no matter how many pages are open.
+ * How often to re-read brightness and temperature. The camera announces on/off
+ * the moment it changes but says nothing about brightness, so that one value
+ * has to be asked for. It does push temperature on its own, but how often is
+ * its business, and a reading that goes quiet is shown as unknown — so asking
+ * keeps the reading fresh rather than leaving it to the camera's schedule.
+ * Each is one frame on an already-open socket, not a new connection, and it
+ * happens once for the whole server no matter how many pages are open.
  */
-const BRIGHTNESS_POLL_MILLISECONDS = 30_000;
+const POLL_MILLISECONDS = 30_000;
 /**
  * How long to hold one socket before replacing it. The camera authorises a
  * connection once, with the access token it was opened with, and then goes on
@@ -50,20 +53,28 @@ export type NightLightState = {
  */
 type StateListener = (state: NightLightState) => void;
 
+type TemperatureListener = (reading: TemperatureReading) => void;
+
 type SharedConnection = {
-  brightnessTimer: NodeJS.Timeout | null;
   camera: CameraConnection | null;
   connecting: null | Promise<CameraConnection>;
   /**
    * Open SSE streams, told the moment the camera announces anything.
    */
   listeners: Set<StateListener>;
+  pollTimer: NodeJS.Timeout | null;
   reconnectTimer: NodeJS.Timeout | null;
   /**
    * Closes this socket before its token expires — see RECYCLE_MILLISECONDS.
    */
   recycleTimer: NodeJS.Timeout | null;
   state: NightLightState;
+  /**
+   * Memory only, never saved: a temperature read before a restart is stale by
+   * the time anything could show it.
+   */
+  temperature: null | TemperatureReading;
+  temperatureListeners: Set<TemperatureListener>;
 };
 
 /**
@@ -105,10 +116,10 @@ function saveState(state: NightLightState) {
  */
 function getShared(): SharedConnection {
   globalForNanit.nanitConnection ??= {
-    brightnessTimer: null,
     camera: null,
     connecting: null,
     listeners: new Set(),
+    pollTimer: null,
     reconnectTimer: null,
     recycleTimer: null,
     state: {
@@ -117,6 +128,8 @@ function getShared(): SharedConnection {
       ...readSavedState(),
       isFading: false,
     },
+    temperature: null,
+    temperatureListeners: new Set(),
   };
 
   return globalForNanit.nanitConnection;
@@ -139,6 +152,38 @@ function updateState(changes: Partial<NightLightState>) {
       listener(updated);
     }
   }
+}
+
+/**
+ * Every reading is told, not only a changed one, because a repeat still says
+ * the reading is current — that is what keeps a page from showing it as stale.
+ *
+ * Never dated later than now: a camera clock running fast would otherwise make
+ * an old reading look fresh, which is the one mistake this must not make.
+ */
+function updateTemperature(reading: TemperatureReading) {
+  const shared = getShared();
+  shared.temperature = { celsius: reading.celsius, measuredAt: Math.min(reading.measuredAt, Date.now()) };
+
+  for (const listener of shared.temperatureListeners) {
+    listener(shared.temperature);
+  }
+}
+
+export function getTemperature(): null | TemperatureReading {
+  return getShared().temperature;
+}
+
+/**
+ * Like `subscribeToNightLight`, the stream must call what this returns.
+ */
+export function subscribeToTemperature(listener: TemperatureListener): () => void {
+  const shared = getShared();
+  shared.temperatureListeners.add(listener);
+
+  return () => {
+    shared.temperatureListeners.delete(listener);
+  };
 }
 
 /**
@@ -166,9 +211,9 @@ async function openConnection(): Promise<CameraConnection> {
     onClose: () => {
       shared.camera = null;
 
-      if (shared.brightnessTimer !== null) {
-        clearInterval(shared.brightnessTimer);
-        shared.brightnessTimer = null;
+      if (shared.pollTimer !== null) {
+        clearInterval(shared.pollTimer);
+        shared.pollTimer = null;
       }
 
       if (shared.recycleTimer !== null) {
@@ -187,18 +232,30 @@ async function openConnection(): Promise<CameraConnection> {
       }, RECONNECT_DELAY_MILLISECONDS);
     },
     onNightLight: (isOn) => updateState({ isOn }),
+    onTemperature: updateTemperature,
   });
 
   shared.camera = camera;
+
+  function readTemperature() {
+    // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget; the answer arrives through `onTemperature`, and a failed read just waits for the next tick.
+    camera.sendRequest('GET_SENSOR_DATA', { getSensorData: { all: true } }).catch(() => {});
+  }
+
+  /**
+   * Straight away, so a page does not wait a whole poll for its first reading.
+   */
+  readTemperature();
 
   /**
    * Started once per connection, so brightness changed from the Nanit app is
    * picked up and pushed to any open page. Announcements cover on/off already.
    */
-  shared.brightnessTimer ??= setInterval(() => {
+  shared.pollTimer ??= setInterval(() => {
     // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget from a timer; a failed read just waits for the next tick.
     camera.sendRequest('GET_SETTINGS', { getSettings: { all: true } }).catch(() => {});
-  }, BRIGHTNESS_POLL_MILLISECONDS);
+    readTemperature();
+  }, POLL_MILLISECONDS);
 
   /**
    * Closing is all this has to do: `onClose` clears the timers and reconnects,

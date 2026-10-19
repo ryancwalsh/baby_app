@@ -11,6 +11,11 @@ const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
  * Cameras drop a silent socket, so give them traffic well inside that.
  */
 const KEEPALIVE_INTERVAL_MILLISECONDS = 30_000;
+/**
+ * The `sensorType` of a temperature reading — see `SensorData` in protocol.ts.
+ */
+const TEMPERATURE_SENSOR_TYPE = 2;
+const MILLI_PER_UNIT = 1_000;
 
 type PendingRequest = {
   reject: (error: Error) => void;
@@ -18,19 +23,30 @@ type PendingRequest = {
   timer: NodeJS.Timeout;
 };
 
+type SensorData = { sensorType?: number; timestamp?: number; valueMilli?: number };
+
 /**
  * The decoded shapes this app reads. Everything else in a frame is ignored.
  */
 type Frame = {
-  request?: { control?: { nightLight?: string } };
+  request?: { control?: { nightLight?: string }; sensorData?: SensorData[] };
   response?: {
     control?: { nightLight?: string };
     requestId: number;
     requestType?: string;
+    sensorData?: SensorData[];
     settings?: { nightLightBrightness?: number };
     statusCode?: number;
     statusMessage?: string;
   };
+};
+
+export type TemperatureReading = {
+  celsius: number;
+  /**
+   * When the camera says it measured this, in milliseconds since the epoch.
+   */
+  measuredAt: number;
 };
 
 export type CameraHandlers = {
@@ -40,6 +56,10 @@ export type CameraHandlers = {
    * Fired for every on/off the camera announces, including app-driven ones.
    */
   onNightLight: (isOn: boolean) => void;
+  /**
+   * Fired for every temperature reading, whether pushed or asked for.
+   */
+  onTemperature: (reading: TemperatureReading) => void;
 };
 
 export type CameraConnection = {
@@ -73,10 +93,19 @@ export async function connectToCamera(cameraUid: string, accessToken: string, ha
     }
   }
 
+  function reportSensorData(sensorData: SensorData[] | undefined) {
+    for (const reading of sensorData ?? []) {
+      if (reading.sensorType === TEMPERATURE_SENSOR_TYPE && reading.valueMilli !== undefined && reading.timestamp !== undefined) {
+        handlers.onTemperature({ celsius: reading.valueMilli / MILLI_PER_UNIT, measuredAt: reading.timestamp });
+      }
+    }
+  }
+
   socket.on('message', (data: Buffer) => {
     const frame = messageType.toObject(messageType.decode(data), {
       defaults: false,
       enums: String,
+      longs: Number,
     }) as Frame;
     const response = frame.response;
 
@@ -99,6 +128,8 @@ export async function connectToCamera(cameraUid: string, accessToken: string, ha
       if (response.settings?.nightLightBrightness !== undefined) {
         handlers.onBrightness(response.settings.nightLightBrightness);
       }
+
+      reportSensorData(response.sensorData);
     }
 
     /**
@@ -108,6 +139,7 @@ export async function connectToCamera(cameraUid: string, accessToken: string, ha
      * since GET_CONTROL is never answered.
      */
     reportNightLight(frame.request?.control?.nightLight);
+    reportSensorData(frame.request?.sensorData);
   });
 
   await new Promise<void>((resolve, reject) => {

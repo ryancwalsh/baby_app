@@ -8,6 +8,7 @@ import { getNightLightAction } from '@/app/actions/night-light';
 import { getTapoCloudStatusAction } from '@/app/actions/tapo-login';
 import { Clock } from '@/components/clock';
 import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
+import { NanitTemperature } from '@/components/nanit-temperature';
 import { NightLight } from '@/components/night-light';
 import { TapoCloudLogin } from '@/components/tapo-cloud-login';
 import { type NightLightState } from '@/services/nanit/night-light';
@@ -104,6 +105,8 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
       <NightLight initialState={state.nightLight} key={generation} onChange={rememberNightLight} secretHash={secretHash} />
 
       <Clock>
+        <NanitTemperature secretHash={secretHash} />
+
         <button
           aria-label="Refresh the switches"
           className="text-foreground/40 shrink-0 rounded-lg p-2 disabled:opacity-60"
