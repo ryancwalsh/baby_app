@@ -105,17 +105,22 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
       <NightLight initialState={state.nightLight} key={generation} onChange={rememberNightLight} secretHash={secretHash} />
 
       <Clock>
-        <NanitTemperature secretHash={secretHash} />
+        {/* Each side of the temperature grows as much as the time does, which keeps it in the middle of the row. */}
+        <div className="flex flex-1 justify-center">
+          <NanitTemperature secretHash={secretHash} />
+        </div>
 
-        <button
-          aria-label="Refresh the switches"
-          className="text-foreground/40 shrink-0 rounded-lg p-2 disabled:opacity-60"
-          disabled={isRefreshing}
-          onClick={refresh}
-          type="button"
-        >
-          <RefreshCwIcon className={`size-6 ${isRefreshing ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex flex-1 justify-end">
+          <button
+            aria-label="Refresh the switches"
+            className="text-foreground/40 dark:text-foreground/70 shrink-0 rounded-lg p-2 disabled:opacity-60"
+            disabled={isRefreshing}
+            onClick={refresh}
+            type="button"
+          >
+            <RefreshCwIcon className={`size-6 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </Clock>
 
       <div className="flex flex-col gap-3">
