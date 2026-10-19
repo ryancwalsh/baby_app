@@ -7,6 +7,7 @@ import { getTrackingSettingsAction, saveTrackingSettingsAction } from '@/app/act
 import { DATE_FORMATS, formatDate } from '@/components/tracking-format';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
+import { TILE_TEXT_SIZES, useTileTextSize } from '@/hooks/use-tile-text-size';
 import { PREDICTION_METHODS, type PredictionMethod, type TrackingSettings } from '@/storage/tracking-types';
 
 const METHOD_LABELS: Record<PredictionMethod, string> = {
@@ -46,12 +47,13 @@ function WindowFields({ label, onChange, windows }: { readonly label: string; re
 }
 
 /**
- * The prediction settings are shared by every phone, so they live in the database; the clock and date formats are per phone and live in local storage, and change the moment they are tapped.
+ * The prediction settings are shared by every phone, so they live in the database; the clock and date formats and the tile text size are per phone and live in local storage, and change the moment they are tapped.
  */
 export function TrackingSettingsForm({ secretHash }: { readonly secretHash: string }) {
   const router = useRouter();
   const { is24Hour, setIs24Hour } = useClockFormat();
   const { dateFormat, setDateFormat } = useDateFormat();
+  const { setTileTextSize, tileTextSize } = useTileTextSize();
   const [method, setMethod] = useState<PredictionMethod>('fixed');
   const [birthDate, setBirthDate] = useState('');
   const [twoNap, setTwoNap] = useState<string[]>([]);
@@ -128,6 +130,24 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
               type="button"
             >
               {formatDate(Date.now(), option)}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-foreground/60 mb-1 text-sm">Tile text on this phone</legend>
+        <div className="flex flex-wrap gap-2">
+          {TILE_TEXT_SIZES.map(({ className, label, size: option }) => (
+            <button
+              className={`rounded-lg border px-4 py-2 ${className} ${tileTextSize === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+              key={option}
+              onClick={() => {
+                setTileTextSize(option);
+              }}
+              type="button"
+            >
+              {label}
             </button>
           ))}
         </div>

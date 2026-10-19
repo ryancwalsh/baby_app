@@ -1,9 +1,14 @@
 'use client';
 
-import { toDateTimeInputValue } from '@/components/tracking-format';
+import { formatClockTime, formatDate, toDateTimeInputValue } from '@/components/tracking-format';
+import { useClockFormat } from '@/hooks/use-clock-format';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 const INPUT_CLASS_NAME = 'border-foreground/15 bg-background w-full rounded-lg border px-3 py-2 text-base';
 
+/**
+ * A native `datetime-local` input shows the time however the browser's locale likes, ignoring the clock and date formats chosen in settings. So the input is laid invisibly over a readout in those formats, and a tap still opens the native picker.
+ */
 export function DateTimeField({
   isOptional = false,
   label,
@@ -15,6 +20,10 @@ export function DateTimeField({
   readonly onChange: (value: string) => void;
   readonly value: string;
 }) {
+  const { is24Hour } = useClockFormat();
+  const { dateFormat } = useDateFormat();
+  const readout = value === '' ? 'Not set' : `${formatDate(new Date(value).getTime(), dateFormat)} ${formatClockTime(value, is24Hour)}`;
+
   return (
     <label className="flex flex-col gap-1 text-sm">
       <span className="text-foreground/60">
@@ -22,15 +31,21 @@ export function DateTimeField({
         {isOptional && ' (optional)'}
       </span>
       <div className="flex gap-2">
-        <input
-          className={INPUT_CLASS_NAME}
-          onChange={(event) => {
-            onChange(event.target.value);
-          }}
-          required={!isOptional}
-          type="datetime-local"
-          value={value}
-        />
+        <div className="relative w-full">
+          <span className={`${INPUT_CLASS_NAME} block tabular-nums ${value === '' ? 'text-foreground/40' : ''}`}>{readout}</span>
+          <input
+            className="absolute inset-0 size-full opacity-0"
+            onChange={(event) => {
+              onChange(event.target.value);
+            }}
+            onClick={(event) => {
+              event.currentTarget.showPicker();
+            }}
+            required={!isOptional}
+            type="datetime-local"
+            value={value}
+          />
+        </div>
         <button
           className="border-foreground/15 text-foreground/60 rounded-lg border px-3 text-sm"
           onClick={() => {
