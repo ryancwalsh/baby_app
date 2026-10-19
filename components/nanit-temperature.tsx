@@ -83,7 +83,7 @@ export function NanitTemperature({ secretHash }: { readonly secretHash: string }
   const freshReading = isConnected && reading !== null && now - reading.measuredAt <= FRESH_MILLISECONDS ? reading : null;
 
   return (
-    <div className="text-foreground/40 flex shrink-0 items-center text-lg tabular-nums">
+    <div className="flex shrink-0 items-center text-2xl tabular-nums opacity-70">
       {freshReading === null ? (
         <span aria-label="Nursery temperature unknown" role="img">
           <ThermometerOffIcon className="size-6" />
