@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 
 import { endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
 import { predictNextSleeps } from '@/components/sleep-predictions';
-import { formatAgo, formatClockTime, formatDuration, formatStopwatch } from '@/components/tracking-format';
+import { formatAgo, formatClockTime, formatDuration, formatRunningDuration } from '@/components/tracking-format';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useNow } from '@/hooks/use-now';
 
@@ -54,7 +54,7 @@ function SleepTile({
     <div className={`flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
       <Link className="flex flex-col gap-1" href="/track/sleep">
         <span className={`text-lg font-semibold ${colors.label}`}>Sleep</span>
-        {active !== undefined && <span className="text-2xl tabular-nums">Sleeping {formatStopwatch(now - new Date(active.startedAt).getTime())}</span>}
+        {active !== undefined && <span className="text-2xl tabular-nums">Sleeping {formatRunningDuration(now - new Date(active.startedAt).getTime())}</span>}
         {latest !== undefined && latest.endedAt !== null && (
           <span className="text-foreground/70 text-sm tabular-nums">
             Last started {formatAgo(now - new Date(latest.startedAt).getTime())}, woke {formatAgo(now - new Date(latest.endedAt).getTime())}, slept{' '}

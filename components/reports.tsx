@@ -7,6 +7,7 @@ import { getTrackingLogAction, type TrackingLog } from '@/app/actions/tracking';
 import { TILE_COLORS } from '@/components/track-tiles';
 import { formatClockTime, formatDayLabel, formatDuration, startOfDay, startOfNextDay } from '@/components/tracking-format';
 import { useClockFormat } from '@/hooks/use-clock-format';
+import { useDateFormat } from '@/hooks/use-date-format';
 import { useNow } from '@/hooks/use-now';
 
 type ReportEvent = {
@@ -112,6 +113,7 @@ export function Reports({ secretHash }: { readonly secretHash: string }) {
   const [log, setLog] = useState<null | TrackingLog>(null);
   const [error, setError] = useState<null | string>(null);
   const { is24Hour } = useClockFormat();
+  const { dateFormat } = useDateFormat();
   const now = useNow();
 
   const load = useCallback(async () => {
@@ -149,7 +151,7 @@ export function Reports({ secretHash }: { readonly secretHash: string }) {
         days.map((day) => (
           <section className="flex flex-col gap-2" key={day.start}>
             <header className="border-foreground/10 flex flex-col border-b pb-1">
-              <h2 className="font-semibold">{formatDayLabel(day.start, now)}</h2>
+              <h2 className="font-semibold">{formatDayLabel(day.start, now, dateFormat)}</h2>
               <p className="text-foreground/50 text-xs">
                 Slept {formatDuration(day.sleepMilliseconds)} · drank {day.drankMilliliters} ml · {day.diaperCount} {day.diaperCount === 1 ? 'diaper' : 'diapers'}
               </p>
