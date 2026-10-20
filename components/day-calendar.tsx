@@ -88,25 +88,25 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
         />
 
         <header className="flex items-start justify-between gap-3">
-          <h2 className="font-semibold">{formatDayLabel(selectedDayStart, now, dateFormat)}</h2>
+          <h2 className="text-2xl font-semibold">{formatDayLabel(selectedDayStart, now, dateFormat)}</h2>
           <Link aria-label="Tracking list" className="text-foreground/40 p-1" href={TRACKING_LIST_HREF}>
-            <ListIcon className="size-5" />
+            <ListIcon className="size-7" />
           </Link>
         </header>
       </div>
 
       <dl className="grid grid-cols-3 gap-2">
         <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.sleep.border}`}>
-          <dt className={`text-xs ${TILE_COLORS.sleep.label}`}>Slept</dt>
-          <dd className="tabular-nums">{formatDuration(totals.sleepMilliseconds)}</dd>
+          <dt className={`text-base ${TILE_COLORS.sleep.label}`}>Slept</dt>
+          <dd className="text-2xl tabular-nums">{formatDuration(totals.sleepMilliseconds)}</dd>
         </div>
         <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.bottle.border}`}>
-          <dt className={`text-xs ${TILE_COLORS.bottle.label}`}>Drank</dt>
-          <dd className="tabular-nums">{totals.drankMilliliters} ml</dd>
+          <dt className={`text-base ${TILE_COLORS.bottle.label}`}>Drank</dt>
+          <dd className="text-2xl tabular-nums">{totals.drankMilliliters} ml</dd>
         </div>
         <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.diaper.border}`}>
-          <dt className={`text-xs ${TILE_COLORS.diaper.label}`}>Diapers</dt>
-          <dd className="tabular-nums">{totals.diaperCount}</dd>
+          <dt className={`text-base ${TILE_COLORS.diaper.label}`}>Diapers</dt>
+          <dd className="text-2xl tabular-nums">{totals.diaperCount}</dd>
         </div>
       </dl>
 

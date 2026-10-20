@@ -297,10 +297,12 @@ in `.env.production.local`.
   text orders them in time; the indexes and `ORDER BY`s rely on it.
 - `storage/tracking-types.ts` is imported by the pages, so it must stay free of
   anything Node-only; the libsql client stays in `storage/database.ts`.
-- The theme, the 12/24-hour clock, the date format, the tile text size, where
-  the notepad button goes, and whether a bottle is placed in the log at
-  "touched lips" (the default) or "prepared" are per phone, in local storage
-  (`components/phone-settings.tsx`). The prediction method and wake windows are
+- The theme, the 12/24-hour clock, the date format, the text size on the
+  tiles and on the add and edit pages, where the notepad button goes, whether a
+  bottle is placed in the log at "touched lips" (the default) or "prepared",
+  and the minutes between bottles behind the bottle tile's "Next" are per
+  phone, in local storage (`components/phone-settings.tsx`). The text sizes are
+  a CSS `zoom` on the whole area, so everything in it grows together. The prediction method and wake windows are
   shared, in the `settings` table.
 - The log has two views: the day calendar at `/tracking/day` (the default) and
   the tracking list at `/tracking/list`. An entry opened from the calendar
