@@ -22,6 +22,11 @@ const TRACK_HREF = '/track';
  */
 const TRACK_SECTION_HREFS = [TRACK_HREF, '/track/sleep', '/track/bottle', '/track/diaper', '/settings'];
 
+/**
+ * Reached from the footer rather than a tab, but still a page to come back to on launch.
+ */
+const NOTES_HREF = '/notes';
+
 const NAV_ITEMS = [
   { Action: NightLightAction, href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
   { Action: ListenAction, href: MONITOR_HREF, icon: VideoIcon, label: 'Monitor' },
@@ -69,7 +74,10 @@ export function BottomNav() {
          * cannot navigate away from.
          */
         const isKnown =
-          NAV_ITEMS.some((item) => item.href === storedHref) || TRACKING_VIEWS.some(({ href }) => href === storedHref) || TRACK_SECTION_HREFS.includes(storedHref ?? '');
+          NAV_ITEMS.some((item) => item.href === storedHref) ||
+          TRACKING_VIEWS.some(({ href }) => href === storedHref) ||
+          TRACK_SECTION_HREFS.includes(storedHref ?? '') ||
+          storedHref === NOTES_HREF;
         const target = isKnown && storedHref !== null && storedHref !== undefined ? storedHref : DEFAULT_HREF;
 
         if (target === pathname) {

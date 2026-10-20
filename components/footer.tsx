@@ -1,5 +1,7 @@
 'use client';
 
+import { SettingsIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { SECRET_HASH_KEY } from '@/components/login-guard';
@@ -52,11 +54,13 @@ type Version = {
 };
 
 /**
- * Fetched at runtime rather than imported, because `public/version.json` is
+ * On every page, below the fold: the root layout gives each page at least a screen of its own, so the footer is only reached by scrolling past the bottom navigation.
+ *
+ * The version is fetched at runtime rather than imported, because `public/version.json` is
  * written by the postbuild script — anything baked in at build time would
  * describe the build before this one.
  */
-export function VersionFooter() {
+export function Footer() {
   const [version, setVersion] = useState<null | Version>(null);
   const [now, setNow] = useState(() => Date.now());
   const { store, value: secretHash } = useLocalStorage(SECRET_HASH_KEY);
@@ -87,12 +91,13 @@ export function VersionFooter() {
   }, []);
 
   return (
-    <footer className="text-foreground/40 flex flex-col gap-1 text-xs text-center">
+    <footer className="text-foreground/40 flex flex-col gap-1 px-6 pt-8 pb-28 text-center text-xs">
+      <Link className="border-foreground/10 text-foreground/60 mb-6 flex items-center justify-center gap-3 rounded-2xl border py-4 text-lg" href="/settings">
+        <SettingsIcon className="size-6" />
+        Settings
+      </Link>
       <p>
-        <a href="https://trello.com/c/4slYijiN/" rel="noopener noreferrer" target="_blank">
-          Notes
-        </a>{' '}
-        |{' '}
+        <Link href="/notes">Notes</Link> |{' '}
         <a href={REPOSITORY_URL} rel="noopener noreferrer" target="_blank">
           Source
         </a>

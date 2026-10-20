@@ -3,6 +3,7 @@ import { Nunito_Sans } from 'next/font/google';
 import Script from 'next/script';
 
 import { BottomNav } from '@/components/bottom-nav';
+import { Footer } from '@/components/footer';
 import { InstallBanner } from '@/components/install-banner';
 import { LullabyAudioProvider } from '@/components/lullaby-audio-provider';
 import { NanitAudioProvider } from '@/components/nanit-audio-provider';
@@ -76,8 +77,11 @@ export default function RootLayout({
             <NanitAudioProvider>
               <div className="mx-auto flex min-h-screen max-w-md flex-col">
                 <InstallBanner />
-                {/* The padding is what the fixed bottom navigation covers. */}
-                <main className="flex-1 pb-28">{children}</main>
+                {/*
+                  The padding is what the fixed bottom navigation covers. At least a screen tall, so the footer always sits below the fold.
+                */}
+                <main className="min-h-screen flex-1 pb-28">{children}</main>
+                <Footer />
               </div>
               <BottomNav />
             </NanitAudioProvider>

@@ -66,6 +66,26 @@ const MIGRATIONS: Migration[] = [
     name: '2026-10-19_optional_prepared_amount',
     statements: ['ALTER TABLE bottles ADD COLUMN prepared_milliliters INTEGER', 'UPDATE bottles SET prepared_milliliters = amount_milliliters'],
   },
+  /**
+   * The notes about the app, linked from the footer. One row of markdown, and its earlier versions as reverse patches — see storage/notes-history.ts.
+   */
+  {
+    name: '2026-10-20_notes',
+    statements: [
+      `CREATE TABLE notes (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        content TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE note_versions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL,
+        body TEXT NOT NULL,
+        text_saved_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 function quote(value: unknown): string {

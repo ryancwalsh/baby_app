@@ -1,5 +1,8 @@
 'use client';
 
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+
 import { TILE_BUTTON_CLASS_NAME, TILE_COLORS } from '@/components/tile-styles';
 import { formatRunningDuration } from '@/components/tracking-format';
 import { useLocalStorage } from '@/hooks/use-local-storage';
@@ -40,6 +43,8 @@ export function StopwatchTile({ now }: { readonly now: number }) {
   const isRunning = stopwatch.startedAt !== null;
   const elapsed = stopwatch.elapsedMilliseconds + (stopwatch.startedAt === null ? 0 : now - stopwatch.startedAt);
   const colors = TILE_COLORS.stopwatch;
+  const [isBlackedOut, setIsBlackedOut] = useState(false);
+  const formattedElapsed = formatRunningDuration(elapsed);
 
   let startLabel = 'Start';
   if (isRunning) {
@@ -50,10 +55,21 @@ export function StopwatchTile({ now }: { readonly now: number }) {
 
   return (
     <div className={`flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
-      <div className="flex flex-col gap-1">
+      {/*
+        Like the clock, tapping a running stopwatch blacks out the whole screen but for the count, for timing something in the dark nursery.
+      */}
+      <button
+        aria-label={isRunning ? 'Black out the screen' : undefined}
+        className="flex flex-col gap-1 text-left disabled:cursor-default"
+        disabled={!isRunning}
+        onClick={() => {
+          setIsBlackedOut(true);
+        }}
+        type="button"
+      >
         <span className={`text-lg font-semibold ${colors.label}`}>Stopwatch</span>
-        <span className="text-2xl tabular-nums">{formatRunningDuration(elapsed)}</span>
-      </div>
+        <span className="text-2xl tabular-nums">{formattedElapsed}</span>
+      </button>
       <div className="flex gap-2">
         <button
           className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`}
@@ -83,6 +99,25 @@ export function StopwatchTile({ now }: { readonly now: number }) {
           </button>
         )}
       </div>
+
+      {/*
+        Portaled to the body, because the tiles sit inside a CSS `zoom` for the per-phone text size, which would otherwise scale the blackout too.
+      */}
+      {isRunning &&
+        isBlackedOut &&
+        createPortal(
+          <button
+            aria-label="Leave the blacked out screen"
+            className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black text-[15vw] whitespace-nowrap text-white/70 tabular-nums"
+            onClick={() => {
+              setIsBlackedOut(false);
+            }}
+            type="button"
+          >
+            {formattedElapsed}
+          </button>,
+          document.body,
+        )}
     </div>
   );
 }
