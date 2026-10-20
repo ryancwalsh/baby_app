@@ -75,15 +75,17 @@ export default function RootLayout({
         <LullabyAudioProvider>
           <NoiseAudioProvider>
             <NanitAudioProvider>
-              <div className="mx-auto flex min-h-screen max-w-md flex-col">
-                <InstallBanner />
+              <div className="flex min-h-screen flex-col">
+                <div className="mx-auto w-full max-w-md">
+                  <InstallBanner />
+                </div>
                 {/*
-                  The padding is what the fixed bottom navigation covers. At least a screen tall, so the footer always sits below the fold.
+                  At least a screen tall, so the footer always sits below the fold. The navigation after it is sticky rather than fixed: it holds to the bottom of the screen until the page is scrolled past the end of this, and then rides up with the page to show the footer.
                 */}
-                <main className="min-h-screen flex-1 pb-28">{children}</main>
+                <main className="mx-auto min-h-screen w-full max-w-md flex-1 pb-6">{children}</main>
+                <BottomNav />
                 <Footer />
               </div>
-              <BottomNav />
             </NanitAudioProvider>
           </NoiseAudioProvider>
         </LullabyAudioProvider>

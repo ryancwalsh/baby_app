@@ -95,7 +95,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="border-foreground/10 bg-background/95 fixed inset-x-0 bottom-0 border-t pt-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="border-foreground/10 bg-background/95 sticky bottom-0 z-10 border-t pt-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-md">
         {NAV_ITEMS.map((item) => {
           const { Action, icon: Icon } = item;

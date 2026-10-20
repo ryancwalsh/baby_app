@@ -35,9 +35,7 @@ import { usePictureWatchdog } from '@/hooks/use-picture-watchdog';
 const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
 
 /**
- * What the layout already reserves for the fixed bottom navigation, in pixels
- * — `pb-28` on the layout's `main`. Subtracted below so the picture stops above
- * the tabs rather than under them.
+ * Room left for the sticky bottom navigation, which sits at the bottom of the screen while the monitor is in view, in pixels. Subtracted below so the picture stops above the tabs rather than under them.
  */
 const BOTTOM_NAVIGATION_PIXELS = 112;
 
