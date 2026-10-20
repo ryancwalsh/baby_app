@@ -1,6 +1,6 @@
 'use client';
 
-import { formatClockTime } from '@/components/tracking-format';
+import { formatClockTime, formatDuration } from '@/components/tracking-format';
 import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
 
 /**
@@ -8,10 +8,11 @@ import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
  */
 export function NextBottle({ is24Hour, nextBottleTime, now }: { readonly is24Hour: boolean; readonly nextBottleTime: number; readonly now: number }) {
   const minutes = Math.round((nextBottleTime - now) / MILLISECONDS_PER_MINUTE);
+  const distance = formatDuration(Math.abs(minutes) * MILLISECONDS_PER_MINUTE);
 
   return (
     <span className="text-foreground/70 text-base tabular-nums">
-      Next: {formatClockTime(nextBottleTime, is24Hour)} ({minutes >= 0 ? `in ${minutes}m` : `${-minutes}m ago`})
+      Next: {formatClockTime(nextBottleTime, is24Hour)} ({minutes >= 0 ? `in ${distance}` : `${distance} ago`})
     </span>
   );
 }
