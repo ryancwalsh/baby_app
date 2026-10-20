@@ -9,7 +9,7 @@ import { DateStrip } from '@/components/date-strip';
 import { DayTimeline } from '@/components/day-timeline';
 import { getDayTotals } from '@/components/day-totals';
 import { LoginGuard } from '@/components/login-guard';
-import { TILE_COLORS } from '@/components/track-tiles';
+import { TILE_COLORS } from '@/components/tile-styles';
 import { formatDate, formatDayLabel, formatDuration, startOfDay, startOfNextDay } from '@/components/tracking-format';
 import { useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
@@ -73,24 +73,27 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
   return (
     <div className="flex flex-col gap-5">
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
-      <DateStrip
-        dayStarts={dayStarts}
-        onSelect={(dayStart) => {
-          setChosenDayStart(dayStart);
-          /**
-           * Kept in the address so a reload, or coming back from editing an entry, lands on the same day. Replaced rather than pushed, so the back button leaves the calendar instead of stepping through days.
-           */
-          window.history.replaceState(null, '', `${DAY_CALENDAR_HREF}?date=${formatDate(dayStart, 'iso')}`);
-        }}
-        selectedDayStart={selectedDayStart}
-      />
+      {/* Stays at the top while the timeline scrolls underneath, painted with the page background so the timeline does not show through. */}
+      <div className="bg-background sticky top-0 z-10 -mx-6 flex flex-col gap-5 px-6 py-2">
+        <DateStrip
+          dayStarts={dayStarts}
+          onSelect={(dayStart) => {
+            setChosenDayStart(dayStart);
+            /**
+             * Kept in the address so a reload, or coming back from editing an entry, lands on the same day. Replaced rather than pushed, so the back button leaves the calendar instead of stepping through days.
+             */
+            window.history.replaceState(null, '', `${DAY_CALENDAR_HREF}?date=${formatDate(dayStart, 'iso')}`);
+          }}
+          selectedDayStart={selectedDayStart}
+        />
 
-      <header className="flex items-start justify-between gap-3">
-        <h2 className="font-semibold">{formatDayLabel(selectedDayStart, now, dateFormat)}</h2>
-        <Link aria-label="Tracking list" className="text-foreground/40 p-1" href={TRACKING_LIST_HREF}>
-          <ListIcon className="size-5" />
-        </Link>
-      </header>
+        <header className="flex items-start justify-between gap-3">
+          <h2 className="font-semibold">{formatDayLabel(selectedDayStart, now, dateFormat)}</h2>
+          <Link aria-label="Tracking list" className="text-foreground/40 p-1" href={TRACKING_LIST_HREF}>
+            <ListIcon className="size-5" />
+          </Link>
+        </header>
+      </div>
 
       <dl className="grid grid-cols-3 gap-2">
         <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.sleep.border}`}>
