@@ -1,6 +1,5 @@
 'use client';
 
-import { SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState, useTransition } from 'react';
 
@@ -198,11 +197,6 @@ export function TrackTiles({ secretHash }: { readonly secretHash: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Link aria-label="Tracking settings" className="text-foreground/40 p-1" href="/settings">
-          <SettingsIcon className="size-5" />
-        </Link>
-      </div>
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
       {summary !== null && now !== null && (
         <div className="flex flex-col gap-4" style={{ zoom }}>

@@ -1,6 +1,5 @@
 import { LightsSection } from '@/components/lights-section';
 // import { SnooToggle } from '@/components/snoo-toggle';
-import { VersionFooter } from '@/components/version-footer';
 
 export default function LightsPage() {
   return (
@@ -9,7 +8,6 @@ export default function LightsPage() {
       {/* <SnooToggle /> */}
 
       <LightsSection />
-      <VersionFooter />
     </div>
   );
 }
