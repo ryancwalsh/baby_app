@@ -304,6 +304,7 @@ in `.env.production.local`.
   phone, in local storage (`components/phone-settings.tsx`). The text sizes are
   a CSS `zoom` on the whole area, so everything in it grows together. The prediction method and wake windows are
   shared, in the `settings` table.
+- The notes page at `/notes`, linked from the footer, is one shared markdown document in the same database, edited in Milkdown. It saves itself, refuses a save when someone else saved in between, and keeps earlier versions as reverse patches (`storage/notes-history.ts`).
 - The log has two views: the day calendar at `/tracking/day` (the default) and
   the tracking list at `/tracking/list`. An entry opened from the calendar
   carries `?from=day&date=` so its form returns to that day.

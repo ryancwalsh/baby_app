@@ -17,6 +17,10 @@
   },
   "dependencies": {
     "@libsql/client": "0.18.0",
+    "@milkdown/kit": "7.22.3",
+    "@milkdown/react": "7.22.3",
+    "@milkdown/theme-nord": "7.22.3",
+    "diff": "9.0.0",
     "envalid": "8.2.0",
     "hls.js": "1.7.1",
     "lucide-react": "1.16.0",

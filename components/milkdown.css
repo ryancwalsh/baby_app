@@ -1,0 +1,117 @@
+/*
+ * Styles for the text inside the Milkdown editor. Tailwind's reset removes the look of headings, lists, and so on, and the nord theme expects the Tailwind typography plugin, which this app does not use, so they are drawn here.
+ *
+ * They use the foreground color of the app, from app/globals.css, so they follow dark mode, and the same amber as the rest of the app for links and quotes.
+ */
+
+.milkdown .ProseMirror {
+  outline: none;
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.7;
+  /* A giant writing area, as big as the screen allows. */
+  min-height: 70vh;
+  padding: 1rem;
+}
+
+.milkdown .ProseMirror h1,
+.milkdown .ProseMirror h2,
+.milkdown .ProseMirror h3,
+.milkdown .ProseMirror h4 {
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 1.4em 0 0.6em;
+}
+
+.milkdown .ProseMirror h1 {
+  font-size: 1.9rem;
+}
+
+.milkdown .ProseMirror h2 {
+  font-size: 1.5rem;
+}
+
+.milkdown .ProseMirror h3 {
+  font-size: 1.25rem;
+}
+
+.milkdown .ProseMirror p {
+  margin: 0.6em 0;
+}
+
+.milkdown .ProseMirror a {
+  color: #f59e0b;
+  text-decoration: underline;
+}
+
+.milkdown .ProseMirror blockquote {
+  border-left: 3px solid #f59e0b;
+  padding-left: 1rem;
+  opacity: 0.8;
+  margin: 1em 0;
+}
+
+.milkdown .ProseMirror ul,
+.milkdown .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.6em 0;
+}
+
+.milkdown .ProseMirror ul {
+  list-style: disc;
+}
+
+.milkdown .ProseMirror ol {
+  list-style: decimal;
+}
+
+/* Task lists have checkboxes instead of bullets. */
+.milkdown .ProseMirror ul[data-item-type='task'],
+.milkdown .ProseMirror li[data-item-type='task'] {
+  list-style: none;
+}
+
+.milkdown .ProseMirror code {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-size: 0.9em;
+  font-family: ui-monospace, monospace;
+}
+
+.milkdown .ProseMirror pre {
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--foreground) 15%, transparent);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.milkdown .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.milkdown .ProseMirror hr {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+  margin: 1.5em 0;
+}
+
+.milkdown .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.milkdown .ProseMirror th,
+.milkdown .ProseMirror td {
+  border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+  padding: 0.5rem 0.75rem;
+}
+
+.milkdown .ProseMirror img {
+  max-width: 100%;
+  border-radius: 8px;
+}
