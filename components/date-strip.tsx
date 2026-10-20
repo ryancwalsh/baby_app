@@ -39,7 +39,7 @@ export function DateStrip({
             <button
               aria-label={formatDate(dayStart, 'iso-weekday')}
               aria-pressed={isSelected}
-              className={`flex w-11 shrink-0 flex-col items-center rounded-lg border py-1.5 ${isSelected ? 'border-amber-500/60 text-amber-500' : 'text-foreground/60 border-transparent'}`}
+              className={`flex w-14 shrink-0 flex-col items-center rounded-lg border py-2 ${isSelected ? 'border-amber-500/60 text-amber-500' : 'text-foreground/60 border-transparent'}`}
               key={dayStart}
               onClick={() => {
                 onSelect(dayStart);
@@ -47,8 +47,8 @@ export function DateStrip({
               ref={isSelected ? selectedRef : undefined}
               type="button"
             >
-              <span className="text-[10px] uppercase">{WEEKDAY_FORMAT.format(date)}</span>
-              <span className="text-base tabular-nums">{date.getDate()}</span>
+              <span className="text-sm uppercase">{WEEKDAY_FORMAT.format(date)}</span>
+              <span className="text-2xl tabular-nums">{date.getDate()}</span>
             </button>
           );
         })}

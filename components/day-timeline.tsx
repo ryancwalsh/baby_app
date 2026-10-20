@@ -8,19 +8,19 @@ import { formatClockTime, formatDate, formatDuration, startOfNextDay } from '@/c
 import { HOURS_PER_DAY } from '@/constants/time';
 import { type BottleTimeBasis, getBottleTime } from '@/hooks/use-bottle-time';
 
-const HOUR_HEIGHT_PIXELS = 40;
+const HOUR_HEIGHT_PIXELS = 64;
 const TIMELINE_HEIGHT_PIXELS = HOUR_HEIGHT_PIXELS * HOURS_PER_DAY;
 
 /**
  * Tall enough to tap in the dark. A bottle or a diaper is a moment rather than a length of time, so its mark is always this tall.
  */
-const MARK_HEIGHT_PIXELS = 20;
-const SLEEP_MINIMUM_HEIGHT_PIXELS = 12;
+const MARK_HEIGHT_PIXELS = 28;
+const SLEEP_MINIMUM_HEIGHT_PIXELS = 16;
 
 /**
  * A sleep block shorter than this has no room for its times.
  */
-const SLEEP_TEXT_MINIMUM_HEIGHT_PIXELS = 32;
+const SLEEP_TEXT_MINIMUM_HEIGHT_PIXELS = 48;
 
 type TimelineMark = {
   height: number;
@@ -118,7 +118,7 @@ function Lane({ className, linkClassName, marks }: { readonly className: string;
       {marks.map((mark) => (
         <Link
           aria-label={mark.label}
-          className={`absolute inset-x-0.5 overflow-hidden rounded-md px-1.5 text-[11px] leading-5 ${linkClassName}`}
+          className={`absolute inset-x-0.5 overflow-hidden rounded-md px-1.5 text-sm leading-7 ${linkClassName}`}
           href={mark.href}
           key={mark.key}
           style={{ height: mark.height, top: mark.top }}
@@ -164,14 +164,14 @@ export function DayTimeline({
           key={time}
           style={{ top: ((time - dayStart) / (dayEnd - dayStart)) * TIMELINE_HEIGHT_PIXELS }}
         >
-          <span className="text-foreground/40 absolute -top-2 left-0 w-10 text-[10px] tabular-nums">{formatHour(time, is24Hour)}</span>
+          <span className="text-foreground/50 absolute -top-2.5 left-0 w-14 text-sm tabular-nums">{formatHour(time, is24Hour)}</span>
         </div>
       ))}
       {/* Each kind has its own lane, so a bottle given during a sleep, or a diaper changed at the same time as a bottle, never covers the other. */}
-      <div className="w-11 shrink-0" />
+      <div className="w-15 shrink-0" />
       <Lane className="flex-1" linkClassName={`border ${TILE_COLORS.sleep.border} ${TILE_COLORS.sleep.surface} ${TILE_COLORS.sleep.label}`} marks={timeline.sleeps} />
-      <Lane className="w-16 shrink-0" linkClassName="bg-orange-500/60 text-background font-semibold" marks={timeline.bottles} />
-      <Lane className="w-8 shrink-0" linkClassName="bg-yellow-500/60" marks={timeline.diapers} />
+      <Lane className="w-20 shrink-0" linkClassName="bg-orange-500/60 text-background font-semibold" marks={timeline.bottles} />
+      <Lane className="w-10 shrink-0" linkClassName="bg-yellow-500/60" marks={timeline.diapers} />
     </div>
   );
 }
