@@ -54,7 +54,7 @@ export function StopwatchTile({ now }: { readonly now: number }) {
   }
 
   return (
-    <div className={`flex flex-col gap-2 rounded-2xl border px-4 py-3 ${colors.border} ${colors.surface}`}>
+    <div className={`flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
       {/*
         Like the clock, tapping a running stopwatch blacks out the whole screen but for the count, for timing something in the dark nursery.
       */}

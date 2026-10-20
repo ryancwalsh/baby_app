@@ -49,7 +49,7 @@ function SleepTile({
   }
 
   return (
-    <div className={`flex flex-col gap-2 rounded-2xl border px-4 py-3 ${colors.border} ${colors.surface}`}>
+    <div className={`flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
       <Link className="flex flex-col gap-1" href="/track/sleep">
         <span className={`text-lg font-semibold ${colors.label}`}>Sleep</span>
         {active !== undefined && <span className="text-2xl tabular-nums">Sleeping {formatRunningDuration(now - new Date(active.startedAt).getTime())}</span>}
@@ -107,7 +107,7 @@ function BottleTile({ now, summary }: { readonly now: number; readonly summary: 
   const nextBottleTime = bottle === null ? null : getBottleTime(bottle, bottleTimeBasis) + bottleIntervalMinutes * MILLISECONDS_PER_MINUTE;
 
   return (
-    <div className={`relative flex flex-col gap-2 rounded-2xl border px-4 py-3 ${colors.border} ${colors.surface}`}>
+    <div className={`relative flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
       <Link aria-label="New bottle" className="absolute inset-0 rounded-2xl" href="/track/bottle" />
       <div className="pointer-events-none relative flex flex-col gap-1">
         <div className="flex items-baseline justify-between gap-3">
@@ -144,7 +144,7 @@ function DiaperTile({ now, summary }: { readonly now: number; readonly summary: 
   const colors = TILE_COLORS.diaper;
 
   return (
-    <Link className={`flex flex-col gap-1 rounded-2xl border px-4 py-3 ${colors.border} ${colors.surface}`} href="/track/diaper">
+    <Link className={`flex flex-col gap-1 rounded-2xl border p-4 ${colors.border} ${colors.surface}`} href="/track/diaper">
       <span className={`text-lg font-semibold ${colors.label}`}>Diaper</span>
       {diaper === null ? (
         <span className="text-foreground/50 text-base">No diapers yet.</span>
