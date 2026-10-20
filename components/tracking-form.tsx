@@ -4,11 +4,26 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 
 import { type ActionResult } from '@/app/actions/tracking';
+import { DAY_CALENDAR_HREF, TRACKING_LIST_HREF } from '@/hooks/use-tracking-view';
 
 /**
  * How long the confirm button stays dead after it appears, so a double tap on delete cannot answer its own question.
  */
 const DELETE_ARMING_MILLISECONDS = 1_000;
+
+/**
+ * A new entry goes back to the tiles once saved. An edited one goes back to wherever it was opened from: `?from=track` for the tiles, `?from=day&date=` for that day on the day calendar, and otherwise the tracking list.
+ */
+function getReturnHref(isEditing: boolean, from: null | string, date: null | string): string {
+  let href = '/track';
+  if (isEditing && from === 'day' && date !== null) {
+    href = `${DAY_CALENDAR_HREF}?date=${encodeURIComponent(date)}`;
+  } else if (isEditing && from !== 'track') {
+    href = TRACKING_LIST_HREF;
+  }
+
+  return href;
+}
 
 function DeleteButton({ onDelete }: { readonly onDelete: () => void }) {
   const [isConfirming, setIsConfirming] = useState(false);
@@ -58,7 +73,7 @@ function DeleteButton({ onDelete }: { readonly onDelete: () => void }) {
 }
 
 /**
- * The frame every tracking form shares: a title, the fields, and save, cancel, and — for an entry that already exists — delete. A new entry goes back to the tiles once saved; an edited one goes back to the report, unless `?from=track` says it was opened from the tiles.
+ * The frame every tracking form shares: a title, the fields, and save, cancel, and — for an entry that already exists — delete. Each of those leaves the form for the place `getReturnHref` names.
  */
 export function TrackingForm({
   children,
@@ -81,7 +96,7 @@ export function TrackingForm({
   const searchParameters = useSearchParams();
   const [error, setError] = useState<null | string>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const returnHref = isEditing && searchParameters.get('from') !== 'track' ? '/reports' : '/track';
+  const returnHref = getReturnHref(isEditing, searchParameters.get('from'), searchParameters.get('date'));
 
   async function finish(work: () => Promise<ActionResult>) {
     setIsBusy(true);

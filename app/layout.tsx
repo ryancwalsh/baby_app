@@ -1,5 +1,6 @@
 import { type Metadata, type Viewport } from 'next';
 import { Nunito_Sans } from 'next/font/google';
+import Script from 'next/script';
 
 import { BottomNav } from '@/components/bottom-nav';
 import { InstallBanner } from '@/components/install-banner';
@@ -8,6 +9,7 @@ import { NanitAudioProvider } from '@/components/nanit-audio-provider';
 import { NoiseAudioProvider } from '@/components/noise-audio-provider';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { getEnvironment } from '@/constants/environment';
+import { THEME_KEY } from '@/constants/theme';
 
 // eslint-disable-next-line import/no-unassigned-import -- A stylesheet has nothing to bind.
 import './globals.css';
@@ -44,14 +46,25 @@ export const viewport: Viewport = {
   width: 'device-width',
 };
 
+/**
+ * Runs before the first paint, so a phone set to light or dark never flashes the other one first. hooks/use-theme.ts applies later changes itself.
+ */
+const APPLY_THEME_SCRIPT = `try { const theme = localStorage.getItem('${THEME_KEY}'); if (theme === 'light' || theme === 'dark') { document.documentElement.dataset.theme = theme; } } catch {}`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html className={nunitoSans.variable} lang="en">
+    /**
+     * The script below sets `data-theme` before React hydrates, which React would otherwise report as a mismatch.
+     */
+    <html className={nunitoSans.variable} lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground font-sans antialiased">
+        <Script id="apply-theme" strategy="beforeInteractive">
+          {APPLY_THEME_SCRIPT}
+        </Script>
         {/*
           All three audio providers sit above the router so that sound outlives
           a tab change, and above the nav so it can show what is playing. The

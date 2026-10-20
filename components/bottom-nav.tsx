@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
-import { ListenAction, LullabyAction, NightLightAction, NoiseAction, REPORTS_HREF, ReportsAction } from '@/components/bottom-nav-actions';
+import { ListenAction, LullabyAction, NightLightAction, NoiseAction, TrackingAction } from '@/components/bottom-nav-actions';
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { MONITOR_HREF, recordNavigationTap } from '@/components/navigation-tap';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
 import { unlockAlarm } from '@/components/webcam-alarm';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { TRACKING_VIEWS } from '@/hooks/use-tracking-view';
 
 const LULLABIES_HREF = '/lullabies';
 const NOISE_HREF = '/noise';
@@ -24,7 +25,7 @@ const TRACK_SECTION_HREFS = [TRACK_HREF, '/track/sleep', '/track/bottle', '/trac
 const NAV_ITEMS = [
   { Action: NightLightAction, href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
   { Action: ListenAction, href: MONITOR_HREF, icon: VideoIcon, label: 'Monitor' },
-  { Action: ReportsAction, href: TRACK_HREF, icon: CirclePlusIcon, label: 'Track' },
+  { Action: TrackingAction, href: TRACK_HREF, icon: CirclePlusIcon, label: 'Track' },
   { Action: LullabyAction, href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
   { Action: NoiseAction, href: NOISE_HREF, icon: WavesIcon, label: 'Noise' },
 ] as const;
@@ -67,7 +68,8 @@ export function BottomNav() {
          * falls back to the switches rather than stranding the app somewhere it
          * cannot navigate away from.
          */
-        const isKnown = NAV_ITEMS.some((item) => item.href === storedHref) || storedHref === REPORTS_HREF || TRACK_SECTION_HREFS.includes(storedHref ?? '');
+        const isKnown =
+          NAV_ITEMS.some((item) => item.href === storedHref) || TRACKING_VIEWS.some(({ href }) => href === storedHref) || TRACK_SECTION_HREFS.includes(storedHref ?? '');
         const target = isKnown && storedHref !== null && storedHref !== undefined ? storedHref : DEFAULT_HREF;
 
         if (target === pathname) {

@@ -4,10 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { getTrackingSettingsAction, saveTrackingSettingsAction } from '@/app/actions/tracking';
-import { DATE_FORMATS, formatDate } from '@/components/tracking-format';
-import { useClockFormat } from '@/hooks/use-clock-format';
-import { useDateFormat } from '@/hooks/use-date-format';
-import { TILE_TEXT_SIZES, useTileTextSize } from '@/hooks/use-tile-text-size';
+import { PhoneSettings } from '@/components/phone-settings';
 import { PREDICTION_METHODS, type PredictionMethod, type TrackingSettings } from '@/storage/tracking-types';
 
 const METHOD_LABELS: Record<PredictionMethod, string> = {
@@ -47,13 +44,10 @@ function WindowFields({ label, onChange, windows }: { readonly label: string; re
 }
 
 /**
- * The prediction settings are shared by every phone, so they live in the database; the clock and date formats and the tile text size are per phone and live in local storage, and change the moment they are tapped.
+ * The prediction settings are shared by every phone, so they live in the database; the ones in components/phone-settings.tsx are per phone and live in local storage.
  */
 export function TrackingSettingsForm({ secretHash }: { readonly secretHash: string }) {
   const router = useRouter();
-  const { is24Hour, setIs24Hour } = useClockFormat();
-  const { dateFormat, setDateFormat } = useDateFormat();
-  const { setTileTextSize, tileTextSize } = useTileTextSize();
   const [method, setMethod] = useState<PredictionMethod>('fixed');
   const [birthDate, setBirthDate] = useState('');
   const [twoNap, setTwoNap] = useState<string[]>([]);
@@ -99,59 +93,7 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
 
   return (
     <div className="flex flex-col gap-8">
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Clock on this phone</legend>
-        <div className="flex gap-2">
-          {[false, true].map((option) => (
-            <button
-              className={`rounded-lg border px-4 py-2 text-sm ${is24Hour === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
-              key={String(option)}
-              onClick={() => {
-                setIs24Hour(option);
-              }}
-              type="button"
-            >
-              {option ? '24-hour' : '12-hour'}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Dates on this phone</legend>
-        <div className="flex flex-wrap gap-2">
-          {DATE_FORMATS.map((option) => (
-            <button
-              className={`rounded-lg border px-4 py-2 text-sm tabular-nums ${dateFormat === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
-              key={option}
-              onClick={() => {
-                setDateFormat(option);
-              }}
-              type="button"
-            >
-              {formatDate(Date.now(), option)}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Tile text on this phone</legend>
-        <div className="flex flex-wrap gap-2">
-          {TILE_TEXT_SIZES.map(({ className, label, size: option }) => (
-            <button
-              className={`rounded-lg border px-4 py-2 ${className} ${tileTextSize === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
-              key={option}
-              onClick={() => {
-                setTileTextSize(option);
-              }}
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      <PhoneSettings />
 
       {isLoaded ? (
         <form

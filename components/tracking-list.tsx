@@ -1,16 +1,20 @@
 'use client';
 
+import { CalendarDaysIcon } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
 
-import { getTrackingLogAction, type TrackingLog } from '@/app/actions/tracking';
+import { type TrackingLog } from '@/app/actions/tracking';
+import { type DayTotals, getDayTotals } from '@/components/day-totals';
 import { TILE_COLORS } from '@/components/track-tiles';
-import { formatClockTime, formatDayLabel, formatDuration, startOfDay, startOfNextDay } from '@/components/tracking-format';
+import { formatClockTime, formatDate, formatDayLabel, formatDuration, startOfDay } from '@/components/tracking-format';
+import { type BottleTimeBasis, getBottleTime, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
 import { useNow } from '@/hooks/use-now';
+import { useTrackingLog } from '@/hooks/use-tracking-log';
+import { DAY_CALENDAR_HREF } from '@/hooks/use-tracking-view';
 
-type ReportEvent = {
+type ListEvent = {
   colorClassName: string;
   details: string;
   href: string;
@@ -20,19 +24,17 @@ type ReportEvent = {
   time: number;
 };
 
-type ReportDay = {
-  diaperCount: number;
-  drankMilliliters: number;
-  events: ReportEvent[];
-  sleepMilliseconds: number;
+type ListDay = {
+  events: ListEvent[];
   start: number;
+  totals: DayTotals;
 };
 
 /**
- * Each entry sits under the day it started on, but a day's sleep total counts only the part of each sleep that fell inside it, so a night that crosses midnight is split between the two days. A sleep still going on counts up to now.
+ * Each entry sits under the day it started on; the totals are worked out as components/day-totals.ts describes.
  */
-function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ReportDay[] {
-  const events: ReportEvent[] = [];
+function buildDays(log: TrackingLog, now: number, is24Hour: boolean, bottleTimeBasis: BottleTimeBasis): ListDay[] {
+  const events: ListEvent[] = [];
 
   for (const sleep of log.sleeps) {
     const start = new Date(sleep.startedAt).getTime();
@@ -49,10 +51,18 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ReportDay[
   }
 
   for (const bottle of log.bottles) {
-    const details = [
-      bottle.drankMilliliters === null ? '' : `drank ${bottle.drankMilliliters} ml`,
-      bottle.touchedLipsAt === null ? '' : `touched lips ${formatClockTime(bottle.touchedLipsAt, is24Hour)}`,
-    ];
+    /**
+     * The details name whichever of the bottle's two times is not the one it is listed at.
+     */
+    const isAtTouchedLips = bottleTimeBasis === 'touched-lips' && bottle.touchedLipsAt !== null;
+    let otherTime = '';
+    if (isAtTouchedLips) {
+      otherTime = `prepared ${formatClockTime(bottle.preparedAt, is24Hour)}`;
+    } else if (bottle.touchedLipsAt !== null) {
+      otherTime = `touched lips ${formatClockTime(bottle.touchedLipsAt, is24Hour)}`;
+    }
+
+    const details = [bottle.drankMilliliters === null ? '' : `drank ${bottle.drankMilliliters} ml`, otherTime];
     events.push({
       colorClassName: TILE_COLORS.bottle.label,
       details: details.filter((detail) => detail !== '').join(', '),
@@ -60,7 +70,7 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ReportDay[
       key: `bottle-${bottle.id}`,
       label: 'Bottle',
       note: bottle.note,
-      time: new Date(bottle.preparedAt).getTime(),
+      time: getBottleTime(bottle, bottleTimeBasis),
     });
   }
 
@@ -78,84 +88,47 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ReportDay[
 
   events.sort((first, second) => second.time - first.time);
 
-  const days: ReportDay[] = [];
+  const days: ListDay[] = [];
   for (const event of events) {
     const start = startOfDay(event.time);
     let day = days.at(-1);
     if (day?.start !== start) {
-      day = { diaperCount: 0, drankMilliliters: 0, events: [], sleepMilliseconds: 0, start };
+      day = { events: [], start, totals: getDayTotals(log, start, now, bottleTimeBasis) };
       days.push(day);
     }
 
     day.events.push(event);
   }
 
-  for (const day of days) {
-    const end = startOfNextDay(day.start);
-    for (const sleep of log.sleeps) {
-      const sleepStart = new Date(sleep.startedAt).getTime();
-      const sleepEnd = sleep.endedAt === null ? now : new Date(sleep.endedAt).getTime();
-      day.sleepMilliseconds += Math.max(0, Math.min(sleepEnd, end) - Math.max(sleepStart, day.start));
-    }
-
-    for (const bottle of log.bottles) {
-      const prepared = new Date(bottle.preparedAt).getTime();
-      if (prepared >= day.start && prepared < end) {
-        day.drankMilliliters += bottle.drankMilliliters ?? 0;
-      }
-    }
-
-    day.diaperCount = day.events.filter((event) => event.label === 'Diaper').length;
-  }
-
   return days;
 }
 
-export function Reports({ secretHash }: { readonly secretHash: string }) {
-  const [log, setLog] = useState<null | TrackingLog>(null);
-  const [error, setError] = useState<null | string>(null);
+export function TrackingList({ secretHash }: { readonly secretHash: string }) {
+  const { error, log } = useTrackingLog(secretHash);
   const { is24Hour } = useClockFormat();
+  const { bottleTimeBasis } = useBottleTime();
   const { dateFormat } = useDateFormat();
   const now = useNow();
 
-  const load = useCallback(async () => {
-    try {
-      setLog(await getTrackingLogAction(secretHash));
-      setError(null);
-    } catch {
-      setError('Could not load the tracking log.');
-    }
-  }, [secretHash]);
-
-  useEffect(() => {
-    load();
-
-    function onVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        load();
-      }
-    }
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, [load]);
-
-  const days = log === null || now === null ? [] : buildDays(log, now, is24Hour);
+  const days = log === null || now === null ? [] : buildDays(log, now, is24Hour, bottleTimeBasis);
 
   return (
     <div className="flex flex-col gap-6">
+      <Link aria-label="Day calendar" className="text-foreground/40 self-end p-1" href={DAY_CALENDAR_HREF}>
+        <CalendarDaysIcon className="size-5" />
+      </Link>
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
       {log !== null && days.length === 0 && <p className="text-foreground/50 text-sm">Nothing tracked yet.</p>}
       {now !== null &&
         days.map((day) => (
           <section className="flex flex-col gap-2" key={day.start}>
             <header className="border-foreground/10 flex flex-col border-b pb-1">
-              <h2 className="font-semibold">{formatDayLabel(day.start, now, dateFormat)}</h2>
+              <h2 className="font-semibold">
+                <Link href={`${DAY_CALENDAR_HREF}?date=${formatDate(day.start, 'iso')}`}>{formatDayLabel(day.start, now, dateFormat)}</Link>
+              </h2>
               <p className="text-foreground/50 text-xs">
-                Slept {formatDuration(day.sleepMilliseconds)} · drank {day.drankMilliliters} ml · {day.diaperCount} {day.diaperCount === 1 ? 'diaper' : 'diapers'}
+                Slept {formatDuration(day.totals.sleepMilliseconds)} · drank {day.totals.drankMilliliters} ml · {day.totals.diaperCount}{' '}
+                {day.totals.diaperCount === 1 ? 'diaper' : 'diapers'}
               </p>
             </header>
             <ul className="flex flex-col">

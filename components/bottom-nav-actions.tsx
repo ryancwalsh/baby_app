@@ -1,6 +1,6 @@
 'use client';
 
-import { ChartColumnIncreasingIcon, LightbulbIcon, PauseIcon, PlayIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
+import { LightbulbIcon, NotepadTextIcon, PauseIcon, PlayIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
@@ -12,6 +12,7 @@ import { useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { useNanitAudio } from '@/components/nanit-audio-provider';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { TRACKING_VIEWS, useTrackingView } from '@/hooks/use-tracking-view';
 import { type NightLightState } from '@/services/nanit/night-light';
 
 /**
@@ -182,17 +183,17 @@ export function NoiseAction() {
   );
 }
 
-export const REPORTS_HREF = '/reports';
-
 /**
- * The one action that is a page rather than a switch: the log of everything tracked. It changes nothing, so unlike the others it needs no login to show.
+ * The one action that is a page rather than a switch: the log of everything tracked, as the day calendar or the tracking list, whichever this phone's settings choose. It changes nothing, so unlike the others it needs no login to show.
  */
-export function ReportsAction() {
+export function TrackingAction() {
   const pathname = usePathname();
+  const { trackingViewHref } = useTrackingView();
+  const isActive = TRACKING_VIEWS.some(({ href }) => href === pathname);
 
   return (
-    <Link aria-label="Reports" className={getActionClassName(pathname === REPORTS_HREF)} href={REPORTS_HREF}>
-      <ChartColumnIncreasingIcon className="size-5" />
+    <Link aria-label="Tracking log" className={getActionClassName(isActive)} href={trackingViewHref}>
+      <NotepadTextIcon className="size-5" />
     </Link>
   );
 }
