@@ -3,33 +3,45 @@
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 const TILE_TEXT_SIZE_KEY = 'baby-app-tile-text-size';
+const FORM_TEXT_SIZE_KEY = 'baby-app-form-text-size';
 
 /**
- * Smallest first, the order they are offered in.
+ * Smallest first, the order they are offered in. Each is a CSS `zoom`, so the titles, the readings, the buttons, and the room around them all grow together rather than only the gray text. Medium is how everything looked before there was a choice.
  */
-export const TILE_TEXT_SIZES = [
-  { className: 'text-sm', label: 'Small', size: 'small' },
-  { className: 'text-base', label: 'Medium', size: 'medium' },
-  { className: 'text-lg', label: 'Large', size: 'large' },
-  { className: 'text-xl', label: 'Extra large', size: 'extra-large' },
+export const TEXT_SIZES = [
+  { label: 'Small', size: 'small', zoom: 0.9 },
+  { label: 'Medium', size: 'medium', zoom: 1 },
+  { label: 'Large', size: 'large', zoom: 1.2 },
+  { label: 'Extra large', size: 'extra-large', zoom: 1.4 },
 ] as const;
 
-export type TileTextSize = (typeof TILE_TEXT_SIZES)[number]['size'];
+export type TextSize = (typeof TEXT_SIZES)[number]['size'];
 
-const DEFAULT_TILE_TEXT_SIZE = TILE_TEXT_SIZES[1];
+const DEFAULT_TEXT_SIZE = TEXT_SIZES[1];
 
-/**
- * The size of the gray text on the tiles, per phone like the clock and date formats. Small is what the tiles showed before there was a choice.
- */
-export function useTileTextSize() {
-  const { store, value } = useLocalStorage(TILE_TEXT_SIZE_KEY);
-  const tileTextSize = TILE_TEXT_SIZES.find(({ size }) => size === value) ?? DEFAULT_TILE_TEXT_SIZE;
+function useTextSize(key: string) {
+  const { store, value } = useLocalStorage(key);
+  const textSize = TEXT_SIZES.find(({ size }) => size === value) ?? DEFAULT_TEXT_SIZE;
 
   return {
-    setTileTextSize: (next: TileTextSize) => {
+    setTextSize: (next: TextSize) => {
       store(next);
     },
-    tileTextClassName: tileTextSize.className,
-    tileTextSize: tileTextSize.size,
+    textSize: textSize.size,
+    zoom: textSize.zoom,
   };
+}
+
+/**
+ * The size of everything on the track page's tiles, per phone like the clock and date formats.
+ */
+export function useTileTextSize() {
+  return useTextSize(TILE_TEXT_SIZE_KEY);
+}
+
+/**
+ * The size of everything on the pages that add or edit a sleep, a bottle, or a diaper, per phone.
+ */
+export function useFormTextSize() {
+  return useTextSize(FORM_TEXT_SIZE_KEY);
 }
