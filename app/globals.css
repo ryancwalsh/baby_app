@@ -1,14 +1,37 @@
 @import 'tailwindcss';
 
+/**
+ * The theme is chosen per phone in the settings. "System" leaves `data-theme` off the root and follows `prefers-color-scheme`; light and dark set it, and win over the phone's own setting. See hooks/use-theme.ts.
+ */
 :root {
   --background: #fdfcfa;
   --foreground: #2c2a33;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --background: #16151a;
     --foreground: #ece9f2;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --background: #16151a;
+  --foreground: #ece9f2;
+  color-scheme: dark;
+}
+
+@custom-variant dark {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme='light'], [data-theme='light'] *)) {
+      @slot;
+    }
   }
 }
 
