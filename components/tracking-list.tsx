@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { type TrackingLog } from '@/app/actions/tracking';
 import { type DayTotals, getDayTotals } from '@/components/day-totals';
-import { TILE_COLORS } from '@/components/track-tiles';
+import { TILE_COLORS } from '@/components/tile-styles';
 import { formatClockTime, formatDate, formatDayLabel, formatDuration, startOfDay } from '@/components/tracking-format';
 import { type BottleTimeBasis, getBottleTime, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
@@ -123,10 +123,10 @@ export function TrackingList({ secretHash }: { readonly secretHash: string }) {
         days.map((day) => (
           <section className="flex flex-col gap-2" key={day.start}>
             <header className="border-foreground/10 flex flex-col border-b pb-1">
-              <h2 className="font-semibold">
+              <h2 className="text-lg font-semibold">
                 <Link href={`${DAY_CALENDAR_HREF}?date=${formatDate(day.start, 'iso')}`}>{formatDayLabel(day.start, now, dateFormat)}</Link>
               </h2>
-              <p className="text-foreground/50 text-xs">
+              <p className="text-foreground/50 text-sm">
                 Slept {formatDuration(day.totals.sleepMilliseconds)} · drank {day.totals.drankMilliliters} ml · {day.totals.diaperCount}{' '}
                 {day.totals.diaperCount === 1 ? 'diaper' : 'diapers'}
               </p>
