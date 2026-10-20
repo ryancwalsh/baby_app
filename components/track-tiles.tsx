@@ -6,27 +6,18 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 
 import { endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
 import { predictNextSleeps } from '@/components/sleep-predictions';
+import { StopwatchTile } from '@/components/stopwatch-tile';
+import { TILE_BUTTON_CLASS_NAME, TILE_COLORS } from '@/components/tile-styles';
 import { formatAgo, formatClockTime, formatDuration, formatRunningDuration } from '@/components/tracking-format';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useNow } from '@/hooks/use-now';
 import { useTileTextSize } from '@/hooks/use-tile-text-size';
-
-/**
- * Dark tiles tinted with each colour rather than filled with it, so the screen stays dim in the nursery at night.
- */
-export const TILE_COLORS = {
-  bottle: { border: 'border-orange-500/30', label: 'text-orange-500', surface: 'bg-orange-500/10' },
-  diaper: { border: 'border-yellow-500/30', label: 'text-yellow-600 dark:text-yellow-400', surface: 'bg-yellow-500/10' },
-  sleep: { border: 'border-sky-400/30', label: 'text-sky-500 dark:text-sky-400', surface: 'bg-sky-400/10' },
-} as const;
 
 function Note({ note }: { readonly note: string }) {
   const { tileTextClassName } = useTileTextSize();
 
   return note === '' ? null : <p className={`text-foreground/50 truncate italic ${tileTextClassName}`}>{note}</p>;
 }
-
-const TILE_BUTTON_CLASS_NAME = 'self-start rounded-lg border px-3 py-1.5 text-sm disabled:opacity-60';
 
 function SleepTile({
   now,
@@ -218,6 +209,7 @@ export function TrackTiles({ secretHash }: { readonly secretHash: string }) {
           />
           <BottleTile now={now} summary={summary} />
           <DiaperTile now={now} summary={summary} />
+          <StopwatchTile now={now} />
         </>
       )}
     </div>

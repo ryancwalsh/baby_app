@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 import { type TrackingLog } from '@/app/actions/tracking';
-import { TILE_COLORS } from '@/components/track-tiles';
+import { TILE_COLORS } from '@/components/tile-styles';
 import { formatClockTime, formatDate, formatDuration, startOfNextDay } from '@/components/tracking-format';
 import { HOURS_PER_DAY } from '@/constants/time';
 import { type BottleTimeBasis, getBottleTime } from '@/hooks/use-bottle-time';
