@@ -54,7 +54,7 @@ type Version = {
 };
 
 /**
- * On every page, below the fold: the root layout gives each page at least a screen of its own, so the footer is only reached by scrolling past the bottom navigation.
+ * On every page, below the fold: the root layout gives each page at least a screen of its own, so the footer is only reached by scrolling past the bottom navigation, which stops sticking to the screen there and rides up above it.
  *
  * The version is fetched at runtime rather than imported, because `public/version.json` is
  * written by the postbuild script — anything baked in at build time would
@@ -91,7 +91,7 @@ export function Footer() {
   }, []);
 
   return (
-    <footer className="text-foreground/40 flex flex-col gap-1 px-6 pt-8 pb-28 text-center text-xs">
+    <footer className="text-foreground/40 mx-auto flex w-full max-w-md flex-col gap-1 px-6 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-center text-xs">
       <Link className="border-foreground/10 text-foreground/60 mb-6 flex items-center justify-center gap-3 rounded-2xl border py-4 text-lg" href="/settings">
         <SettingsIcon className="size-6" />
         Settings
