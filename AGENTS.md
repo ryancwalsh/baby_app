@@ -297,8 +297,17 @@ in `.env.production.local`.
   text orders them in time; the indexes and `ORDER BY`s rely on it.
 - `storage/tracking-types.ts` is imported by the pages, so it must stay free of
   anything Node-only; the libsql client stays in `storage/database.ts`.
-- The 12/24-hour clock and the date format are per phone, in local storage. The
-  prediction method and wake windows are shared, in the `settings` table.
+- The theme, the 12/24-hour clock, the date format, the tile text size, and
+  where the notepad button goes are per phone, in local storage
+  (`components/phone-settings.tsx`). The prediction method and wake windows are
+  shared, in the `settings` table.
+- The log has two views: the day calendar at `/tracking/day` (the default) and
+  the tracking list at `/tracking/list`. An entry opened from the calendar
+  carries `?from=day&date=` so its form returns to that day.
+- The service worker caches CSS by URL, and `next dev` keeps the same CSS URL
+  when the content changes, so a browser that has opened the dev server before
+  can show stale styles. Unregister the worker in that browser rather than
+  hunting for a Tailwind bug.
 - Next-sleep predictions are in `components/sleep-predictions.ts`: last wake +
   the wake window for however many naps there have been today. A nap is a sleep
   that starts between 07:00 and 19:00 and lasts under 4 hours; everything else
