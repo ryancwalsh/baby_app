@@ -11,6 +11,7 @@ import { getDayTotals } from '@/components/day-totals';
 import { LoginGuard } from '@/components/login-guard';
 import { TILE_COLORS } from '@/components/track-tiles';
 import { formatDate, formatDayLabel, formatDuration, startOfDay, startOfNextDay } from '@/components/tracking-format';
+import { useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
 import { useNow } from '@/hooks/use-now';
@@ -54,6 +55,7 @@ function listDayStarts(first: number, last: number): number[] {
 function DayCalendar({ date, secretHash }: { readonly date: string | undefined; readonly secretHash: string }) {
   const { error, log } = useTrackingLog(secretHash);
   const { is24Hour } = useClockFormat();
+  const { bottleTimeBasis } = useBottleTime();
   const { dateFormat } = useDateFormat();
   const now = useNow();
   const [chosenDayStart, setChosenDayStart] = useState(() => parseDate(date));
@@ -66,7 +68,7 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
   const selectedDayStart = Math.min(chosenDayStart ?? today, today);
   const firstDayStart = Math.min(getFirstDayStart(log) ?? today, selectedDayStart);
   const dayStarts = listDayStarts(firstDayStart, today);
-  const totals = getDayTotals(log, selectedDayStart, now);
+  const totals = getDayTotals(log, selectedDayStart, now, bottleTimeBasis);
 
   return (
     <div className="flex flex-col gap-5">
@@ -105,7 +107,7 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
         </div>
       </dl>
 
-      <DayTimeline dayStart={selectedDayStart} is24Hour={is24Hour} log={log} now={now} />
+      <DayTimeline bottleTimeBasis={bottleTimeBasis} dayStart={selectedDayStart} is24Hour={is24Hour} log={log} now={now} />
     </div>
   );
 }

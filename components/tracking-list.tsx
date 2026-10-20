@@ -7,6 +7,7 @@ import { type TrackingLog } from '@/app/actions/tracking';
 import { type DayTotals, getDayTotals } from '@/components/day-totals';
 import { TILE_COLORS } from '@/components/track-tiles';
 import { formatClockTime, formatDate, formatDayLabel, formatDuration, startOfDay } from '@/components/tracking-format';
+import { type BottleTimeBasis, getBottleTime, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
 import { useNow } from '@/hooks/use-now';
@@ -32,7 +33,7 @@ type ListDay = {
 /**
  * Each entry sits under the day it started on; the totals are worked out as components/day-totals.ts describes.
  */
-function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ListDay[] {
+function buildDays(log: TrackingLog, now: number, is24Hour: boolean, bottleTimeBasis: BottleTimeBasis): ListDay[] {
   const events: ListEvent[] = [];
 
   for (const sleep of log.sleeps) {
@@ -50,10 +51,18 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ListDay[] 
   }
 
   for (const bottle of log.bottles) {
-    const details = [
-      bottle.drankMilliliters === null ? '' : `drank ${bottle.drankMilliliters} ml`,
-      bottle.touchedLipsAt === null ? '' : `touched lips ${formatClockTime(bottle.touchedLipsAt, is24Hour)}`,
-    ];
+    /**
+     * The details name whichever of the bottle's two times is not the one it is listed at.
+     */
+    const isAtTouchedLips = bottleTimeBasis === 'touched-lips' && bottle.touchedLipsAt !== null;
+    let otherTime = '';
+    if (isAtTouchedLips) {
+      otherTime = `prepared ${formatClockTime(bottle.preparedAt, is24Hour)}`;
+    } else if (bottle.touchedLipsAt !== null) {
+      otherTime = `touched lips ${formatClockTime(bottle.touchedLipsAt, is24Hour)}`;
+    }
+
+    const details = [bottle.drankMilliliters === null ? '' : `drank ${bottle.drankMilliliters} ml`, otherTime];
     events.push({
       colorClassName: TILE_COLORS.bottle.label,
       details: details.filter((detail) => detail !== '').join(', '),
@@ -61,7 +70,7 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ListDay[] 
       key: `bottle-${bottle.id}`,
       label: 'Bottle',
       note: bottle.note,
-      time: new Date(bottle.preparedAt).getTime(),
+      time: getBottleTime(bottle, bottleTimeBasis),
     });
   }
 
@@ -84,7 +93,7 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ListDay[] 
     const start = startOfDay(event.time);
     let day = days.at(-1);
     if (day?.start !== start) {
-      day = { events: [], start, totals: getDayTotals(log, start, now) };
+      day = { events: [], start, totals: getDayTotals(log, start, now, bottleTimeBasis) };
       days.push(day);
     }
 
@@ -97,10 +106,11 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean): ListDay[] 
 export function TrackingList({ secretHash }: { readonly secretHash: string }) {
   const { error, log } = useTrackingLog(secretHash);
   const { is24Hour } = useClockFormat();
+  const { bottleTimeBasis } = useBottleTime();
   const { dateFormat } = useDateFormat();
   const now = useNow();
 
-  const days = log === null || now === null ? [] : buildDays(log, now, is24Hour);
+  const days = log === null || now === null ? [] : buildDays(log, now, is24Hour, bottleTimeBasis);
 
   return (
     <div className="flex flex-col gap-6">

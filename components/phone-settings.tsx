@@ -1,6 +1,7 @@
 'use client';
 
 import { DATE_FORMATS, formatDate } from '@/components/tracking-format';
+import { BOTTLE_TIMES, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
 import { THEMES, useTheme } from '@/hooks/use-theme';
@@ -8,7 +9,7 @@ import { TILE_TEXT_SIZES, useTileTextSize } from '@/hooks/use-tile-text-size';
 import { TRACKING_VIEWS, useTrackingView } from '@/hooks/use-tracking-view';
 
 /**
- * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the tile text size, and what the notepad button opens. They live in local storage and change the moment they are tapped.
+ * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the tile text size, what the notepad button opens, and which time places a bottle in the log. They live in local storage and change the moment they are tapped.
  */
 export function PhoneSettings() {
   const { is24Hour, setIs24Hour } = useClockFormat();
@@ -16,6 +17,7 @@ export function PhoneSettings() {
   const { setTileTextSize, tileTextSize } = useTileTextSize();
   const { setTheme, theme } = useTheme();
   const { setTrackingView, trackingView } = useTrackingView();
+  const { bottleTimeBasis, setBottleTimeBasis } = useBottleTime();
 
   return (
     <>
@@ -100,6 +102,24 @@ export function PhoneSettings() {
               key={option}
               onClick={() => {
                 setTrackingView(option);
+              }}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-foreground/60 mb-1 text-sm">Bottles in the log on this phone are placed at</legend>
+        <div className="flex flex-wrap gap-2">
+          {BOTTLE_TIMES.map(({ basis: option, label }) => (
+            <button
+              className={`rounded-lg border px-4 py-2 text-sm ${bottleTimeBasis === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+              key={option}
+              onClick={() => {
+                setBottleTimeBasis(option);
               }}
               type="button"
             >

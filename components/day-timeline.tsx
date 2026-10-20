@@ -6,6 +6,7 @@ import { type TrackingLog } from '@/app/actions/tracking';
 import { TILE_COLORS } from '@/components/track-tiles';
 import { formatClockTime, formatDate, formatDuration, startOfNextDay } from '@/components/tracking-format';
 import { HOURS_PER_DAY } from '@/constants/time';
+import { type BottleTimeBasis, getBottleTime } from '@/hooks/use-bottle-time';
 
 const HOUR_HEIGHT_PIXELS = 40;
 const TIMELINE_HEIGHT_PIXELS = HOUR_HEIGHT_PIXELS * HOURS_PER_DAY;
@@ -43,7 +44,7 @@ function formatHour(time: number, is24Hour: boolean): string {
 /**
  * Positions are a share of the day's real length rather than of 24 hours, so the two days a year the clocks change still end at the bottom. A sleep that crosses midnight is cut off at the edge of each day it touches, and one still going on runs up to now. A bottle or a diaper is centred on its moment, without spilling past either end of the day.
  */
-function buildTimeline(log: TrackingLog, dayStart: number, now: number, is24Hour: boolean): Timeline {
+function buildTimeline(log: TrackingLog, dayStart: number, now: number, is24Hour: boolean, bottleTimeBasis: BottleTimeBasis): Timeline {
   const dayEnd = startOfNextDay(dayStart);
   const date = formatDate(dayStart, 'iso');
 
@@ -80,7 +81,7 @@ function buildTimeline(log: TrackingLog, dayStart: number, now: number, is24Hour
   }
 
   for (const bottle of log.bottles) {
-    const time = new Date(bottle.preparedAt).getTime();
+    const time = getBottleTime(bottle, bottleTimeBasis);
     if (time >= dayStart && time < dayEnd) {
       const text = bottle.drankMilliliters === null ? '' : `${bottle.drankMilliliters} ml`;
       timeline.bottles.push({
@@ -132,9 +133,21 @@ function Lane({ className, linkClassName, marks }: { readonly className: string;
 /**
  * The day from midnight at the top to midnight at the bottom. Every block and mark opens that entry's form, which comes back to this day when it is done.
  */
-export function DayTimeline({ dayStart, is24Hour, log, now }: { readonly dayStart: number; readonly is24Hour: boolean; readonly log: TrackingLog; readonly now: number }) {
+export function DayTimeline({
+  bottleTimeBasis,
+  dayStart,
+  is24Hour,
+  log,
+  now,
+}: {
+  readonly bottleTimeBasis: BottleTimeBasis;
+  readonly dayStart: number;
+  readonly is24Hour: boolean;
+  readonly log: TrackingLog;
+  readonly now: number;
+}) {
   const dayEnd = startOfNextDay(dayStart);
-  const timeline = buildTimeline(log, dayStart, now, is24Hour);
+  const timeline = buildTimeline(log, dayStart, now, is24Hour, bottleTimeBasis);
   const hours = Array.from({ length: HOURS_PER_DAY }, (_, hour) => {
     const time = new Date(dayStart);
     time.setHours(hour);
