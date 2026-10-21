@@ -11,7 +11,7 @@ import { hasTapoCloudSession, startTapoCloudLogin, submitTapoMfaCode } from '@/s
 
 export async function getTapoCloudStatusAction(secretHash: string): Promise<{ isSignedIn: boolean }> {
   await requireLogin(secretHash);
-  return { isSignedIn: hasTapoCloudSession() };
+  return { isSignedIn: await hasTapoCloudSession() };
 }
 
 export async function startTapoCloudLoginAction(secretHash: string): Promise<{ needsMfaCode: boolean }> {

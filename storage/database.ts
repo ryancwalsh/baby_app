@@ -124,6 +124,15 @@ const MIGRATIONS: Migration[] = [
       'CREATE INDEX webcam_signals_recipient ON webcam_signals (recipient_id, id)',
     ],
   },
+  /**
+   * Every value a stored secret had before it was replaced, so that a bad write of the Tapo refresh token, which cannot be got back any other way, can be undone by hand.
+   */
+  {
+    name: '2026-10-21_stored_secret_history',
+    statements: [
+      'CREATE TABLE stored_secret_history (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, value TEXT NOT NULL, updated_at TEXT NOT NULL, replaced_at TEXT NOT NULL)',
+    ],
+  },
 ];
 
 function quote(value: unknown): string {

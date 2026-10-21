@@ -81,7 +81,7 @@ function nbuHeaders(token: string, terminalUuid: string) {
  * expired. The refresh needs no second factor, so this stays unattended.
  */
 async function sendToNbu(host: string, method: string, path: string, payload?: unknown) {
-  const session = getTapoCloudSession();
+  const session = await getTapoCloudSession();
   const body = payload === undefined ? undefined : JSON.stringify(payload);
   const send = (token: string) =>
     pinnedRequest({

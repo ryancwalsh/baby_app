@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { getEnvironment } from '@/constants/environment';
 import { APP_TYPE, APP_VERSION, type CloudResult, post, queryString, type Tokens } from '@/services/tapo/cloud-v2-transport';
+import { compareAndSwapStoredSecret, readStoredSecret } from '@/storage/stored-secrets';
 
 /**
  * TP-Link's V2 cloud, which is where Tapo (S-series) devices actually live. The
@@ -16,8 +17,11 @@ const MFA_LOGIN_PATH = '/api/v2/account/checkMFACodeAndLogin';
 const PASSTHROUGH_PATH = '/api/v2/common/passthrough';
 const REFRESH_TOKEN_PATH = '/api/v2/account/refreshToken';
 
-const TOKENS_DIRECTORY = 'secrets';
-const TOKENS_FILE_PATH = `${TOKENS_DIRECTORY}/tapo-v2-tokens.json`;
+/**
+ * Where the session lived before it moved to the database. Read once, to bring it across, and otherwise left alone as a copy of the refresh token.
+ */
+const TOKENS_FILE_PATH = 'secrets/tapo-v2-tokens.json';
+const TOKENS_SECRET_NAME = 'tapo-v2-tokens';
 const MFA_REQUIRED_CODE = '-20677';
 /**
  * A successful login still carries an errorCode; "0" is not a failure.
@@ -33,38 +37,52 @@ const globalForTapo = globalThis as typeof globalThis & {
   tapoPendingTerminalUuid?: string;
 };
 
-/**
- * Written by `storeSession`, never by hand. A blank or half-written file is
- * treated as no session rather than crashing the caller.
- */
-function readTokens(): null | Tokens {
-  let tokens: null | Tokens = null;
+type StoredTokens = { tokens: Tokens; updatedAt: string };
 
-  if (existsSync(TOKENS_FILE_PATH)) {
-    try {
-      const parsed = JSON.parse(readFileSync(TOKENS_FILE_PATH, 'utf8')) as Tokens;
-      if (typeof parsed?.token === 'string') {
-        tokens = parsed;
-      }
-    } catch {
-      /**
-       * Unreadable is the same as absent: sign in again.
-       */
+function parseTokens(text: string): null | Tokens {
+  let tokens: null | Tokens = null;
+  try {
+    const parsed = JSON.parse(text) as Tokens;
+    if (typeof parsed?.token === 'string') {
+      tokens = parsed;
     }
+  } catch {
+    /**
+     * Unreadable is the same as absent: sign in again.
+     */
   }
 
   return tokens;
 }
 
-function saveTokens(tokens: Tokens) {
-  mkdirSync(TOKENS_DIRECTORY, { recursive: true });
-  writeFileSync(TOKENS_FILE_PATH, JSON.stringify(tokens, null, 2), {
-    mode: 0o600,
-  });
+/**
+ * The session is in the database, so every instance of the app shares one refresh token. The first read after the move brings the old file across; the file was written by `storeSession`, never by hand, and a blank or half-written one is treated as no session.
+ */
+async function readTokens(): Promise<null | StoredTokens> {
+  let stored = await readStoredSecret(TOKENS_SECRET_NAME);
+
+  if (stored === null && existsSync(TOKENS_FILE_PATH)) {
+    const fromFile = parseTokens(readFileSync(TOKENS_FILE_PATH, 'utf8'));
+    if (fromFile !== null) {
+      await compareAndSwapStoredSecret(TOKENS_SECRET_NAME, null, JSON.stringify(fromFile));
+      stored = await readStoredSecret(TOKENS_SECRET_NAME);
+    }
+  }
+
+  const tokens = stored === null ? null : parseTokens(stored.value);
+
+  return stored === null || tokens === null ? null : { tokens, updatedAt: stored.updatedAt };
 }
 
-export function hasTapoCloudSession(): boolean {
-  return readTokens() !== null;
+/**
+ * Saves over exactly the session that was read. Returns false when another instance saved first, in which case the caller should use that one rather than overwrite it.
+ */
+async function saveTokens(tokens: Tokens, previous: null | StoredTokens): Promise<boolean> {
+  return compareAndSwapStoredSecret(TOKENS_SECRET_NAME, previous?.updatedAt ?? null, JSON.stringify(tokens));
+}
+
+export async function hasTapoCloudSession(): Promise<boolean> {
+  return (await readTokens()) !== null;
 }
 
 function credentials() {
@@ -75,21 +93,31 @@ function credentials() {
   };
 }
 
-function storeSession(result: CloudResult['result'], terminalUuid: string) {
+/**
+ * A new sign-in replaces whatever session there was, and the old one is kept in the history.
+ */
+async function storeSession(result: CloudResult['result'], terminalUuid: string) {
   if (result?.token === undefined) {
     throw new Error(result?.errorMsg ?? 'The Tapo cloud did not return a token.');
   }
 
-  saveTokens({
-    /**
-     * The login names the server to send device commands to; trust it.
-     */
-    appServerUrl: result.appServerUrl ?? `https://${HOST}`,
-    authTime: Date.now(),
-    refreshToken: result.refreshToken,
-    terminalUuid,
-    token: result.token,
-  });
+  const isSaved = await saveTokens(
+    {
+      /**
+       * The login names the server to send device commands to; trust it.
+       */
+      appServerUrl: result.appServerUrl ?? `https://${HOST}`,
+      authTime: Date.now(),
+      refreshToken: result.refreshToken,
+      terminalUuid,
+      token: result.token,
+    },
+    await readTokens(),
+  );
+
+  if (!isSaved) {
+    throw new Error('Another sign-in was saved at the same moment. Try again.');
+  }
 }
 
 export type LoginOutcome = {
@@ -130,7 +158,7 @@ export async function startTapoCloudLogin(): Promise<LoginOutcome> {
     throw new Error(body.result.errorMsg ?? body.result.errorCode);
   }
 
-  storeSession(body.result, terminalUuid);
+  await storeSession(body.result, terminalUuid);
   return { needsMfaCode: false };
 }
 
@@ -159,7 +187,7 @@ export async function submitTapoMfaCode(code: string): Promise<void> {
     throw new Error(body.result.errorMsg ?? 'That code was not accepted.');
   }
 
-  storeSession(body.result, terminalUuid);
+  await storeSession(body.result, terminalUuid);
   // eslint-disable-next-line require-atomic-updates -- Clearing a login that has just been redeemed; a racing login sets its own id afterwards.
   globalForTapo.tapoPendingTerminalUuid = undefined;
 }
@@ -169,7 +197,7 @@ export async function submitTapoMfaCode(code: string): Promise<void> {
  * V2 takes a flat body. Untested against a device: no session has existed yet.
  */
 export async function sendToTapoDevice(deviceId: string, requestData: unknown): Promise<unknown> {
-  const tokens = readTokens();
+  const tokens = (await readTokens())?.tokens ?? null;
   if (tokens === null) {
     throw new Error('Not signed in to the Tapo cloud.');
   }
@@ -193,7 +221,8 @@ export async function sendToTapoDevice(deviceId: string, requestData: unknown): 
  * is only ever needed for the very first sign-in on a given terminal UUID.
  */
 export async function refreshTapoCloudToken(): Promise<string> {
-  const tokens = readTokens();
+  const stored = await readTokens();
+  const tokens = stored?.tokens ?? null;
   if (tokens === null || tokens.refreshToken === undefined) {
     throw new Error('Not signed in to the Tapo cloud.');
   }
@@ -208,16 +237,23 @@ export async function refreshTapoCloudToken(): Promise<string> {
     throw new Error(body.result?.errorMsg ?? body.msg ?? 'The Tapo cloud would not refresh the session.');
   }
 
-  saveTokens({ ...tokens, authTime: Date.now(), token: body.result.token });
-  return body.result.token;
+  let token = body.result.token;
+  if (!(await saveTokens({ ...tokens, authTime: Date.now(), token }, stored))) {
+    /**
+     * Another instance refreshed at the same moment and saved first. Its token is as good as this one, and keeping it rather than overwriting it means the refresh token is never replaced by a stale copy.
+     */
+    token = (await readTokens())?.tokens.token ?? token;
+  }
+
+  return token;
 }
 
 /**
  * The stored session. Callers send the token as it stands and refresh only when
  * the cloud rejects it, since there is no stated lifetime to pre-empt.
  */
-export function getTapoCloudSession(): Tokens {
-  const tokens = readTokens();
+export async function getTapoCloudSession(): Promise<Tokens> {
+  const tokens = (await readTokens())?.tokens ?? null;
   if (tokens === null) {
     throw new Error('Not signed in to the Tapo cloud.');
   }
