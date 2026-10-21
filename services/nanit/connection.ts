@@ -1,8 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
 import { getAccessToken, getFirstCamera, TOKEN_LIFETIME_MILLISECONDS } from '@/services/nanit/auth';
 import { MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
 import { type CameraConnection, connectToCamera, type TemperatureReading } from '@/services/nanit/camera';
+import { recordDeviceState } from '@/storage/device-state';
 
 const STATE_DIRECTORY = 'secrets';
 const STATE_FILE_PATH = `${STATE_DIRECTORY}/nanit-night-light.json`;
@@ -100,13 +102,26 @@ function readSavedState(): null | SavedState {
  * Only what the camera told us. `isFading` is this process's own doing and dies
  * with it, so persisting it would have a restart claim a fade that nothing is
  * running.
+ *
+ * Also recorded in the database, for pages to show when the laptop is off.
  */
-function saveState(state: NightLightState) {
+function saveState(state: NightLightState, previous: NightLightState) {
   mkdirSync(STATE_DIRECTORY, { recursive: true });
   writeFileSync(STATE_FILE_PATH, JSON.stringify({ brightness: state.brightness, isOn: state.isOn }, null, 2), {
     mode: 0o600,
   });
+
+  if (state.isOn !== previous.isOn || state.brightness !== previous.brightness) {
+    recordDeviceState('night-light', { brightness: state.brightness, isOn: state.isOn });
+  }
 }
+
+/**
+ * A reading arrives about every 30 seconds; the database only needs one now and then.
+ */
+const TEMPERATURE_RECORD_MILLISECONDS = MILLISECONDS_PER_MINUTE;
+
+let lastTemperatureRecordedAt = 0;
 
 /**
  * Persisted so a restart does not throw away what the camera told us. It is
@@ -140,8 +155,9 @@ function updateState(changes: Partial<NightLightState>) {
   const updated = { ...shared.state, ...changes };
 
   if (updated.isOn !== shared.state.isOn || updated.brightness !== shared.state.brightness || updated.isFading !== shared.state.isFading) {
+    const previous = shared.state;
     shared.state = updated;
-    saveState(updated);
+    saveState(updated, previous);
 
     /**
      * Told only on a real change, so a browser is not woken for a repeat of
@@ -164,6 +180,11 @@ function updateState(changes: Partial<NightLightState>) {
 function updateTemperature(reading: TemperatureReading) {
   const shared = getShared();
   shared.temperature = { celsius: reading.celsius, measuredAt: Math.min(reading.measuredAt, Date.now()) };
+
+  if (Date.now() - lastTemperatureRecordedAt >= TEMPERATURE_RECORD_MILLISECONDS) {
+    lastTemperatureRecordedAt = Date.now();
+    recordDeviceState('temperature', { celsius: shared.temperature.celsius, measuredAt: new Date(shared.temperature.measuredAt).toISOString() });
+  }
 
   for (const listener of shared.temperatureListeners) {
     listener(shared.temperature);

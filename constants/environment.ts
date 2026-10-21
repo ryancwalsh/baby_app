@@ -33,6 +33,10 @@ function validate() {
      */
     APP_TITLE: str(),
     /**
+     * The one origin, such as `https://baby.example.com`, whose pages may call the worker's `/api/worker/*` routes from the browser. Empty means none: only the worker's own pages.
+     */
+    CLOUD_ORIGIN: str({ default: '' }),
+    /**
      * SHA-256 hex of the password the app asks for. Never the password.
      */
     LOGIN_SECRET: str(),
