@@ -10,8 +10,9 @@ export default [
      * holds checkouts of this repo made by other tooling, each with its own
      * `node_modules`. Both are generated, both are gitignored, and between them
      * they are the entire output of `yarn lint` when they are not listed here.
+     * `.yarn/` holds the committed Yarn release, which is Yarn's code, not ours.
      */
-    ignores: ['.claude/**', '.next/**', '.next-dev/**', '.vercel/**', 'node_modules/**', 'next-env.d.ts'],
+    ignores: ['.claude/**', '.next/**', '.next-dev/**', '.vercel/**', '.yarn/**', 'node_modules/**', 'next-env.d.ts'],
   },
   ...lintingEslintConfig,
   /**
