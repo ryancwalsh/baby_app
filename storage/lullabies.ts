@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
-import { rmSync, writeFileSync } from 'node:fs';
+import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
 import { del, get, list, put, rename } from '@vercel/blob';
+import ffmpegPath from 'ffmpeg-static';
 
 import { getEnvironment } from '@/constants/environment';
 import { UPLOADS_PREFIX } from '@/storage/lullaby-uploads';
@@ -143,9 +144,16 @@ export async function deleteLullaby(fileName: string) {
   await del(toPathname(fileName), { token: getBlobOptions().token });
 }
 
+/**
+ * Vercel has no ffmpeg of its own, so the one bundled by `ffmpeg-static` is used wherever it was installed, and the system one otherwise.
+ */
+function getFfmpegCommand() {
+  return ffmpegPath !== null && existsSync(ffmpegPath) ? ffmpegPath : 'ffmpeg';
+}
+
 function runFfmpeg(inputPath: string, outputPath: string) {
   return new Promise<void>((resolve, reject) => {
-    const ffmpeg = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', inputPath, '-vn', '-codec:a', 'libmp3lame', '-q:a', '2', '-f', 'mp3', outputPath], {
+    const ffmpeg = spawn(getFfmpegCommand(), ['-hide_banner', '-loglevel', 'error', '-y', '-i', inputPath, '-vn', '-codec:a', 'libmp3lame', '-q:a', '2', '-f', 'mp3', outputPath], {
       stdio: ['ignore', 'ignore', 'pipe'],
     });
     let errorOutput = '';

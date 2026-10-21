@@ -20,7 +20,7 @@ next-env.d.ts
 .env*.local
 secrets/
 
-# Generated at build time by scripts/record_commit_hash_and_build_time.sh.
+# Generated at build time by scripts/record-commit-hash-and-build-time.ts.
 public/version.json
 
 # Lullabies, recorded and renamed at runtime. See storage/lullabies.ts.

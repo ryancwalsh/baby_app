@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && yarn record_commit_hash_and_build_time",
-    "record_commit_hash_and_build_time": "./scripts/record_commit_hash_and_build_time.sh",
+    "record_commit_hash_and_build_time": "tsx scripts/record-commit-hash-and-build-time.ts",
     "start": "next start -p 2026",
     "deploy": "yarn build && next start -p 2026",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
+    "migrate": "tsx scripts/migrate.ts",
     "nanit:login": "tsx --env-file=.env scripts/nanit-login.ts",
     "nanit:video-probe": "tsx --env-file=.env scripts/nanit-video-probe.ts"
   },
@@ -23,6 +24,7 @@
     "@vercel/blob": "2.8.2",
     "diff": "9.0.0",
     "envalid": "8.2.0",
+    "ffmpeg-static": "5.3.0",
     "hls.js": "1.7.1",
     "http-status-codes": "2.3.0",
     "lucide-react": "1.16.0",
