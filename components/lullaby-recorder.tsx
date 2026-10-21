@@ -1,7 +1,10 @@
 'use client';
 
+import { upload as uploadToBlob } from '@vercel/blob/client';
 import { LoaderIcon, MicIcon, SquareIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+
+import { UPLOADS_PREFIX } from '@/storage/lullaby-uploads';
 
 /**
  * Preferred first. Android records WebM and iOS records MP4; the server turns
@@ -16,8 +19,7 @@ function formatElapsed(seconds: number) {
 }
 
 /**
- * Records a new lullaby from the phone's microphone and hands it to the
- * server, which names it for the moment it was saved.
+ * Records a new lullaby from the phone's microphone, uploads it straight to Blob, and asks the server to convert it, which names it for the moment it was saved.
  *
  * The browser's call-audio processing is switched off: echo cancellation,
  * noise suppression and gain control are tuned for a voice on a call, and they
@@ -50,11 +52,13 @@ export function LullabyRecorder({ onSaved, secretHash }: { readonly onSaved: () 
     setState('saving');
 
     try {
-      const response = await fetch(`/api/lullabies?secretHash=${encodeURIComponent(secretHash)}`, {
-        body: recording,
-        headers: { 'Content-Type': recording.type || 'application/octet-stream' },
-        method: 'POST',
+      const endpoint = `/api/lullabies?secretHash=${encodeURIComponent(secretHash)}`;
+      const upload = await uploadToBlob(`${UPLOADS_PREFIX}recording`, recording, {
+        access: 'private',
+        contentType: recording.type || 'application/octet-stream',
+        handleUploadUrl: endpoint,
       });
+      const response = await fetch(`${endpoint}&convert=${encodeURIComponent(upload.pathname)}`, { method: 'POST' });
 
       if (!response.ok) {
         throw new Error(await response.text());
