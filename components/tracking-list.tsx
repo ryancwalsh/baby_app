@@ -11,6 +11,7 @@ import { type BottleTimeBasis, getBottleTime, useBottleTime } from '@/hooks/use-
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
 import { useNow } from '@/hooks/use-now';
+import { useLogTextSize } from '@/hooks/use-text-size';
 import { useTrackingLog } from '@/hooks/use-tracking-log';
 import { DAY_CALENDAR_HREF } from '@/hooks/use-tracking-view';
 
@@ -109,6 +110,7 @@ export function TrackingList({ secretHash }: { readonly secretHash: string }) {
   const { bottleTimeBasis } = useBottleTime();
   const { dateFormat } = useDateFormat();
   const now = useNow();
+  const { zoom } = useLogTextSize();
 
   const days = log === null || now === null ? [] : buildDays(log, now, is24Hour, bottleTimeBasis);
 
@@ -119,36 +121,39 @@ export function TrackingList({ secretHash }: { readonly secretHash: string }) {
       </Link>
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
       {log !== null && days.length === 0 && <p className="text-foreground/50 text-sm">Nothing tracked yet.</p>}
-      {now !== null &&
-        days.map((day) => (
-          <section className="flex flex-col gap-2" key={day.start}>
-            <header className="border-foreground/10 flex flex-col border-b pb-1">
-              <h2 className="text-lg font-semibold">
-                <Link href={`${DAY_CALENDAR_HREF}?date=${formatDate(day.start, 'iso')}`}>{formatDayLabel(day.start, now, dateFormat)}</Link>
-              </h2>
-              <p className="text-foreground/50 text-sm">
-                Slept {formatDuration(day.totals.sleepMilliseconds)} · drank {day.totals.drankMilliliters} ml · {day.totals.diaperCount}{' '}
-                {day.totals.diaperCount === 1 ? 'diaper' : 'diapers'}
-              </p>
-            </header>
-            <ul className="flex flex-col">
-              {day.events.map((event) => (
-                <li key={event.key}>
-                  <Link className="flex gap-3 py-2" href={event.href}>
-                    <span className="text-foreground/60 w-16 shrink-0 text-sm tabular-nums">{formatClockTime(event.time, is24Hour)}</span>
-                    <span className="flex min-w-0 flex-col">
-                      <span className="text-sm">
-                        <span className={`font-semibold ${event.colorClassName}`}>{event.label}</span>
-                        {event.details !== '' && <span className="text-foreground/70"> {event.details}</span>}
+      {now !== null && (
+        <div className="flex flex-col gap-6" style={{ zoom }}>
+          {days.map((day) => (
+            <section className="flex flex-col gap-2" key={day.start}>
+              <header className="border-foreground/10 flex flex-col border-b pb-1">
+                <h2 className="text-lg font-semibold">
+                  <Link href={`${DAY_CALENDAR_HREF}?date=${formatDate(day.start, 'iso')}`}>{formatDayLabel(day.start, now, dateFormat)}</Link>
+                </h2>
+                <p className="text-foreground/50 text-sm">
+                  Slept {formatDuration(day.totals.sleepMilliseconds)} · drank {day.totals.drankMilliliters} ml · {day.totals.diaperCount}{' '}
+                  {day.totals.diaperCount === 1 ? 'diaper' : 'diapers'}
+                </p>
+              </header>
+              <ul className="flex flex-col">
+                {day.events.map((event) => (
+                  <li key={event.key}>
+                    <Link className="flex gap-3 py-2" href={event.href}>
+                      <span className="text-foreground/60 w-16 shrink-0 text-sm tabular-nums">{formatClockTime(event.time, is24Hour)}</span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="text-sm">
+                          <span className={`font-semibold ${event.colorClassName}`}>{event.label}</span>
+                          {event.details !== '' && <span className="text-foreground/70"> {event.details}</span>}
+                        </span>
+                        {event.note !== '' && <span className="text-foreground/50 truncate text-sm italic">{event.note}</span>}
                       </span>
-                      {event.note !== '' && <span className="text-foreground/50 truncate text-sm italic">{event.note}</span>}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
