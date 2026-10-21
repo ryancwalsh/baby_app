@@ -7,6 +7,7 @@ import { NanitTemperature } from '@/components/nanit-temperature';
 import { consumeNavigationTap, MONITOR_HREF } from '@/components/navigation-tap';
 import { Webcam } from '@/components/webcam';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { useWorkerStatus } from '@/hooks/use-worker-status';
 
 const MONITOR_MODE_KEY = 'baby-app-monitor-mode';
 const WEBCAM_MODE = 'webcam';
@@ -21,12 +22,18 @@ const WEBCAM_MODE = 'webcam';
 export function MonitorModes({ secretHash }: { readonly secretHash: string }) {
   const { store, value: mode } = useLocalStorage(MONITOR_MODE_KEY);
   const isWebcam = mode === WEBCAM_MODE;
+  const isOffline = useWorkerStatus() === 'offline';
 
   /**
    * A tap on the tab is a request for the Nanit's picture, and `CameraFeed`
    * consumes it when it is showing — its effect runs before this one. In
    * webcam mode nothing does, so it is thrown away here. Left in place, it
    * would start the Nanit the next time someone switched back to it.
+   *
+   * The same goes for a tap while the laptop is offline: `CameraFeed` is not
+   * showing, so the tap is thrown away here rather than remembered and
+   * replayed when the laptop comes back, which would start the camera minutes
+   * later, unasked.
    */
   useEffect(() => {
     consumeNavigationTap(MONITOR_HREF);
@@ -58,7 +65,22 @@ export function MonitorModes({ secretHash }: { readonly secretHash: string }) {
         </div>
       </div>
 
-      {isWebcam ? <Webcam secretHash={secretHash} /> : <CameraFeed secretHash={secretHash} />}
+      {isWebcam && <Webcam secretHash={secretHash} />}
+      {!isWebcam && isOffline && (
+        <div className="border-foreground/10 flex flex-col items-start gap-3 rounded-2xl border px-5 py-4 text-sm">
+          <p className="opacity-60">The laptop is offline, so the Nanit cannot be watched or heard. Webcam mode works without it.</p>
+          <button
+            className="border-foreground/15 rounded-lg border px-4 py-2 font-semibold text-amber-500"
+            onClick={() => {
+              store(WEBCAM_MODE);
+            }}
+            type="button"
+          >
+            Switch to Webcam
+          </button>
+        </div>
+      )}
+      {!isWebcam && !isOffline && <CameraFeed secretHash={secretHash} />}
     </div>
   );
 }

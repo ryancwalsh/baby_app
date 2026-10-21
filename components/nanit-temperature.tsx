@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react';
 
+import { getLastKnownNanitAction, type LastKnownNanit } from '@/app/actions/device-state';
 import { type TemperatureFrame } from '@/app/api/temperature/stream/route';
+import { formatClockTime } from '@/components/tracking-format';
+import { getWorkerUrl } from '@/components/worker-client';
+import { useClockFormat } from '@/hooks/use-clock-format';
+import { reportWorkerTrouble, useWorkerStatus } from '@/hooks/use-worker-status';
 
 /**
  * A reading older than this is not shown. The number is how long a reading can
@@ -47,9 +52,29 @@ export function NanitTemperature({ secretHash }: { readonly secretHash: string }
   const [reading, setReading] = useState<null | { celsius: number; measuredAt: number }>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const { is24Hour } = useClockFormat();
+  const isOffline = useWorkerStatus() === 'offline';
+  const [lastKnown, setLastKnown] = useState<LastKnownNanit['temperature']>(null);
+
+  /**
+   * While the laptop cannot be reached, the last reading it recorded is shown instead, dimmed and with its time, so it cannot be taken for the room as it is now.
+   */
+  useEffect(() => {
+    async function load() {
+      try {
+        setLastKnown((await getLastKnownNanitAction(secretHash)).temperature);
+      } catch {
+        setLastKnown(null);
+      }
+    }
+
+    if (isOffline) {
+      load();
+    }
+  }, [isOffline, secretHash]);
 
   useEffect(() => {
-    const source = new EventSource(`/api/temperature/stream?secretHash=${encodeURIComponent(secretHash)}`);
+    const source = new EventSource(getWorkerUrl('/temperature/stream', secretHash));
 
     source.addEventListener('message', (event) => {
       const frame = JSON.parse(event.data) as TemperatureFrame;
@@ -63,6 +88,7 @@ export function NanitTemperature({ secretHash }: { readonly secretHash: string }
      */
     source.addEventListener('error', () => {
       setIsConnected(false);
+      reportWorkerTrouble();
     });
 
     return () => {
@@ -84,7 +110,11 @@ export function NanitTemperature({ secretHash }: { readonly secretHash: string }
 
   return (
     <div className="flex shrink-0 items-center text-2xl tabular-nums opacity-70">
-      {freshReading === null ? (
+      {freshReading === null && isOffline && lastKnown !== null ? (
+        <span aria-label="Last known nursery temperature" className="text-base opacity-50">
+          {Math.round(toFahrenheit(lastKnown.celsius))}°F at {formatClockTime(lastKnown.measuredAt, is24Hour)}
+        </span>
+      ) : freshReading === null ? (
         <span aria-label="Nursery temperature unknown" role="img">
           <ThermometerOffIcon className="size-6" />
         </span>

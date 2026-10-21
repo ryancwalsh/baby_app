@@ -2,9 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { stopNanitMediaAction } from '@/app/actions/nanit-media';
 import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
 import { SECRET_HASH_KEY } from '@/components/login-guard';
+import { getWorkerUrl, stopWorkerMedia } from '@/components/worker-client';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 /**
@@ -21,7 +21,7 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
  * services/nanit/media.ts.
  */
 
-const PLAYLIST_PATH = '/api/nanit/media/audio.m3u8';
+const PLAYLIST_PATH = '/nanit/media/audio.m3u8';
 /**
  * How long to wait before picking the stream back up after a network error. A
  * monitor that quietly gave up at 3am would be worse than useless.
@@ -97,7 +97,7 @@ export function NanitAudioProvider({ children }: { readonly children: React.Reac
     let isCurrent = true;
 
     if (isMonitoring && secretHash !== null && secretHash !== undefined) {
-      const url = `${PLAYLIST_PATH}?secretHash=${encodeURIComponent(secretHash)}`;
+      const url = getWorkerUrl(PLAYLIST_PATH, secretHash);
 
       setIsStarting(true);
       setError(null);
@@ -141,7 +141,7 @@ export function NanitAudioProvider({ children }: { readonly children: React.Reac
       if (secretHash !== null && secretHash !== undefined) {
         const stop = async () => {
           try {
-            await stopNanitMediaAction(secretHash, 'audio');
+            await stopWorkerMedia(secretHash, 'audio');
           } catch {
             /**
              * The sound has already stopped on this phone, which is what the

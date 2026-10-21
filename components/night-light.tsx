@@ -3,31 +3,61 @@
 import { LightbulbIcon, SunsetIcon } from 'lucide-react';
 import { type CSSProperties, useEffect, useState, useTransition } from 'react';
 
-import { setNightLightBrightnessAction, setNightLightPowerAction, startNightLightFadeAction, stopNightLightFadeAction } from '@/app/actions/night-light';
 import { useNanitAudio } from '@/components/nanit-audio-provider';
+import { NightLightOffline } from '@/components/night-light-offline';
+import { changeNightLight, getWorkerUrl } from '@/components/worker-client';
+import { reportWorkerTrouble, useWorkerStatus } from '@/hooks/use-worker-status';
 import { BRIGHTNESS_PRESETS, FADE_DURATION_MILLISECONDS, FADE_TARGET_BRIGHTNESS, MAXIMUM_BRIGHTNESS, MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
 import { type NightLightState } from '@/services/nanit/night-light';
 
 const FADE_MINUTES = FADE_DURATION_MILLISECONDS / 60_000;
 
 /**
- * Optimistic, like the plug toggles: the shared camera connection is already
- * open, so a press is one frame on an existing socket and the real answer
- * lands quickly. On failure the control snaps back to where it started.
+ * The laptop holds the camera connection, so while this phone cannot reach it the tile shows what was last known, dimmed, with nothing to press.
  */
 export function NightLight({
   initialState,
   onChange,
   secretHash,
 }: {
-  readonly initialState: NightLightState;
+  readonly initialState: NightLightState | null;
+  readonly onChange: (state: NightLightState) => void;
+  readonly secretHash: string;
+}) {
+  const workerStatus = useWorkerStatus();
+
+  return workerStatus === 'offline' ? (
+    <NightLightOffline secretHash={secretHash} />
+  ) : (
+    <NightLightControls initialState={initialState} onChange={onChange} secretHash={secretHash} />
+  );
+}
+
+/**
+ * Optimistic, like the plug toggles: the shared camera connection is already
+ * open, so a press is one frame on an existing socket and the real answer
+ * lands quickly. On failure the control snaps back to where it started.
+ */
+function NightLightControls({
+  initialState,
+  onChange,
+  secretHash,
+}: {
+  /**
+   * Null until the stream's first frame, which is the current state.
+   */
+  readonly initialState: NightLightState | null;
   /**
    * Told every state the tile shows. Must be stable across renders.
    */
   readonly onChange: (state: NightLightState) => void;
   readonly secretHash: string;
 }) {
-  const [state, setState] = useState(initialState);
+  /**
+   * A placeholder until the stream's first frame; `isKnown` says whether it has come.
+   */
+  const [state, setState] = useState<NightLightState>(initialState ?? { brightness: MINIMUM_BRIGHTNESS, isFading: false, isOn: false });
+  const [isKnown, setIsKnown] = useState(initialState !== null);
   const [error, setError] = useState<null | string>(null);
   const [isPending, startTransition] = useTransition();
   /**
@@ -37,8 +67,10 @@ export function NightLight({
   const { error: audioError } = useNanitAudio();
 
   useEffect(() => {
-    onChange(state);
-  }, [onChange, state]);
+    if (isKnown) {
+      onChange(state);
+    }
+  }, [isKnown, onChange, state]);
 
   /**
    * Live updates, so a change made in the Nanit app shows up here without a
@@ -46,11 +78,13 @@ export function NightLight({
    * the optimistic value is newer than anything the camera has announced yet.
    */
   useEffect(() => {
-    const source = new EventSource(`/api/night-light/stream?secretHash=${encodeURIComponent(secretHash)}`);
+    const source = new EventSource(getWorkerUrl('/night-light/stream', secretHash));
 
     source.addEventListener('message', (event) => {
       setState(JSON.parse(event.data) as NightLightState);
+      setIsKnown(true);
     });
+    source.addEventListener('error', reportWorkerTrouble);
 
     return () => {
       source.close();
@@ -72,6 +106,7 @@ export function NightLight({
       } catch {
         setState(previous);
         setError('Could not reach the camera.');
+        reportWorkerTrouble();
       }
     });
   }
@@ -81,7 +116,7 @@ export function NightLight({
    * cancels it, and the optimistic state says so straight away.
    */
   function setBrightness(brightness: number) {
-    run({ ...state, brightness, isFading: false }, () => setNightLightBrightnessAction(secretHash, brightness));
+    run({ ...state, brightness, isFading: false }, async () => changeNightLight(secretHash, { action: 'brightness', brightness }));
   }
 
   /**
@@ -90,7 +125,7 @@ export function NightLight({
    * and every step comes back over the stream above, so this only has to ask.
    */
   function toggleFading() {
-    run({ ...state, isFading: !state.isFading }, () => (state.isFading ? stopNightLightFadeAction(secretHash) : startNightLightFadeAction(secretHash)));
+    run({ ...state, isFading: !state.isFading }, async () => changeNightLight(secretHash, { action: state.isFading ? 'stop-fade' : 'start-fade' }));
   }
 
   return (
@@ -105,8 +140,8 @@ export function NightLight({
           aria-checked={state.isOn}
           aria-label="Nanit night light"
           className={`shrink-0 rounded-lg border p-2 transition-colors disabled:opacity-60 ${state.isOn ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`}
-          disabled={isPending}
-          onClick={() => run({ ...state, isOn: !state.isOn }, () => setNightLightPowerAction(secretHash, !state.isOn))}
+          disabled={isPending || !isKnown}
+          onClick={() => run({ ...state, isOn: !state.isOn }, async () => changeNightLight(secretHash, { action: 'power', isOn: !state.isOn }))}
           role="switch"
           type="button"
         >
@@ -114,6 +149,7 @@ export function NightLight({
         </button>
       </div>
 
+      {!isKnown && <p className="text-sm opacity-60">Asking the laptop…</p>}
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}
       {audioError !== null && <p className="text-sm text-amber-500">{audioError}</p>}
 
@@ -138,6 +174,7 @@ export function NightLight({
         */}
         <input
           className={`brightness-slider mt-3 w-full ${state.brightness === MINIMUM_BRIGHTNESS ? 'text-moon' : 'text-amber-500'}`}
+          disabled={!isKnown}
           id="brightness"
           max={MAXIMUM_BRIGHTNESS}
           min={MINIMUM_BRIGHTNESS}
@@ -157,7 +194,7 @@ export function NightLight({
                   ? `font-semibold ${preset === MINIMUM_BRIGHTNESS ? 'border-moon/60 text-moon' : 'border-amber-500/60 text-amber-500'}`
                   : 'border-foreground/15'
               }`}
-              disabled={isPending}
+              disabled={isPending || !isKnown}
               key={preset}
               onClick={() => setBrightness(preset)}
               type="button"
@@ -172,7 +209,7 @@ export function NightLight({
           className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg border p-2 disabled:opacity-40 ${
             state.isFading ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'
           }`}
-          disabled={isPending || (!state.isFading && state.brightness <= FADE_TARGET_BRIGHTNESS)}
+          disabled={isPending || !isKnown || (!state.isFading && state.brightness <= FADE_TARGET_BRIGHTNESS)}
           onClick={toggleFading}
           type="button"
         >
