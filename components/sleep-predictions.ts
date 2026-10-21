@@ -31,10 +31,6 @@ const WAKE_WINDOWS_BY_AGE: Array<{ fromMonth: number; threeNap: number[]; twoNap
 export type NapCount = 2 | 3;
 
 export type SleepPrediction = {
-  /**
-   * Which sleep it is: a nap, numbered from 1, or bedtime.
-   */
-  label: string;
   napCount: NapCount;
   time: number;
 };
@@ -181,7 +177,6 @@ export function predictNextSleeps(sleeps: Sleep[], settings: TrackingSettings, n
       const minutes = windows[index];
       if (minutes !== undefined) {
         predictions.push({
-          label: index === napCount ? 'bedtime' : `nap ${index + 1}`,
           napCount,
           time: lastSleep.end + minutes * MILLISECONDS_PER_MINUTE,
         });

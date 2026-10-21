@@ -77,6 +77,17 @@ export function formatClockTime(time: Date | number | string, is24Hour: boolean)
 }
 
 /**
+ * A clock time as short as it can be, for tight spaces: `3:15p` on a 12-hour clock, or `15:15` on a 24-hour one.
+ */
+export function formatShortClockTime(time: number, is24Hour: boolean): string {
+  const date = new Date(time);
+  const hours = date.getHours();
+  const hoursPerHalfDay = HOURS_PER_DAY / 2;
+
+  return is24Hour ? `${pad(hours)}:${pad(date.getMinutes())}` : `${hours % hoursPerHalfDay || hoursPerHalfDay}:${pad(date.getMinutes())}${hours < hoursPerHalfDay ? 'a' : 'p'}`;
+}
+
+/**
  * The start of the local day the time falls on.
  */
 export function startOfDay(time: number): number {
