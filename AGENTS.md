@@ -122,7 +122,9 @@ than present version"`, which names `curVersion` so it can be retried.
 
 The NBU session token comes from the V2 cloud at `n-wap.i.tplinkcloud.com`, and
 **`POST /api/v2/account/refreshToken` mints a fresh one with no second factor**,
-from the `refreshToken` in `secrets/tapo-v2-tokens.json`. That is the normal
+from the `refreshToken` in the `tapo-v2-tokens` row of Turso's `stored_secrets`
+table (moved there from `secrets/tapo-v2-tokens.json` on 2026-10-21; the file
+is left in place as a copy). That is the normal
 path and it needs nobody present; `services/tapo/cloud-nbu.ts` refreshes on a `401`
 and retries once. Expired access tokens surface as `-20651 "Token expired"`.
 
@@ -143,8 +145,12 @@ with **path only, no query string**; app keys are access
 fixed timestamp `9999999999`. `sendToTapoDevice` in `cloud-v2.ts` is the V2
 passthrough — it is unused, and it cannot reach the S-series switches.
 
-Files under `secrets/` are written by the code, never by hand; an empty or
-hand-made `tapo-v2-tokens.json` is treated as no session.
+The session is written by the code, never by hand, and only by
+compare-and-swap (`compareAndSwapStoredSecret`): two instances refreshing at
+once cannot overwrite a newer session with an older one, and every value
+replaced is kept in `stored_secret_history`, so a bad write can be undone by
+hand. Backups of the old file are in `backups/`. An empty or malformed session
+is treated as no session.
 
 ## State that is knowable, and state that is not
 
@@ -176,8 +182,8 @@ One **long-lived Node process at home**, exposed with a Cloudflare tunnel. Not
 serverless, and the difference is structural rather than cosmetic:
 
 - The token and state files under `secrets/` are read and rewritten at runtime.
-  A read-only or ephemeral filesystem breaks Nanit auth, the Tapo V2 session and
-  the night light cache. `secrets/` is gitignored, so it would not even be
+  A read-only or ephemeral filesystem breaks Nanit auth and the night light
+  cache. (The Tapo V2 session has moved to Turso.) `secrets/` is gitignored, so it would not even be
   present in a git-based deploy.
 - `services/nanit/connection.ts` holds a websocket open, sends keepalives and listens
   for announcements. Nothing about that survives a per-request runtime, and
