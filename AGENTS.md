@@ -197,7 +197,7 @@ serverless, and the difference is structural rather than cosmetic:
   the page stalled the moment the screen locked. Pages only start and stop it
   and watch the steps arrive over the night light stream.
 
-The move to serverless is planned in `plan_cloud.md`: the files and the
+The move to serverless is planned in `plan_cloud.md`, whose "Next steps — start here" section says exactly where it stands and what to do next: the files and the
 `terminalUUID` go to Turso, and the socket and the fade stay on the laptop as a
 worker, reached at `/api/worker/*`. Follow its phases rather than porting
 piecemeal. The tracking log

@@ -2,6 +2,54 @@
 
 Status: phases 0 to 5 are built and deployed on the laptop, and the Snoo is removed (2026-10-21). On Vercel there is an empty `baby-app` project, not connected to GitHub, and the private Blob store `baby-app-lullabies`; nothing on Turso, Cloudflare, or GitHub has been changed. As built, webcam signaling also has a `webcam_watchers` table, so a new camera can say hello to everyone already waiting, and the camera notices it was replaced by reading the slot rather than by a queued message. The laptop still converts recordings with its own ffmpeg; `ffmpeg-static` waits for phase 6, where it is first needed.
 
+## Next steps — start here
+
+Written 2026-10-21 at the end of phase 5, for whoever picks this up in a fresh conversation. Read `AGENTS.md` first; its standing rules (the sleeping baby, pm2, deploy only from `main`, and asking before touching Vercel, Turso, Cloudflare, or GitHub) all still apply.
+
+### Where things stand
+
+- `main` runs on the laptop under pm2 exactly as before, serving both the pages and the worker routes from one origin. Nothing is served from Vercel yet.
+- Moved off the laptop's memory and files: the login throttle (`login_failures`), the Kasa token and the Tapo session (`stored_secrets`, with `stored_secret_history`), webcam signaling (`webcam_*` tables), the Nanit's last known state (`device_state`), and the lullabies (private Blob store `baby-app-lullabies`).
+- The pages reach the Nanit only through `/api/worker/*` (`components/worker-client.ts`), and dim while `hooks/use-worker-status.ts` says the worker is offline.
+- On Vercel: a project `baby-app` linked to this folder (`.vercel/`, gitignored), **not** connected to GitHub, with the Blob store attached for Production. Its `BLOB_READ_WRITE_TOKEN` is in the laptop's `.env.production.local`. Nothing else is configured there.
+- Still open: **which domain the worker should use** (for example `worker.<app domain>`). The app's current domain is the Cloudflare tunnel's; ask the user rather than guessing.
+
+### Phase 6, in order
+
+Steps 1 and 2 are in the repository and need no approval. Steps 3 to 5 change Vercel, Turso, or GitHub, so each needs the user's explicit go-ahead first, with the exact command shown to them.
+
+1. **Make the build Vercel-ready**, on a branch, merged to `main` and deployed to the laptop as usual:
+   - `yarn add --exact ffmpeg-static`, and have `runFfmpeg` in `storage/lullabies.ts` use its path when it exists, falling back to the system `ffmpeg` (the laptop's ffmpeg is also used for the Nanit relay in `services/nanit/media.ts`, which stays on the system binary).
+   - Stamp `public/version.json` from `VERCEL_GIT_COMMIT_REF` and `VERCEL_GIT_COMMIT_SHA` when present, else from git. `scripts/record_commit_hash_and_build_time.sh` uses `git branch --show-current`, which is empty on Vercel's detached checkout; rewrite it in TypeScript while there, per the user's preferences.
+   - Add `scripts/migrate.ts` and a `migrate` script: run the pending migrations with the existing dump, replay, and row-count check, and upload the dump to the Blob store as `backups/YYYY-MM-DD_HH-MM-SS_tracking.sql` (UTC). It must fail the build if the check or the upload fails. Only when `VERCEL_ENV` is `production`.
+   - Decide what the running app does about migrations. The laptop still migrates lazily in `storage/database.ts`; on Vercel the build should do it, and the running app should throw a clear error if the schema is behind rather than migrate without a backup. One way: skip the lazy migration when `APP_ROLE=cloud`.
+   - Check: `yarn typecheck`, `yarn lint`, `yarn build` on the laptop still works and `/version.json` still says `main`.
+2. **Gate the cloud role.** With `APP_ROLE=cloud`, nothing may import `services/nanit/*` at runtime, and `/api/worker/*` and the old `/api/night-light/stream`, `/api/temperature/stream`, and `/api/nanit/media/*` routes should answer `404`, so Vercel can never open a Nanit socket. Check by grepping the build output or by a dev run with `APP_ROLE=cloud` and a dead worker address.
+3. **Turso (needs approval):** `turso db tokens create baby-app`, a token for Vercel only, so the laptop's and Vercel's can be revoked separately.
+4. **Vercel settings (needs approval):** Production-only environment variables, values copied from the laptop's env files without printing them: `APP_ROLE=cloud`, `APP_TITLE`, `APP_SHORT_NAME`, `LOGIN_SECRET`, `TAPO_EMAIL_ADDRESS`, `TAPO_PASSWORD`, `TAPO_DEVICES` (the list in `.env.production.local`, which must not include the dev-only Family Room switch), `TURSO_DATABASE_URL`, the new `TURSO_AUTH_TOKEN`, and `NEXT_PUBLIC_WORKER_ORIGIN` (the worker domain above). Turn preview deployments off. Build command `yarn migrate && yarn build`. Function region near Turso's (check with `turso db show baby-app`).
+5. **Connect GitHub (needs approval):** link the `baby-app` project to the repository so pushes to `main` deploy. The first deploy will run any pending migrations.
+   - Check: the deployment's `/version.json` shows the pushed commit on `main`; log in on the `*.vercel.app` address, add and delete a test diaper, play a lullaby, and toggle nothing. The Nanit tile should show "Laptop offline" there until phase 7, because the worker is not yet reachable from that origin.
+
+### Phase 7 (needs approval for every Cloudflare and Vercel change)
+
+1. Add the `worker.` hostname to the existing Cloudflare tunnel, pointing at `http://localhost:2026`.
+2. On the laptop, set `CLOUD_ORIGIN` in `.env.production.local` to the app's final origin, then `pm2 restart baby --update-env`.
+3. Add the app domain to the Vercel project, and change its Cloudflare DNS record to Vercel's target, DNS-only (grey cloud).
+4. Check: the installed PWA on both phones opens, stays logged in (local storage is per origin and the origin does not change), and shows the laptop online; then, with the laptop asleep, everything in the "Laptop off" column of "What works when" behaves as described. No camera command may be sent to check any of this without asking.
+
+### Phase 8, what is left
+
+The Snoo is already gone. Still to do: update `README.md`, `AGENTS.md` ("How this is deployed"), and `CLAUDE.private.md` for the split deployment; remove what the move made dead — the `secrets/nanit-night-light.json` cache once `device_state` has proven itself, the laptop-only `lullabies/` folder (keep a copy in `backups/` first, and ask), and the lazy migration if phase 6 replaced it.
+
+### Things that cost time in this session
+
+- **The Nanit refuses new connections after quick restarts** (`403 … connections above limit`). Each deploy is a restart; space them out, and expect that log line after one. It clears in a few minutes.
+- **`next dev` reads `.env`, which has no Blob token**, so lullabies fail on a dev server. That is expected.
+- **`vercel link` wrote `.env.local` with a `VERCEL_OIDC_TOKEN`.** The Blob SDK would try it first, which is why `storage/lullabies.ts` passes `BLOB_READ_WRITE_TOKEN` explicitly.
+- **Next dev caches `NEXT_PUBLIC_*` values in `.next-dev`.** After changing one, delete `.next-dev` or the old value keeps being served.
+- **Testing pages without touching the camera:** run `yarn dev` with `NEXT_PUBLIC_WORKER_ORIGIN` pointing at a dead port, and a throwaway `LOGIN_SECRET` set on the command line (never in a file, and never on the tunnel). The pages then never reach the dev server's own Nanit code. The in-app browser preview hung; headless `google-chrome` driven over the DevTools protocol worked.
+- **Do not stop dev servers with `pkill -f "next dev"`.** Other projects run Next on this machine, and that pattern can match them. Kill the specific process id instead.
+
 Decided so far:
 
 - The Snoo is being sold, so it is out of scope. Nothing here moves it, and its code is removed in the tidy-up phase.
@@ -204,7 +252,7 @@ Each phase ships alone, leaves the laptop deployment working, and has a check be
    Check: the deployment's `/version.json`; log in, add and delete a test diaper, toggle nothing.
 7. **Move the domain.** The app domain to Vercel, the tunnel to `worker.`.
    Check: the installed PWA on both phones opens, logs in, and shows the laptop online; then with the laptop asleep, everything in the "Laptop off" column behaves as described.
-8. **Tidy up.** Remove the Snoo (`services/snoo/`, `app/actions/snoo.ts`, `components/snoo-toggle.tsx`, `components/swaddle-icon.tsx` if nothing else uses it, `scripts/snoo-check.ts`, the `mqtt` dependency, and its environment variables), update `AGENTS.md`, `CLAUDE.private.md`, and `README.md` for the new deployment, and remove the code paths the move made dead (`secrets/nanit-night-light.json` reads, the in-memory hub, the filesystem lullabies). The Snoo removal does not depend on the rest and can be done whenever you like.
+8. **Tidy up.** The Snoo was removed on 2026-10-21. Update `AGENTS.md`, `CLAUDE.private.md`, and `README.md` for the new deployment, and remove the code paths the move made dead (the `secrets/nanit-night-light.json` reads, the laptop-only `lullabies/` folder, and the lazy migration if phase 6 replaced it); the in-memory webcam hub and the filesystem lullabies are already gone.
 
 ## Changes outside the repository, each needing your approval first
 
