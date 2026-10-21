@@ -46,6 +46,19 @@ export function StopwatchTile({ now }: { readonly now: number }) {
   const [isBlackedOut, setIsBlackedOut] = useState(false);
   const formattedElapsed = formatRunningDuration(elapsed);
 
+  const isAtZero = !isRunning && elapsed === 0;
+
+  function startOrPause() {
+    const current = Date.now();
+    store(
+      JSON.stringify(
+        stopwatch.startedAt === null
+          ? { elapsedMilliseconds: stopwatch.elapsedMilliseconds, startedAt: current }
+          : { elapsedMilliseconds: stopwatch.elapsedMilliseconds + current - stopwatch.startedAt, startedAt: null },
+      ),
+    );
+  }
+
   let startLabel = 'Start';
   if (isRunning) {
     startLabel = 'Pause';
@@ -54,7 +67,7 @@ export function StopwatchTile({ now }: { readonly now: number }) {
   }
 
   return (
-    <div className={`flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
+    <div className={`relative flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
       {/*
         Like the clock, tapping a running stopwatch blacks out the whole screen but for the count, for timing something in the dark nursery.
       */}
@@ -71,20 +84,7 @@ export function StopwatchTile({ now }: { readonly now: number }) {
         <span className="text-2xl tabular-nums">{formattedElapsed}</span>
       </button>
       <div className="flex gap-2">
-        <button
-          className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`}
-          onClick={() => {
-            const current = Date.now();
-            store(
-              JSON.stringify(
-                stopwatch.startedAt === null
-                  ? { elapsedMilliseconds: stopwatch.elapsedMilliseconds, startedAt: current }
-                  : { elapsedMilliseconds: stopwatch.elapsedMilliseconds + current - stopwatch.startedAt, startedAt: null },
-              ),
-            );
-          }}
-          type="button"
-        >
+        <button className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`} onClick={startOrPause} type="button">
           {startLabel}
         </button>
         {(isRunning || elapsed > 0) && (
@@ -99,6 +99,11 @@ export function StopwatchTile({ now }: { readonly now: number }) {
           </button>
         )}
       </div>
+
+      {/*
+        A stopwatch at zero has nothing to lose to a stray tap, so the whole tile starts it, through a button stretched over everything.
+      */}
+      {isAtZero && <button aria-label="Start the stopwatch" className="absolute inset-0 rounded-2xl" onClick={startOrPause} type="button" />}
 
       {/*
         Portaled to the body, because the tiles sit inside a CSS `zoom` for the per-phone text size, which would otherwise scale the blackout too.
