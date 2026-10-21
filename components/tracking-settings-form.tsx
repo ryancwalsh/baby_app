@@ -1,13 +1,15 @@
 'use client';
 
+import { ArrowRightIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { getTrackingSettingsAction, saveTrackingSettingsAction } from '@/app/actions/tracking';
 import { PhoneSettings } from '@/components/phone-settings';
-import { formatDate } from '@/components/tracking-format';
+import { formatClockTime, formatDate } from '@/components/tracking-format';
+import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
-import { PREDICTION_METHODS, type PredictionMethod, type TrackingSettings } from '@/storage/tracking-types';
+import { DEFAULT_DAY_ENDS_AT, DEFAULT_DAY_STARTS_AT, PREDICTION_METHODS, type PredictionMethod, type TrackingSettings } from '@/storage/tracking-types';
 
 const METHOD_LABELS: Record<PredictionMethod, string> = {
   age: 'Typical for his age',
@@ -46,6 +48,34 @@ function WindowFields({ label, onChange, windows }: { readonly label: string; re
 }
 
 /**
+ * A native `time` input laid invisibly over a readout in the clock format chosen above, as the birth date is.
+ */
+function TimeOfDayField({ label, onChange, value }: { readonly label: string; readonly onChange: (value: string) => void; readonly value: string }) {
+  const { is24Hour } = useClockFormat();
+
+  return (
+    <label className="flex flex-1 flex-col gap-1 text-sm">
+      <div className="relative">
+        <span className={`${INPUT_CLASS_NAME} block tabular-nums`}>{formatClockTime(new Date(`2000-01-01T${value}`), is24Hour)}</span>
+        <input
+          className="absolute inset-0 size-full opacity-0"
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+          onClick={(event) => {
+            event.currentTarget.showPicker();
+          }}
+          required
+          type="time"
+          value={value}
+        />
+      </div>
+      <span className="text-foreground/60 text-xs uppercase">{label}</span>
+    </label>
+  );
+}
+
+/**
  * The prediction settings are shared by every phone, so they live in the database; the ones in components/phone-settings.tsx are per phone and live in local storage.
  */
 export function TrackingSettingsForm({ secretHash }: { readonly secretHash: string }) {
@@ -55,6 +85,8 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
   const [birthDate, setBirthDate] = useState('');
   const [twoNap, setTwoNap] = useState<string[]>([]);
   const [threeNap, setThreeNap] = useState<string[]>([]);
+  const [dayStartsAt, setDayStartsAt] = useState(DEFAULT_DAY_STARTS_AT);
+  const [dayEndsAt, setDayEndsAt] = useState(DEFAULT_DAY_ENDS_AT);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -66,6 +98,8 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
       setBirthDate(settings.birthDate ?? '');
       setTwoNap(settings.twoNapWakeWindowMinutes.map(String));
       setThreeNap(settings.threeNapWakeWindowMinutes.map(String));
+      setDayStartsAt(settings.dayStartsAt);
+      setDayEndsAt(settings.dayEndsAt);
       setIsLoaded(true);
     }
 
@@ -75,6 +109,8 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
   async function save() {
     const settings: TrackingSettings = {
       birthDate: birthDate === '' ? null : birthDate,
+      dayEndsAt,
+      dayStartsAt,
       predictionMethod: method,
       threeNapWakeWindowMinutes: threeNap.map(Number),
       twoNapWakeWindowMinutes: twoNap.map(Number),
@@ -148,6 +184,16 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
               />
             </div>
           </label>
+
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-foreground/60 mb-1 text-sm">Day vs night time start times</legend>
+            <p className="text-foreground/50 text-xs">A sleep that starts between these times, and is under 4 hours, counts as a nap. Everything else is night sleep.</p>
+            <div className="flex items-start gap-3">
+              <TimeOfDayField label="Start" onChange={setDayStartsAt} value={dayStartsAt} />
+              <ArrowRightIcon className="text-foreground/40 mt-2.5 size-5 shrink-0" />
+              <TimeOfDayField label="End" onChange={setDayEndsAt} value={dayEndsAt} />
+            </div>
+          </fieldset>
 
           <WindowFields label="2-nap day" onChange={setTwoNap} windows={twoNap} />
           <WindowFields label="3-nap day" onChange={setThreeNap} windows={threeNap} />

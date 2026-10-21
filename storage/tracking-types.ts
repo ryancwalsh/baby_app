@@ -36,6 +36,11 @@ export type TrackingSettings = {
    * `YYYY-MM-DD`, only needed for the age-based method.
    */
   birthDate: null | string;
+  /**
+   * `HH:MM`, local time. A sleep that starts between these two and is shorter than a night's stretch is a nap; everything else is night.
+   */
+  dayEndsAt: string;
+  dayStartsAt: string;
   predictionMethod: PredictionMethod;
   /**
    * Awake time before each sleep of the day, in minutes: one per nap, then the one before bed.
@@ -43,6 +48,9 @@ export type TrackingSettings = {
   threeNapWakeWindowMinutes: number[];
   twoNapWakeWindowMinutes: number[];
 };
+
+export const DEFAULT_DAY_STARTS_AT = '07:00';
+export const DEFAULT_DAY_ENDS_AT = '19:00';
 
 export const TWO_NAP_WINDOW_COUNT = 3;
 export const THREE_NAP_WINDOW_COUNT = 4;

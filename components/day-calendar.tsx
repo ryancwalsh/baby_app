@@ -97,8 +97,16 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
 
       <dl className="grid grid-cols-3 gap-2">
         <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.sleep.border}`}>
-          <dt className={`text-base ${TILE_COLORS.sleep.label}`}>Slept</dt>
+          <dt className={`text-base ${TILE_COLORS.sleep.label}`}>Total sleep</dt>
           <dd className="text-2xl tabular-nums">{formatDuration(totals.sleepMilliseconds)}</dd>
+        </div>
+        <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.sleep.border}`}>
+          <dt className={`text-base ${TILE_COLORS.sleep.label}`}>Night total</dt>
+          <dd className="text-2xl tabular-nums">{formatDuration(totals.nightMilliseconds)}</dd>
+        </div>
+        <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.sleep.border}`}>
+          <dt className={`text-base ${TILE_COLORS.sleep.label}`}>Nap total</dt>
+          <dd className="text-2xl tabular-nums">{formatDuration(totals.napMilliseconds)}</dd>
         </div>
         <div className={`flex flex-col rounded-xl border px-3 py-2 ${TILE_COLORS.bottle.border}`}>
           <dt className={`text-base ${TILE_COLORS.bottle.label}`}>Drank</dt>
