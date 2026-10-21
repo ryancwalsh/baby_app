@@ -1,6 +1,6 @@
 # Plan: host on Vercel and Turso, and keep working with the laptop off
 
-Status: proposal, revised 2026-10-19. Nothing here has been built, and nothing on Vercel, Turso, Cloudflare, or GitHub has been created or changed.
+Status: phases 0, 1, and 2 are built and deployed on the laptop, and the Snoo is removed (2026-10-21). Nothing on Vercel, Turso, Cloudflare, or GitHub has been created or changed yet; phase 3 needs the Blob store first.
 
 Decided so far:
 
@@ -129,7 +129,7 @@ These are the parts most likely to be broken by accident, so they are listed on 
 
 ### 6. Login rate limit
 
-`auth/login-rate-limit.ts` keeps its interface and moves its map into a `login_failures (client TEXT PRIMARY KEY, failure_count INTEGER, locked_until TEXT)` table, `locked_until` in UTC. The client address comes from `x-forwarded-for` on Vercel, which `getClient` already falls back to; the worker keeps `cf-connecting-ip`. Both sides throttle against the same table, so guessing against the worker counts against the cloud too.
+`auth/login-rate-limit.ts` keeps its interface and moves its map into a `login_failures (client TEXT PRIMARY KEY, failure_count INTEGER, first_failed_at TEXT)` table, `first_failed_at` in UTC, which keeps the old rule of five failures in fifteen minutes from the first. A success with no failures on record costs one read and no write, because every media segment is a login check. The client address comes from `x-forwarded-for` on Vercel, which `getClient` already falls back to; the worker keeps `cf-connecting-ip`. Both sides throttle against the same table, so guessing against the worker counts against the cloud too.
 
 ### 7. Webcam signaling on Turso
 
