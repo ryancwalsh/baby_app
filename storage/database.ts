@@ -111,6 +111,19 @@ const MIGRATIONS: Migration[] = [
       'CREATE TABLE device_state (name TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)',
     ],
   },
+  /**
+   * Webcam mode's introductions, which were held in one process's memory. Each phone's event stream polls these, so phones on different serverless instances still find each other. `stream_id` tells a phone's current stream from an older one of the same phone that is only now closing.
+   */
+  {
+    name: '2026-10-21_webcam_signaling',
+    statements: [
+      'CREATE TABLE webcam_camera (slot INTEGER PRIMARY KEY CHECK (slot = 1), camera_id TEXT NOT NULL, stream_id TEXT NOT NULL, started_at TEXT NOT NULL, heartbeat_at TEXT NOT NULL)',
+      'CREATE TABLE webcam_watchers (watcher_id TEXT PRIMARY KEY, stream_id TEXT NOT NULL, heartbeat_at TEXT NOT NULL)',
+      'CREATE TABLE webcam_retired_cameras (camera_id TEXT PRIMARY KEY, retired_at TEXT NOT NULL)',
+      'CREATE TABLE webcam_signals (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_id TEXT NOT NULL, message TEXT NOT NULL, created_at TEXT NOT NULL)',
+      'CREATE INDEX webcam_signals_recipient ON webcam_signals (recipient_id, id)',
+    ],
+  },
 ];
 
 function quote(value: unknown): string {

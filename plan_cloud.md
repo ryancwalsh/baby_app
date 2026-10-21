@@ -1,6 +1,6 @@
 # Plan: host on Vercel and Turso, and keep working with the laptop off
 
-Status: phases 0, 1, and 2 are built and deployed on the laptop, and the Snoo is removed (2026-10-21). Nothing on Vercel, Turso, Cloudflare, or GitHub has been created or changed yet; phase 3 needs the Blob store first.
+Status: phases 0 to 3 are built and deployed on the laptop, and the Snoo is removed (2026-10-21). On Vercel there is an empty `baby-app` project, not connected to GitHub, and the private Blob store `baby-app-lullabies`; nothing on Turso, Cloudflare, or GitHub has been changed. As built, webcam signaling also has a `webcam_watchers` table, so a new camera can say hello to everyone already waiting, and the camera notices it was replaced by reading the slot rather than by a queued message. The laptop still converts recordings with its own ffmpeg; `ffmpeg-static` waits for phase 6, where it is first needed.
 
 Decided so far:
 

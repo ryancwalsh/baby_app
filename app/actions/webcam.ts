@@ -7,10 +7,10 @@ import { getCameraState, relaySignal } from '@/services/webcam/signaling';
 export async function getWebcamCameraStateAction(secretHash: string): Promise<WebcamCameraState> {
   await requireLogin(secretHash);
 
-  return getCameraState();
+  return await getCameraState();
 }
 
 export async function sendWebcamSignalAction(secretHash: string, signal: WebcamSignal): Promise<void> {
   await requireLogin(secretHash);
-  relaySignal(signal);
+  await relaySignal(signal);
 }
