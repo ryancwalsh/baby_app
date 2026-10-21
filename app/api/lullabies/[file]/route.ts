@@ -1,10 +1,7 @@
-import { createReadStream, statSync } from 'node:fs';
-import { Readable } from 'node:stream';
-
 import { type NextRequest } from 'next/server';
 
 import { attemptLogin } from '@/auth/login';
-import { resolveLullabyPath } from '@/storage/lullabies';
+import { readLullaby } from '@/storage/lullabies';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,18 +22,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return new Response('Not logged in.', { status: 401 });
   }
 
-  const path = resolveLullabyPath((await params).file);
+  const contents = await readLullaby((await params).file);
 
-  if (path === null) {
+  if (contents === null) {
     return new Response('No such lullaby.', { status: 404 });
   }
 
-  const size = statSync(path).size;
+  const size = contents.length;
   const headers = { 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store', 'Content-Type': 'audio/mpeg' };
   const range = RANGE_PATTERN.exec(request.headers.get('range') ?? '');
 
   if (range === null) {
-    return new Response(Readable.toWeb(createReadStream(path)) as ReadableStream, { headers: { ...headers, 'Content-Length': String(size) } });
+    return new Response(new Uint8Array(contents), { headers: { ...headers, 'Content-Length': String(size) } });
   }
 
   const [, startText, endText] = range;
@@ -50,7 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return new Response(null, { headers: { ...headers, 'Content-Range': `bytes */${size}` }, status: 416 });
   }
 
-  return new Response(Readable.toWeb(createReadStream(path, { end, start })) as ReadableStream, {
+  return new Response(new Uint8Array(contents.subarray(start, end + 1)), {
     headers: { ...headers, 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${size}` },
     status: 206,
   });

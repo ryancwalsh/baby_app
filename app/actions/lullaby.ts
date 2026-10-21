@@ -21,7 +21,7 @@ export type Lullaby = {
 export async function getLullabiesAction(secretHash: string): Promise<Lullaby[]> {
   await requireLogin(secretHash);
 
-  return listLullabyFiles().map((fileName) => ({
+  return (await listLullabyFiles()).map((fileName) => ({
     fileName,
     name: getLullabyName(fileName),
     url: `${API_PATH}/${encodeURIComponent(fileName)}?secretHash=${encodeURIComponent(secretHash)}`,
@@ -37,7 +37,7 @@ export async function renameLullabyAction(secretHash: string, fileName: string, 
   await requireLogin(secretHash);
 
   try {
-    renameLullaby(fileName, newName);
+    await renameLullaby(fileName, newName);
 
     return { error: null };
   } catch (error) {
@@ -49,7 +49,7 @@ export async function deleteLullabyAction(secretHash: string, fileName: string):
   await requireLogin(secretHash);
 
   try {
-    deleteLullaby(fileName);
+    await deleteLullaby(fileName);
 
     return { error: null };
   } catch (error) {

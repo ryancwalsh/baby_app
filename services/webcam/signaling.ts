@@ -1,136 +1,219 @@
-import { CAMERA_ADDRESS, type WebcamCameraState, type WebcamServerMessage, type WebcamSignal } from '@/services/webcam/messages';
+import { CAMERA_ADDRESS, type WebcamCameraState, type WebcamRole, type WebcamServerMessage, type WebcamSignal } from '@/services/webcam/messages';
+import { query } from '@/storage/database';
 
 /**
  * Introduces a camera phone to the phones watching it.
  *
- * Held in memory, which is only sound because there is one process — the same
- * footing as the login rate limit. A restart forgets the camera, and the camera
- * phone's event stream reconnects and claims the slot again.
+ * Held in the database rather than in memory, because on serverless the camera's stream and a watcher's may be served by different instances. Each phone's stream polls for what is addressed to it once a second, and says it is still there every few seconds; a phone that stops saying so is treated as gone.
  *
  * One camera at a time. A second phone that claims it replaces the first, which
  * is told so and stops.
  */
 
-type Client = {
+const POLL_MILLISECONDS = 1_000;
+const HEARTBEAT_MILLISECONDS = 10_000;
+const GONE_AFTER_MILLISECONDS = 30_000;
+const PRUNE_AFTER_MILLISECONDS = 24 * 60 * 60 * 1_000;
+
+type Stream = {
+  clientId: string;
   close: () => void;
-  id: string;
+  role: WebcamRole;
   send: (message: WebcamServerMessage) => void;
 };
 
-type Hub = {
-  camera: (Client & { startedAt: number }) | null;
-  /**
-   * Cameras that have been replaced. An event stream reconnects on its own, so
-   * without this a replaced camera that happened to be offline at the time
-   * would come back and take the slot from its successor.
-   */
-  retiredCameraIds: Set<string>;
-  watchers: Map<string, Client>;
-};
+type CameraRow = { cameraId: string; heartbeatAt: string; startedAt: string; streamId: string };
 
-/**
- * Parked on `globalThis` for the same reason the Nanit connection is: `next
- * dev` re-evaluates modules on every edit, and the route and the action must
- * see the same hub.
- */
-const globalForWebcam = globalThis as typeof globalThis & {
-  webcamHub?: Hub;
-};
-
-function getHub(): Hub {
-  globalForWebcam.webcamHub ??= { camera: null, retiredCameraIds: new Set(), watchers: new Map() };
-
-  return globalForWebcam.webcamHub;
+function isAlive(heartbeatAt: string): boolean {
+  return Date.now() - new Date(heartbeatAt).getTime() < GONE_AFTER_MILLISECONDS;
 }
 
-export function getCameraState(): WebcamCameraState {
-  return { startedAt: getHub().camera?.startedAt ?? null };
+async function readCamera(): Promise<CameraRow | null> {
+  const [row] = (await query('SELECT camera_id, stream_id, started_at, heartbeat_at FROM webcam_camera WHERE slot = 1')).rows;
+
+  return row === undefined ? null : { cameraId: String(row.camera_id), heartbeatAt: String(row.heartbeat_at), startedAt: String(row.started_at), streamId: String(row.stream_id) };
 }
 
-function broadcastCameraState() {
-  const hub = getHub();
-  const message: WebcamServerMessage = { type: 'camera', ...getCameraState() };
+async function readLiveCamera(): Promise<CameraRow | null> {
+  const camera = await readCamera();
 
-  for (const watcher of hub.watchers.values()) {
-    watcher.send(message);
-  }
+  return camera !== null && isAlive(camera.heartbeatAt) ? camera : null;
 }
 
-function sendHello(camera: Client, watcherId: string) {
-  camera.send({ signal: { from: watcherId, to: camera.id, type: 'hello' }, type: 'signal' });
+export async function getCameraState(): Promise<WebcamCameraState> {
+  const camera = await readLiveCamera();
+
+  return { startedAt: camera === null ? null : new Date(camera.startedAt).getTime() };
+}
+
+async function queueSignal(recipientId: string, signal: WebcamSignal) {
+  await query('INSERT INTO webcam_signals (recipient_id, message, created_at) VALUES (?, ?, ?)', [
+    recipientId,
+    JSON.stringify({ signal, type: 'signal' }),
+    new Date().toISOString(),
+  ]);
+}
+
+async function readLiveWatcherIds(): Promise<string[]> {
+  const cutoff = new Date(Date.now() - GONE_AFTER_MILLISECONDS).toISOString();
+
+  return (await query('SELECT watcher_id FROM webcam_watchers WHERE heartbeat_at > ?', [cutoff])).rows.map((row) => String(row.watcher_id));
 }
 
 /**
- * Returns what to call when this camera's stream closes.
+ * Claims the camera slot. Returns false when this camera was replaced earlier: an event stream reconnects on its own, so without the retired list a replaced camera that happened to be offline at the time would come back and take the slot from its successor.
  */
-export function claimCamera(client: Client): () => void {
-  const hub = getHub();
+async function claimCamera(stream: Stream, streamId: string): Promise<boolean> {
+  const retired = await query('SELECT 1 FROM webcam_retired_cameras WHERE camera_id = ?', [stream.clientId]);
+  let isClaimed = false;
 
-  if (hub.retiredCameraIds.has(client.id)) {
-    client.send({ type: 'replaced' });
-    client.close();
-  } else {
-    const previous = hub.camera;
+  if (retired.rows.length === 0) {
+    const previous = await readCamera();
+    const now = new Date().toISOString();
 
-    if (previous !== null && previous.id !== client.id) {
-      hub.retiredCameraIds.add(previous.id);
-      previous.send({ type: 'replaced' });
-      previous.close();
+    if (previous !== null && previous.cameraId !== stream.clientId) {
+      await query('INSERT OR IGNORE INTO webcam_retired_cameras (camera_id, retired_at) VALUES (?, ?)', [previous.cameraId, now]);
     }
 
     /**
      * The same camera coming back keeps its start time: to the people watching
      * it is the same camera, and its stream merely blinked.
      */
-    const startedAt = previous?.id === client.id ? previous.startedAt : Date.now();
-
-    hub.camera = { ...client, startedAt };
-    client.send({ startedAt, type: 'camera' });
-    broadcastCameraState();
+    const startedAt = previous?.cameraId === stream.clientId ? previous.startedAt : now;
+    await query(
+      'INSERT INTO webcam_camera (slot, camera_id, stream_id, started_at, heartbeat_at) VALUES (1, ?, ?, ?, ?) ON CONFLICT (slot) DO UPDATE SET camera_id = excluded.camera_id, stream_id = excluded.stream_id, started_at = excluded.started_at, heartbeat_at = excluded.heartbeat_at',
+      [stream.clientId, streamId, startedAt, now],
+    );
+    stream.send({ startedAt: new Date(startedAt).getTime(), type: 'camera' });
 
     /**
      * Everyone already waiting gets an offer. The camera ignores this for a
      * watcher it is still connected to, so a blink in its stream does not
      * interrupt the picture.
      */
-    for (const watcherId of hub.watchers.keys()) {
-      sendHello(client, watcherId);
+    for (const watcherId of await readLiveWatcherIds()) {
+      await queueSignal(stream.clientId, { from: watcherId, to: stream.clientId, type: 'hello' });
     }
+
+    const pruneBefore = new Date(Date.now() - PRUNE_AFTER_MILLISECONDS).toISOString();
+    await query('DELETE FROM webcam_signals WHERE created_at < ?', [pruneBefore]);
+    await query('DELETE FROM webcam_retired_cameras WHERE retired_at < ?', [pruneBefore]);
+    await query('DELETE FROM webcam_watchers WHERE heartbeat_at < ?', [pruneBefore]);
+    isClaimed = true;
   }
 
-  return () => {
-    /**
-     * Only if it is still this very stream: a reconnect may already have
-     * replaced it, and clearing the slot then would orphan the new one.
-     */
-    if (hub.camera?.send === client.send) {
-      hub.camera = null;
-      broadcastCameraState();
-    }
-  };
+  return isClaimed;
 }
 
+async function addWatcher(stream: Stream, streamId: string) {
+  await query(
+    'INSERT INTO webcam_watchers (watcher_id, stream_id, heartbeat_at) VALUES (?, ?, ?) ON CONFLICT (watcher_id) DO UPDATE SET stream_id = excluded.stream_id, heartbeat_at = excluded.heartbeat_at',
+    [stream.clientId, streamId, new Date().toISOString()],
+  );
+
+  const camera = await readLiveCamera();
+  if (camera !== null) {
+    await queueSignal(camera.cameraId, { from: stream.clientId, to: camera.cameraId, type: 'hello' });
+  }
+}
+
+async function deliverSignals(stream: Stream) {
+  const rows = (await query('SELECT id, message FROM webcam_signals WHERE recipient_id = ? ORDER BY id', [stream.clientId])).rows;
+  const lastRow = rows.at(-1);
+
+  if (lastRow !== undefined) {
+    for (const row of rows) {
+      stream.send(JSON.parse(String(row.message)) as WebcamServerMessage);
+    }
+
+    await query('DELETE FROM webcam_signals WHERE recipient_id = ? AND id <= ?', [stream.clientId, Number(lastRow.id)]);
+  }
+}
+
+async function sayStillHere(stream: Stream, streamId: string) {
+  const now = new Date().toISOString();
+  await (stream.role === 'camera'
+    ? query('UPDATE webcam_camera SET heartbeat_at = ? WHERE slot = 1 AND stream_id = ?', [now, streamId])
+    : query('UPDATE webcam_watchers SET heartbeat_at = ? WHERE watcher_id = ? AND stream_id = ?', [now, stream.clientId, streamId]));
+}
+
+export type Signaling = {
+  /**
+   * The phone went away: stop, and give up its place.
+   */
+  leave: () => Promise<void>;
+  /**
+   * The stream is ending itself so that the phone reconnects: stop, and keep its place for the reconnect.
+   */
+  stop: () => void;
+};
+
 /**
- * Returns what to call when this watcher's stream closes.
+ * Runs one phone's side of the introductions until it is stopped.
  *
- * Closing it does not tell the camera to hang up. The picture and the sound do
- * not travel over this stream, and a phone that has gone to the background may
- * drop the stream while still playing — hanging up would cut the sound off.
+ * A watcher going away does not tell the camera to hang up. The picture and the sound do not travel over this stream, and a phone that has gone to the background may drop the stream while still playing — hanging up would cut the sound off.
  */
-export function addWatcher(client: Client): () => void {
-  const hub = getHub();
+export async function openSignaling(stream: Stream): Promise<Signaling> {
+  const streamId = crypto.randomUUID();
+  let isOpen = true;
+  let lastStartedAt: null | number | undefined;
+  let lastHeartbeatAt = Date.now();
 
-  hub.watchers.set(client.id, client);
-  client.send({ type: 'camera', ...getCameraState() });
+  const isClaimed = stream.role === 'camera' ? await claimCamera(stream, streamId) : (await addWatcher(stream, streamId), true);
 
-  if (hub.camera !== null) {
-    sendHello(hub.camera, client.id);
+  if (!isClaimed) {
+    stream.send({ type: 'replaced' });
+    stream.close();
+    isOpen = false;
   }
 
-  return () => {
-    if (hub.watchers.get(client.id)?.send === client.send) {
-      hub.watchers.delete(client.id);
+  async function poll() {
+    try {
+      const camera = await readLiveCamera();
+      if (stream.role === 'camera' && camera !== null && camera.cameraId !== stream.clientId) {
+        stream.send({ type: 'replaced' });
+        stream.close();
+        isOpen = false;
+      } else {
+        await deliverSignals(stream);
+        const startedAt = camera === null ? null : new Date(camera.startedAt).getTime();
+        if (stream.role === 'watcher' && startedAt !== lastStartedAt) {
+          lastStartedAt = startedAt;
+          stream.send({ startedAt, type: 'camera' });
+        }
+
+        if (Date.now() - lastHeartbeatAt >= HEARTBEAT_MILLISECONDS) {
+          lastHeartbeatAt = Date.now();
+          await sayStillHere(stream, streamId);
+        }
+      }
+    } catch (error) {
+      console.error('[webcam] could not poll for signals:', error);
     }
+
+    if (isOpen) {
+      setTimeout(poll, POLL_MILLISECONDS);
+    }
+  }
+
+  if (isOpen) {
+    await poll();
+  }
+
+  return {
+    async leave() {
+      isOpen = false;
+      /**
+       * Only if it is still this very stream: a reconnect may already have
+       * replaced it, and clearing the slot then would orphan the new one.
+       */
+      await (stream.role === 'camera'
+        ? query('DELETE FROM webcam_camera WHERE slot = 1 AND stream_id = ?', [streamId])
+        : query('DELETE FROM webcam_watchers WHERE watcher_id = ? AND stream_id = ?', [stream.clientId, streamId]));
+    },
+    stop() {
+      isOpen = false;
+    },
   };
 }
 
@@ -138,11 +221,14 @@ export function addWatcher(client: Client): () => void {
  * Passes a signal to the phone it is addressed to. A signal for a phone that
  * has gone is dropped: the sender recovers by trying again.
  */
-export function relaySignal(signal: WebcamSignal): void {
-  const hub = getHub();
-  const recipient = signal.to === CAMERA_ADDRESS || signal.to === hub.camera?.id ? hub.camera : hub.watchers.get(signal.to);
+export async function relaySignal(signal: WebcamSignal): Promise<void> {
+  const camera = await readLiveCamera();
 
-  if (recipient !== null && recipient !== undefined) {
-    recipient.send({ signal, type: 'signal' });
+  if (signal.to === CAMERA_ADDRESS || signal.to === camera?.cameraId) {
+    if (camera !== null) {
+      await queueSignal(camera.cameraId, signal);
+    }
+  } else if ((await readLiveWatcherIds()).includes(signal.to)) {
+    await queueSignal(signal.to, signal);
   }
 }

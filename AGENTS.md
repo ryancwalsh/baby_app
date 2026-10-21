@@ -34,8 +34,11 @@ For nights away from the nursery, the Monitor tab switches between **Nanit**
 and **Webcam**. In webcam mode one phone is the camera and another watches it,
 over WebRTC. The picture and sound go phone to phone and never through this
 process; `services/webcam/signaling.ts` only introduces them, over one event
-stream per phone and `sendWebcamSignalAction`, and holds the one camera slot in
-memory.
+stream per phone and `sendWebcamSignalAction`. The camera slot and the
+messages between phones are in Turso (`webcam_*` tables), and each stream polls
+them once a second, so phones on different serverless instances still meet.
+A stream ends itself after 280 seconds, inside Vercel's limit, and the phone's
+`EventSource` reconnects without losing its place.
 
 - **STUN only, no TURN relay, by choice.** Phones on a network that keeps its
   devices apart (hotel or guest wifi, some carriers) will not connect, and the
@@ -305,11 +308,14 @@ in `.env.production.local`.
   signaling for webcam mode, `constants/` the app-wide values, `auth/` the
   app's own login, `audio/` the browser audio behind the noise page,
   `storage/` the files and the database the app keeps besides `secrets/`.
-- Lullabies live in the gitignored `lullabies/` folder, not `public/`: a
-  production server lists `public/` once at start, so a recording or a rename
-  would not be served until the next restart, and they are runtime data like
-  `secrets/`. They are served by `app/api/lullabies/`, behind the login.
-  Recordings arrive as WebM or MP4 and ffmpeg turns them into mp3. They are
+- Lullabies live in the private Vercel Blob store `baby-app-lullabies`, under
+  `lullabies/`, reached with `BLOB_READ_WRITE_TOKEN` in `.env.production.local`.
+  Private blobs cannot be fetched by URL, so they are served by
+  `app/api/lullabies/`, behind the login. A phone uploads a recording straight
+  to Blob (a Vercel function refuses bodies over 4.5 MB), and the server then
+  turns the WebM or MP4 into an mp3 with ffmpeg. The old `lullabies/` folder is
+  kept on the laptop only as a backup. `next dev` reads `.env`, which has no
+  Blob token, so the lullabies do not load there unless one is added. They are
   named for when they were made, in UTC like every stored time here, and the
   pages show that name in the phone's own time zone (`storage/timestamps.ts`).
   Database backups are named in UTC the same way.

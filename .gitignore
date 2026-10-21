@@ -29,3 +29,7 @@ public/version.json
 # The local development database, and copies taken before each migration. See storage/database.ts.
 /database/
 /backups/
+# Written by `vercel link` and `vercel env pull`.
+.vercel
+.env*
+!.env.example

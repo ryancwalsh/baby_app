@@ -35,6 +35,10 @@ function validate() {
     /**
      * The one origin, such as `https://baby.example.com`, whose pages may call the worker's `/api/worker/*` routes from the browser. Empty means none: only the worker's own pages.
      */
+    /**
+     * The private Vercel Blob store that holds the lullabies. Passed explicitly rather than left for the SDK to find, because `vercel link` also leaves a `VERCEL_OIDC_TOKEN` in `.env.local` that it would otherwise try first.
+     */
+    BLOB_READ_WRITE_TOKEN: str({ default: '' }),
     CLOUD_ORIGIN: str({ default: '' }),
     /**
      * SHA-256 hex of the password the app asks for. Never the password.
