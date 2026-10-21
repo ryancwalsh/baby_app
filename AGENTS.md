@@ -341,6 +341,14 @@ build` ran without secrets present, but no longer: `APP_TITLE` is read by
   now touches `getEnvironment()` and needs a full `.env` beside it. Envalid
   validates the whole object at once, so a missing `NANIT_PASSWORD` fails the
   build just as a missing `APP_TITLE` would.
+- Pages reach the Nanit only through the worker's `/api/worker/*` routes, via
+  `components/worker-client.ts`, never through server actions, so that pages
+  served from Vercel can still reach the laptop. `NEXT_PUBLIC_WORKER_ORIGIN`
+  says where the worker is (empty means the page's own origin, as on the laptop
+  today). `hooks/use-worker-status.ts` tells every page whether this phone can
+  reach it; while it cannot, the night light and temperature show the last
+  known state from Turso, dimmed, and the Monitor tab offers Webcam mode. A tab
+  tap while the worker is offline is thrown away, never replayed.
 - Client components must not import `services/nanit/night-light.ts` (drags in `ws`
   and protobuf). Shared constants live in `services/nanit/brightness.ts`.
 - Live room audio and video need **ffmpeg on the machine**, which is a system

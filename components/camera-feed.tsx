@@ -3,13 +3,13 @@
 import { BellIcon, BellOffIcon, Loader2Icon, VideoIcon, Volume2Icon, VolumeIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { stopNanitMediaAction } from '@/app/actions/nanit-media';
 import { attachHlsStream, type HlsPlayer } from '@/components/hls-playback';
 import { useNanitAudio } from '@/components/nanit-audio-provider';
 import { consumeNavigationTap, MONITOR_HREF } from '@/components/navigation-tap';
 import { getPictureBoxStyle, PinchZoomView, VIDEO_ASPECT_RATIO } from '@/components/pinch-zoom-view';
 import { ToggleSwitch } from '@/components/toggle-switch';
 import { unlockAlarm } from '@/components/webcam-alarm';
+import { getWorkerUrl, stopWorkerMedia } from '@/components/worker-client';
 import { usePictureWatchdog } from '@/hooks/use-picture-watchdog';
 
 /**
@@ -32,7 +32,7 @@ import { usePictureWatchdog } from '@/hooks/use-picture-watchdog';
  * see components/nanit-audio-provider.tsx.
  */
 
-const PLAYLIST_PATH = '/api/nanit/media/video.m3u8';
+const PLAYLIST_PATH = '/nanit/media/video.m3u8';
 
 /**
  * Room left for the sticky bottom navigation, which sits at the bottom of the screen while the monitor is in view, in pixels. Subtracted below so the picture stops above the tabs rather than under them.
@@ -121,7 +121,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
    */
   const stopWatchingOnServer = useCallback(async () => {
     try {
-      await stopNanitMediaAction(secretHash, 'video');
+      await stopWorkerMedia(secretHash, 'video');
     } catch {
       /**
        * The picture has already stopped on this phone, which is what was
@@ -146,7 +146,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
     if (isWatching) {
       hasEverWatchedRef.current = true;
 
-      const url = `${PLAYLIST_PATH}?secretHash=${encodeURIComponent(secretHash)}`;
+      const url = getWorkerUrl(PLAYLIST_PATH, secretHash);
 
       setIsStarting(true);
       setError(null);

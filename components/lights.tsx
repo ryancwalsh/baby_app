@@ -4,7 +4,6 @@ import { RefreshCwIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { getLampsAction, type Lamp } from '@/app/actions/lamp';
-import { getNightLightAction } from '@/app/actions/night-light';
 import { getTapoCloudStatusAction } from '@/app/actions/tapo-login';
 import { Clock } from '@/components/clock';
 import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
@@ -16,7 +15,10 @@ import { type NightLightState } from '@/services/nanit/night-light';
 type LightsState = {
   isTapoSignedIn: boolean;
   lamps: Lamp[];
-  nightLight: NightLightState;
+  /**
+   * Null until the night light stream has said; the tile fills it in.
+   */
+  nightLight: NightLightState | null;
 };
 
 /**
@@ -61,8 +63,11 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
 
   const load = useCallback(async () => {
     try {
-      const [lamps, nightLight, tapo] = await Promise.all([getLampsAction(secretHash), getNightLightAction(secretHash), getTapoCloudStatusAction(secretHash)]);
-      const loaded = { isTapoSignedIn: tapo.isSignedIn, lamps, nightLight };
+      /**
+       * The night light is not read here: its tile reads it from the laptop's stream, whose first frame is the current state, and shows what was last known when the laptop cannot be reached.
+       */
+      const [lamps, tapo] = await Promise.all([getLampsAction(secretHash), getTapoCloudStatusAction(secretHash)]);
+      const loaded = { isTapoSignedIn: tapo.isSignedIn, lamps, nightLight: remembered?.state.nightLight ?? null };
 
       remembered = { secretHash, state: loaded };
       setState(loaded);

@@ -6,13 +6,14 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 
 import { getLullabiesAction } from '@/app/actions/lullaby';
-import { setNightLightPowerAction } from '@/app/actions/night-light';
 import { SECRET_HASH_KEY } from '@/components/login-guard';
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { useNanitAudio } from '@/components/nanit-audio-provider';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
+import { changeNightLight, getWorkerUrl } from '@/components/worker-client';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { TRACKING_VIEWS, useTrackingView } from '@/hooks/use-tracking-view';
+import { reportWorkerTrouble, useWorkerStatus } from '@/hooks/use-worker-status';
 import { type NightLightState } from '@/services/nanit/night-light';
 
 /**
@@ -47,17 +48,22 @@ export function NightLightAction() {
    */
   const [isOn, setIsOn] = useState<boolean | null>(null);
   const [isPending, startTransition] = useTransition();
+  /**
+   * The laptop holds the camera connection, so the button is dead while this phone cannot reach it.
+   */
+  const isOffline = useWorkerStatus() === 'offline';
 
   useEffect(() => {
     if (secretHash === null || secretHash === undefined) {
       return undefined;
     }
 
-    const source = new EventSource(`/api/night-light/stream?secretHash=${encodeURIComponent(secretHash)}`);
+    const source = new EventSource(getWorkerUrl('/night-light/stream', secretHash));
 
     source.addEventListener('message', (event) => {
       setIsOn((JSON.parse(event.data) as NightLightState).isOn);
     });
+    source.addEventListener('error', reportWorkerTrouble);
 
     return () => {
       source.close();
@@ -71,7 +77,7 @@ export function NightLightAction() {
       aria-checked={isOn === true}
       aria-label="Nanit night light"
       className={getActionClassName(isOn === true)}
-      disabled={!hasSecretHash || isOn === null || isPending}
+      disabled={!hasSecretHash || isOn === null || isPending || isOffline}
       onClick={() => {
         if (hasSecretHash && isOn !== null) {
           const previous = isOn;
@@ -79,9 +85,10 @@ export function NightLightAction() {
 
           startTransition(async () => {
             try {
-              setIsOn((await setNightLightPowerAction(secretHash, !previous)).isOn);
+              setIsOn((await changeNightLight(secretHash, { action: 'power', isOn: !previous })).isOn);
             } catch {
               setIsOn(previous);
+              reportWorkerTrouble();
             }
           });
         }
@@ -101,13 +108,17 @@ export function NightLightAction() {
 export function ListenAction() {
   const { value: secretHash } = useLocalStorage(SECRET_HASH_KEY);
   const { isMonitoring, isStarting, setIsMonitoring } = useNanitAudio();
+  /**
+   * Listening needs the laptop, so it cannot be started while this phone cannot reach it. Stopping always works.
+   */
+  const isOffline = useWorkerStatus() === 'offline';
 
   return (
     <button
       aria-checked={isMonitoring}
       aria-label="Listen to the room"
       className={getActionClassName(isMonitoring)}
-      disabled={isStarting || secretHash === null || secretHash === undefined}
+      disabled={isStarting || secretHash === null || secretHash === undefined || (isOffline && !isMonitoring)}
       onClick={() => setIsMonitoring(!isMonitoring)}
       role="switch"
       type="button"
