@@ -86,6 +86,13 @@ const MIGRATIONS: Migration[] = [
       )`,
     ],
   },
+  /**
+   * The day versus night cut-off times. Left null until someone saves them, which reads as the 07:00 to 19:00 that was fixed in the code before.
+   */
+  {
+    name: '2026-10-21_day_night_times',
+    statements: ['ALTER TABLE settings ADD COLUMN day_starts_at TEXT', 'ALTER TABLE settings ADD COLUMN day_ends_at TEXT'],
+  },
 ];
 
 function quote(value: unknown): string {

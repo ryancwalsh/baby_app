@@ -1,6 +1,8 @@
 import { query } from '@/storage/database';
 import { toOptionalString, type Value } from '@/storage/tracking';
-import { PREDICTION_METHODS, THREE_NAP_WINDOW_COUNT, type TrackingSettings, TWO_NAP_WINDOW_COUNT } from '@/storage/tracking-types';
+import { DEFAULT_DAY_ENDS_AT, DEFAULT_DAY_STARTS_AT, PREDICTION_METHODS, THREE_NAP_WINDOW_COUNT, type TrackingSettings, TWO_NAP_WINDOW_COUNT } from '@/storage/tracking-types';
+
+const TIME_OF_DAY_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/u;
 
 function parseWindows(value: Value, count: number): number[] {
   const parsed = JSON.parse(String(value)) as unknown;
@@ -18,6 +20,8 @@ export async function getSettings(): Promise<TrackingSettings> {
 
   return {
     birthDate: toOptionalString(row.birth_date),
+    dayEndsAt: toOptionalString(row.day_ends_at) ?? DEFAULT_DAY_ENDS_AT,
+    dayStartsAt: toOptionalString(row.day_starts_at) ?? DEFAULT_DAY_STARTS_AT,
     predictionMethod: PREDICTION_METHODS.find((candidate) => candidate === method) ?? 'fixed',
     threeNapWakeWindowMinutes: parseWindows(row.three_nap_wake_window_minutes, THREE_NAP_WINDOW_COUNT),
     twoNapWakeWindowMinutes: parseWindows(row.two_nap_wake_window_minutes, TWO_NAP_WINDOW_COUNT),
@@ -46,10 +50,26 @@ export async function saveSettings(settings: TrackingSettings) {
     throw new Error('Predicting from age needs a birth date.');
   }
 
-  await query('UPDATE settings SET prediction_method = ?, birth_date = ?, two_nap_wake_window_minutes = ?, three_nap_wake_window_minutes = ? WHERE id = 1', [
-    settings.predictionMethod,
-    birthDate,
-    JSON.stringify(validateWindows(settings.twoNapWakeWindowMinutes, TWO_NAP_WINDOW_COUNT, 'A 2-nap day')),
-    JSON.stringify(validateWindows(settings.threeNapWakeWindowMinutes, THREE_NAP_WINDOW_COUNT, 'A 3-nap day')),
-  ]);
+  if (!TIME_OF_DAY_PATTERN.test(settings.dayStartsAt) || !TIME_OF_DAY_PATTERN.test(settings.dayEndsAt)) {
+    throw new Error('The day start and end need to be times.');
+  }
+
+  /**
+   * `HH:MM` strings sort in time order, so they compare as text.
+   */
+  if (settings.dayStartsAt >= settings.dayEndsAt) {
+    throw new Error('The day has to start before it ends.');
+  }
+
+  await query(
+    'UPDATE settings SET prediction_method = ?, birth_date = ?, two_nap_wake_window_minutes = ?, three_nap_wake_window_minutes = ?, day_starts_at = ?, day_ends_at = ? WHERE id = 1',
+    [
+      settings.predictionMethod,
+      birthDate,
+      JSON.stringify(validateWindows(settings.twoNapWakeWindowMinutes, TWO_NAP_WINDOW_COUNT, 'A 2-nap day')),
+      JSON.stringify(validateWindows(settings.threeNapWakeWindowMinutes, THREE_NAP_WINDOW_COUNT, 'A 3-nap day')),
+      settings.dayStartsAt,
+      settings.dayEndsAt,
+    ],
+  );
 }

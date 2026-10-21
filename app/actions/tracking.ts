@@ -38,6 +38,10 @@ export type TrackingSummary = {
 export type TrackingLog = {
   bottles: Bottle[];
   diapers: Diaper[];
+  /**
+   * For telling naps from night sleep in the day totals.
+   */
+  settings: TrackingSettings;
   sleeps: Sleep[];
 };
 
@@ -70,9 +74,9 @@ export async function getTrackingSummaryAction(secretHash: string): Promise<Trac
 export async function getTrackingLogAction(secretHash: string): Promise<TrackingLog> {
   await requireLogin(secretHash);
 
-  const [bottles, diapers, sleeps] = await Promise.all([listBottles(), listDiapers(), listSleeps()]);
+  const [bottles, diapers, sleeps, settings] = await Promise.all([listBottles(), listDiapers(), listSleeps(), getSettings()]);
 
-  return { bottles, diapers, sleeps };
+  return { bottles, diapers, settings, sleeps };
 }
 
 export async function getSleepAction(secretHash: string, id: number): Promise<null | Sleep> {

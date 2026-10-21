@@ -130,8 +130,11 @@ export function TrackingList({ secretHash }: { readonly secretHash: string }) {
                   <Link href={`${DAY_CALENDAR_HREF}?date=${formatDate(day.start, 'iso')}`}>{formatDayLabel(day.start, now, dateFormat)}</Link>
                 </h2>
                 <p className="text-foreground/50 text-sm">
-                  Slept {formatDuration(day.totals.sleepMilliseconds)} · drank {day.totals.drankMilliliters} ml · {day.totals.diaperCount}{' '}
-                  {day.totals.diaperCount === 1 ? 'diaper' : 'diapers'}
+                  Total sleep {formatDuration(day.totals.sleepMilliseconds)} · night total {formatDuration(day.totals.nightMilliseconds)} · nap total{' '}
+                  {formatDuration(day.totals.napMilliseconds)}
+                </p>
+                <p className="text-foreground/50 text-sm">
+                  Drank {day.totals.drankMilliliters} ml · {day.totals.diaperCount} {day.totals.diaperCount === 1 ? 'diaper' : 'diapers'}
                 </p>
               </header>
               <ul className="flex flex-col">
