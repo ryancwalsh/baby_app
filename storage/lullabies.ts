@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, unlinkSync, wri
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
+import { formatTimestamp, startsWithTimestamp } from '@/storage/timestamps';
+
 /**
  * The lullabies live here rather than in `public/`, for two reasons. A
  * production Next server lists `public/` once when it starts, so a file
@@ -15,21 +17,7 @@ export const LULLABIES_DIRECTORY = 'lullabies';
 
 const EXTENSION = '.mp3';
 
-/**
- * Sortable, filename-safe, and in the home machine's own time zone, which is
- * the one the person recording is in.
- */
-const RECORDING_NAME_PATTERN = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/u;
-
 const MAXIMUM_NAME_LENGTH = 100;
-
-function pad(value: number) {
-  return String(value).padStart(2, '0');
-}
-
-export function formatTimestamp(date: Date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
-}
 
 /**
  * Named lullabies come first, alphabetically, and fresh recordings after them
@@ -38,8 +26,8 @@ export function formatTimestamp(date: Date) {
  * sorts before any letter.
  */
 function compareFileNames(first: string, second: string) {
-  const firstIsRecording = RECORDING_NAME_PATTERN.test(first);
-  const secondIsRecording = RECORDING_NAME_PATTERN.test(second);
+  const firstIsRecording = startsWithTimestamp(first);
+  const secondIsRecording = startsWithTimestamp(second);
 
   if (firstIsRecording !== secondIsRecording) {
     return firstIsRecording ? 1 : -1;
@@ -168,6 +156,8 @@ function runFfmpeg(inputPath: string, outputPath: string) {
  * MP4 keeps its index at the end, and ffmpeg needs to seek to find it. The mp3
  * is written under a dot-name and renamed into place, so a half-converted file
  * is never listed.
+ *
+ * A recording is named for when it was made, in UTC; the pages show that time in the phone's own time zone.
  */
 export async function saveRecording(recording: Buffer): Promise<string> {
   mkdirSync(LULLABIES_DIRECTORY, { recursive: true });

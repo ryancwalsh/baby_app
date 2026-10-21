@@ -143,33 +143,6 @@ passthrough — it is unused, and it cannot reach the S-series switches.
 Files under `secrets/` are written by the code, never by hand; an empty or
 hand-made `tapo-v2-tokens.json` is treated as no session.
 
-## The Snoo talks to AWS IoT, not to the app's REST API
-
-Unlike the other two devices, this protocol was not guessed: `python-snoo`
-backs Home Assistant's official `snoo` integration, and `services/snoo/` follows it.
-Three hops, in order:
-
-1. **Cognito** at `cognito-idp.us-east-1.amazonaws.com`, `USER_PASSWORD_AUTH`,
-   with the Happiest Baby app's own `ClientId`. No second factor, so no
-   interactive login script — the one device here that does not need one. Keep
-   the **id** token; the access token is not used.
-2. **`GET .../hds/me/v11/devices`** with `Authorization: Bearer <idToken>`, for
-   the per-device `awsIoT.thingName` and `awsIoT.clientEndpoint`.
-3. **MQTT over websocket** at `wss://{clientEndpoint}:443/mqtt`, protocol
-   **3.1** (`protocolId: "MQIsdp"`), the id token as a `token` websocket header.
-   Subscribe to `{thingName}/state_machine/activity_state`; publish to
-   `{thingName}/state_machine/control`.
-
-PubNub is the older path and still serves history. Control has moved to the
-topics above — do not reach for `pubnubapi.com` to send a command.
-
-There is no on/off. The bassinet runs a state machine, and the button maps onto
-two commands: `start_snoo`, and `go_to_state` with `state: "ONLINE", hold: "off"`
-to stop. Anything other than `ONLINE` means it is running.
-
-The connection is shared and held open for the same reasons the Nanit one is —
-see below, and do not reintroduce a connection per press.
-
 ## State that is knowable, and state that is not
 
 - A Kasa plug that answers **always** reports `relay_state`. Power is never
@@ -224,8 +197,8 @@ only thing in front of the nursery. Serve a production build rather than
 
 That gate is the app's own login and it lives in `auth/`: `login.ts`, with the
 rate limiting and password hashing that exist only to serve it. It is a
-different concern from `services/nanit/auth.ts` and `services/snoo/auth.ts`,
-which are each device cloud's own sign-in and belong with their client.
+different concern from `services/nanit/auth.ts`, which is the device cloud's
+own sign-in and belongs with its client.
 
 ### pm2 owns that process — never start one by hand
 
@@ -324,8 +297,8 @@ in `.env.production.local`.
 
 ## Working here
 
-- Each top-level folder is named for what it holds: `services/{nanit,snoo,tapo}/`
-  are the clients for the three external services, `services/webcam/` the
+- Each top-level folder is named for what it holds: `services/{nanit,tapo}/`
+  are the clients for the two external services, `services/webcam/` the
   signaling for webcam mode, `constants/` the app-wide values, `auth/` the
   app's own login, `audio/` the browser audio behind the noise page,
   `storage/` the files and the database the app keeps besides `secrets/`.
@@ -333,7 +306,10 @@ in `.env.production.local`.
   production server lists `public/` once at start, so a recording or a rename
   would not be served until the next restart, and they are runtime data like
   `secrets/`. They are served by `app/api/lullabies/`, behind the login.
-  Recordings arrive as WebM or MP4 and ffmpeg turns them into mp3.
+  Recordings arrive as WebM or MP4 and ffmpeg turns them into mp3. They are
+  named for when they were made, in UTC like every stored time here, and the
+  pages show that name in the phone's own time zone (`storage/timestamps.ts`).
+  Database backups are named in UTC the same way.
 - `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
   and safe to run. Yarn, not npm; `--exact` when adding.
 - `yarn dev` is safe to run beside the live app, and is the way to look at a
