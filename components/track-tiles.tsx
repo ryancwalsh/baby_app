@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState, useTransition } from 'react';
 
-import { endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
+import { deleteSleepAction, endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
+import { DeleteSleepButton } from '@/components/delete-sleep-button';
 import { NextBottle } from '@/components/next-bottle';
 import { predictNextSleeps } from '@/components/sleep-predictions';
 import { StopwatchTile } from '@/components/stopwatch-tile';
@@ -67,7 +68,7 @@ function SleepTile({
         ))}
         {active === undefined && latest === undefined && <span className="text-foreground/50 text-base">No sleeps yet.</span>}
       </Link>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`}
           disabled={isPending}
@@ -82,6 +83,13 @@ function SleepTile({
           <Link className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`} href={`/track/sleep?id=${mostRecent.id}&from=track`}>
             Edit
           </Link>
+        )}
+        {active !== undefined && active.note === '' && (
+          <DeleteSleepButton
+            onDelete={() => {
+              run(async (hash) => deleteSleepAction(hash, active.id));
+            }}
+          />
         )}
       </div>
       {error !== null && <p className="text-sm text-amber-500">{error}</p>}

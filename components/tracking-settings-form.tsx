@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 
 import { getTrackingSettingsAction, saveTrackingSettingsAction } from '@/app/actions/tracking';
 import { PhoneSettings } from '@/components/phone-settings';
+import { formatDate } from '@/components/tracking-format';
+import { useDateFormat } from '@/hooks/use-date-format';
 import { PREDICTION_METHODS, type PredictionMethod, type TrackingSettings } from '@/storage/tracking-types';
 
 const METHOD_LABELS: Record<PredictionMethod, string> = {
@@ -48,6 +50,7 @@ function WindowFields({ label, onChange, windows }: { readonly label: string; re
  */
 export function TrackingSettingsForm({ secretHash }: { readonly secretHash: string }) {
   const router = useRouter();
+  const { dateFormat } = useDateFormat();
   const [method, setMethod] = useState<PredictionMethod>('fixed');
   const [birthDate, setBirthDate] = useState('');
   const [twoNap, setTwoNap] = useState<string[]>([]);
@@ -124,15 +127,26 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
 
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-foreground/60">Birth date{method === 'age' ? '' : ' (only for age)'}</span>
-            <input
-              className={INPUT_CLASS_NAME}
-              onChange={(event) => {
-                setBirthDate(event.target.value);
-              }}
-              required={method === 'age'}
-              type="date"
-              value={birthDate}
-            />
+            {/*
+              Like the time fields on the tracking forms, the native input is laid invisibly over a readout in the date format chosen above, since the browser would otherwise show its own locale's.
+            */}
+            <div className="relative">
+              <span className={`${INPUT_CLASS_NAME} block tabular-nums ${birthDate === '' ? 'text-foreground/40' : ''}`}>
+                {birthDate === '' ? 'Not set' : formatDate(new Date(`${birthDate}T00:00`).getTime(), dateFormat)}
+              </span>
+              <input
+                className="absolute inset-0 size-full opacity-0"
+                onChange={(event) => {
+                  setBirthDate(event.target.value);
+                }}
+                onClick={(event) => {
+                  event.currentTarget.showPicker();
+                }}
+                required={method === 'age'}
+                type="date"
+                value={birthDate}
+              />
+            </div>
           </label>
 
           <WindowFields label="2-nap day" onChange={setTwoNap} windows={twoNap} />

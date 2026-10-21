@@ -1,5 +1,8 @@
 'use client';
 
+import { XIcon } from 'lucide-react';
+import { type ReactNode } from 'react';
+
 import { formatClockTime, formatDate, toDateTimeInputValue } from '@/components/tracking-format';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
@@ -26,10 +29,7 @@ export function DateTimeField({
 
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="text-foreground/60">
-        {label}
-        {isOptional && ' (optional)'}
-      </span>
+      <span className="text-foreground/60">{label}</span>
       <div className="flex gap-2">
         <div className="relative w-full">
           <span className={`${INPUT_CLASS_NAME} block tabular-nums ${value === '' ? 'text-foreground/40' : ''}`}>{readout}</span>
@@ -71,6 +71,22 @@ export function DateTimeField({
   );
 }
 
+/**
+ * An X inside the right edge of a field that has something in it, which empties it.
+ */
+function Clearable({ children, onClear, value }: { readonly children: ReactNode; readonly onClear: () => void; readonly value: string }) {
+  return (
+    <div className="relative">
+      {children}
+      {value !== '' && (
+        <button aria-label="Clear" className="text-foreground/40 absolute top-0 right-0 flex h-full items-start p-2.5" onClick={onClear} type="button">
+          <XIcon className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function MillilitersField({
   isOptional = false,
   label,
@@ -83,22 +99,27 @@ export function MillilitersField({
   readonly value: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="text-foreground/60">
-        {label} (ml){isOptional && ' (optional)'}
-      </span>
-      <input
-        className={INPUT_CLASS_NAME}
-        inputMode="numeric"
-        min={0}
-        onChange={(event) => {
-          onChange(event.target.value);
+    <label className="flex w-28 flex-col gap-1 text-sm">
+      <span className="text-foreground/60">{label}</span>
+      <Clearable
+        onClear={() => {
+          onChange('');
         }}
-        required={!isOptional}
-        step={1}
-        type="number"
         value={value}
-      />
+      >
+        <input
+          className={`${INPUT_CLASS_NAME} pr-8 tabular-nums`}
+          inputMode="numeric"
+          min={0}
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+          required={!isOptional}
+          step={1}
+          type="number"
+          value={value}
+        />
+      </Clearable>
     </label>
   );
 }
@@ -106,15 +127,22 @@ export function MillilitersField({
 export function NoteField({ onChange, value }: { readonly onChange: (value: string) => void; readonly value: string }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="text-foreground/60">Note (optional)</span>
-      <textarea
-        className={INPUT_CLASS_NAME}
-        onChange={(event) => {
-          onChange(event.target.value);
+      <span className="text-foreground/60">Note</span>
+      <Clearable
+        onClear={() => {
+          onChange('');
         }}
-        rows={2}
         value={value}
-      />
+      >
+        <textarea
+          className={`${INPUT_CLASS_NAME} block pr-8`}
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+          rows={2}
+          value={value}
+        />
+      </Clearable>
     </label>
   );
 }

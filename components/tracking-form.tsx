@@ -25,7 +25,10 @@ function getReturnHref(isEditing: boolean, from: null | string, date: null | str
   return href;
 }
 
-function DeleteButton({ onDelete }: { readonly onDelete: () => void }) {
+/**
+ * The tap that asks is `children`, or the word Delete when there are none.
+ */
+export function DeleteButton({ children = 'Delete', onDelete }: { readonly children?: ReactNode; readonly onDelete: () => void }) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isArmed, setIsArmed] = useState(false);
 
@@ -67,7 +70,7 @@ function DeleteButton({ onDelete }: { readonly onDelete: () => void }) {
       }}
       type="button"
     >
-      Delete
+      {children}
     </button>
   );
 }
