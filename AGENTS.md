@@ -269,8 +269,12 @@ in `.env.production.local`.
   envalid's `devDefault`, so trying the tracking pages out never writes to the
   real log. A production build has no default and refuses to start without the
   two variables.
-- Migrations live in `MIGRATIONS` in `storage/database.ts` and run lazily, on
-  the first query after the process starts, so a deploy needs no extra step.
+- Migrations live in `MIGRATIONS` in `storage/migrations.ts`. On the laptop
+  they run lazily, on the first query after the process starts, so a deploy
+  needs no extra step. With `APP_ROLE=cloud` the running app never migrates; it
+  refuses to start if one is pending, and `yarn migrate` (`scripts/migrate.ts`)
+  runs them in the Vercel production build instead, uploading the dump to the
+  Blob store under `backups/` and failing the build if that fails.
   Before any pending migration runs, the whole database is dumped as SQL to the
   gitignored `backups/`, the dump is replayed into an in-memory database, and
   the row counts are compared table by table; a mismatch aborts the migration.

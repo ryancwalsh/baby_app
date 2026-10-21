@@ -21,8 +21,15 @@ export default function nextConfig(phase: string): NextConfig {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
 
     /**
-     * The device libraries and the database client are Node-only, so keep them out of the bundle.
+     * `ffmpeg-static` finds its binary beside its own `index.js`, which the file tracing does not see, so the binary is named here for the one route that converts recordings.
      */
-    serverExternalPackages: ['@libsql/client', 'protobufjs', 'ws'],
+    outputFileTracingIncludes: {
+      '/api/lullabies': ['./node_modules/ffmpeg-static/ffmpeg'],
+    },
+
+    /**
+     * The device libraries and the database client are Node-only, so keep them out of the bundle. `ffmpeg-static` is kept out so that its `__dirname` still points at its binary.
+     */
+    serverExternalPackages: ['@libsql/client', 'ffmpeg-static', 'protobufjs', 'ws'],
   };
 }

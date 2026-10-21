@@ -1,6 +1,6 @@
 # Plan: host on Vercel and Turso, and keep working with the laptop off
 
-Status: phases 0 to 5 are built and deployed on the laptop, and the Snoo is removed (2026-10-21). On Vercel there is an empty `baby-app` project, not connected to GitHub, and the private Blob store `baby-app-lullabies`; nothing on Turso, Cloudflare, or GitHub has been changed. As built, webcam signaling also has a `webcam_watchers` table, so a new camera can say hello to everyone already waiting, and the camera notices it was replaced by reading the slot rather than by a queued message. The laptop still converts recordings with its own ffmpeg; `ffmpeg-static` waits for phase 6, where it is first needed.
+Status: phases 0 to 5 are built and deployed on the laptop, and the Snoo is removed (2026-10-21). Phase 6 steps 1 and 2, the repository half, are done and deployed on the laptop the same day; steps 3 to 5, which change Turso, Vercel, and GitHub, wait for approval. On Vercel there is an empty `baby-app` project, not connected to GitHub, and the private Blob store `baby-app-lullabies`; nothing on Turso, Cloudflare, or GitHub has been changed. As built, webcam signaling also has a `webcam_watchers` table, so a new camera can say hello to everyone already waiting, and the camera notices it was replaced by reading the slot rather than by a queued message. Lullaby conversion now uses `ffmpeg-static` wherever it is installed, the laptop included; the Nanit relay keeps the system ffmpeg.
 
 ## Next steps — start here
 
@@ -16,7 +16,7 @@ Written 2026-10-21 at the end of phase 5, for whoever picks this up in a fresh c
 
 ### Phase 6, in order
 
-Steps 1 and 2 are in the repository and need no approval. Steps 3 to 5 change Vercel, Turso, or GitHub, so each needs the user's explicit go-ahead first, with the exact command shown to them.
+Steps 1 and 2 are in the repository and need no approval, and are **done** (2026-10-21). As built: `scripts/record-commit-hash-and-build-time.ts` replaces the shell script; `yarn migrate` is `scripts/migrate.ts`, which does nothing unless `VERCEL_ENV` is `production`; with `APP_ROLE=cloud` the running app refuses to start if a migration is pending, and the laptop still migrates lazily; the migration list moved to `storage/migrations.ts`; and the gate is `proxy.ts`, which answers `404` for every Nanit route in the cloud role before its module loads, with a refusal in `openConnection` as a backstop. Checked with a dev run in the cloud role (every Nanit route `404`, nothing compiled for them) and a production build in the cloud role (the ffmpeg binary is traced into `/api/lullabies`). Steps 3 to 5 change Vercel, Turso, or GitHub, so each needs the user's explicit go-ahead first, with the exact command shown to them.
 
 1. **Make the build Vercel-ready**, on a branch, merged to `main` and deployed to the laptop as usual:
    - `yarn add --exact ffmpeg-static`, and have `runFfmpeg` in `storage/lullabies.ts` use its path when it exists, falling back to the system `ffmpeg` (the laptop's ffmpeg is also used for the Nanit relay in `services/nanit/media.ts`, which stays on the system binary).
