@@ -32,7 +32,7 @@ export function DateTimeField({
       <span className="text-foreground/60">{label}</span>
       <div className="flex gap-2">
         <div className="relative w-full">
-          <span className={`${INPUT_CLASS_NAME} block tabular-nums ${value === '' ? 'text-foreground/40' : ''}`}>{readout}</span>
+          <span className={`${INPUT_CLASS_NAME} block tabular-nums ${isOptional ? 'pr-8' : ''} ${value === '' ? 'text-foreground/40' : ''}`}>{readout}</span>
           <input
             className="absolute inset-0 size-full opacity-0"
             onChange={(event) => {
@@ -45,6 +45,13 @@ export function DateTimeField({
             type="datetime-local"
             value={value}
           />
+          {isOptional && value !== '' && (
+            <ClearButton
+              onClear={() => {
+                onChange('');
+              }}
+            />
+          )}
         </div>
         <button
           className="border-foreground/15 text-foreground/60 rounded-lg border px-3 text-sm"
@@ -55,17 +62,6 @@ export function DateTimeField({
         >
           Now
         </button>
-        {isOptional && value !== '' && (
-          <button
-            className="border-foreground/15 text-foreground/60 rounded-lg border px-3 text-sm"
-            onClick={() => {
-              onChange('');
-            }}
-            type="button"
-          >
-            Clear
-          </button>
-        )}
       </div>
     </label>
   );
@@ -78,12 +74,19 @@ function Clearable({ children, onClear, value }: { readonly children: ReactNode;
   return (
     <div className="relative">
       {children}
-      {value !== '' && (
-        <button aria-label="Clear" className="text-foreground/40 absolute top-0 right-0 flex h-full items-start p-2.5" onClick={onClear} type="button">
-          <XIcon className="size-4" />
-        </button>
-      )}
+      {value !== '' && <ClearButton onClear={onClear} />}
     </div>
+  );
+}
+
+/**
+ * The X itself, laid over the right edge of a field that has room left for it.
+ */
+function ClearButton({ onClear }: { readonly onClear: () => void }) {
+  return (
+    <button aria-label="Clear" className="text-foreground/40 absolute top-0 right-0 flex h-full items-start p-2.5" onClick={onClear} type="button">
+      <XIcon className="size-4" />
+    </button>
   );
 }
 

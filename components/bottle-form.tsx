@@ -83,17 +83,6 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
           />
           <MillilitersField
             isOptional
-            label="Remaining"
-            onChange={(value) => {
-              setRemaining(value);
-              if (amount !== '') {
-                setDrank(getDifference(amount, value));
-              }
-            }}
-            value={remaining}
-          />
-          <MillilitersField
-            isOptional
             label="Drank"
             onChange={(value) => {
               setDrank(value);
@@ -102,6 +91,17 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
               }
             }}
             value={drank}
+          />
+          <MillilitersField
+            isOptional
+            label="Remaining"
+            onChange={(value) => {
+              setRemaining(value);
+              if (amount !== '') {
+                setDrank(getDifference(amount, value));
+              }
+            }}
+            value={remaining}
           />
         </div>
       </fieldset>

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { TILE_BUTTON_CLASS_NAME, TILE_COLORS } from '@/components/tile-styles';
-import { formatRunningDuration } from '@/components/tracking-format';
+import { formatClockTime, formatRunningDuration } from '@/components/tracking-format';
+import { useClockFormat } from '@/hooks/use-clock-format';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 const STOPWATCH_KEY = 'baby-app-stopwatch';
@@ -45,6 +46,7 @@ export function StopwatchTile({ now }: { readonly now: number }) {
   const colors = TILE_COLORS.stopwatch;
   const [isBlackedOut, setIsBlackedOut] = useState(false);
   const formattedElapsed = formatRunningDuration(elapsed);
+  const { is24Hour } = useClockFormat();
 
   const isAtZero = !isRunning && elapsed === 0;
 
@@ -106,20 +108,21 @@ export function StopwatchTile({ now }: { readonly now: number }) {
       {isAtZero && <button aria-label="Start the stopwatch" className="absolute inset-0 rounded-2xl" onClick={startOrPause} type="button" />}
 
       {/*
-        Portaled to the body, because the tiles sit inside a CSS `zoom` for the per-phone text size, which would otherwise scale the blackout too.
+        Portaled to the body, because the tiles sit inside a CSS `zoom` for the per-phone text size, which would otherwise scale the blackout too. The time of day sits above the count, as large, so the phone also serves as a bedside clock.
       */}
       {isRunning &&
         isBlackedOut &&
         createPortal(
           <button
             aria-label="Leave the blacked out screen"
-            className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black text-[15vw] whitespace-nowrap text-white/70 tabular-nums"
+            className="fixed inset-0 z-50 flex cursor-default flex-col items-center justify-center gap-[5vw] bg-black text-[15vw] leading-none whitespace-nowrap text-white/70 tabular-nums"
             onClick={() => {
               setIsBlackedOut(false);
             }}
             type="button"
           >
-            {formattedElapsed}
+            <span>{formatClockTime(now, is24Hour)}</span>
+            <span>{formattedElapsed}</span>
           </button>,
           document.body,
         )}
