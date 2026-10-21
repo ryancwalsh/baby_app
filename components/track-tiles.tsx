@@ -6,10 +6,11 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 import { deleteSleepAction, endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
 import { DeleteSleepButton } from '@/components/delete-sleep-button';
 import { NextBottle } from '@/components/next-bottle';
+import { SleepPredictionTable } from '@/components/sleep-prediction-table';
 import { predictNextSleeps } from '@/components/sleep-predictions';
 import { StopwatchTile } from '@/components/stopwatch-tile';
 import { TILE_BUTTON_CLASS_NAME, TILE_COLORS } from '@/components/tile-styles';
-import { formatAgo, formatClockTime, formatDuration, formatRunningDuration } from '@/components/tracking-format';
+import { formatAgo, formatDuration, formatRunningDuration } from '@/components/tracking-format';
 import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
 import { useBottleInterval } from '@/hooks/use-bottle-interval';
 import { getBottleTime, useBottleTime } from '@/hooks/use-bottle-time';
@@ -32,7 +33,6 @@ function SleepTile({
   readonly secretHash: string;
   readonly summary: TrackingSummary;
 }) {
-  const { is24Hour } = useClockFormat();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<null | string>(null);
   const active = summary.recentSleeps.find((sleep) => sleep.endedAt === null);
@@ -56,16 +56,11 @@ function SleepTile({
         {active !== undefined && <span className="text-2xl tabular-nums">Sleeping {formatRunningDuration(now - new Date(active.startedAt).getTime())}</span>}
         {latest !== undefined && latest.endedAt !== null && (
           <span className="text-foreground/70 tabular-nums text-base">
-            Slept {formatDuration(new Date(latest.endedAt).getTime() - new Date(latest.startedAt).getTime())} from {formatAgo(now - new Date(latest.startedAt).getTime())} to{' '}
-            {formatAgo(now - new Date(latest.endedAt).getTime())}
+            Woke {formatAgo(now - new Date(latest.endedAt).getTime())} from {formatDuration(new Date(latest.endedAt).getTime() - new Date(latest.startedAt).getTime())} sleep
           </span>
         )}
         {latest !== undefined && <Note note={latest.note} />}
-        {predictions.map((prediction) => (
-          <span className="text-foreground/70 tabular-nums text-base" key={prediction.napCount}>
-            {prediction.napCount}-nap day: {prediction.label} at {formatClockTime(prediction.time, is24Hour)} ({formatAgo(now - prediction.time)})
-          </span>
-        ))}
+        <SleepPredictionTable now={now} predictions={predictions} />
         {active === undefined && latest === undefined && <span className="text-foreground/50 text-base">No sleeps yet.</span>}
       </Link>
       <div className="flex flex-wrap items-center gap-2">

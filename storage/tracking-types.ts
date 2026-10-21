@@ -41,6 +41,10 @@ export type TrackingSettings = {
    */
   dayEndsAt: string;
   dayStartsAt: string;
+  /**
+   * Whether a day's totals run from midnight to midnight or from one day start time to the next.
+   */
+  dayTotalsFrom: DayTotalsFrom;
   predictionMethod: PredictionMethod;
   /**
    * Awake time before each sleep of the day, in minutes: one per nap, then the one before bed.
@@ -49,8 +53,12 @@ export type TrackingSettings = {
   twoNapWakeWindowMinutes: number[];
 };
 
-export const DEFAULT_DAY_STARTS_AT = '07:00';
-export const DEFAULT_DAY_ENDS_AT = '19:00';
+export const DAY_TOTALS_FROM = ['midnight', 'day-start'] as const;
+
+export type DayTotalsFrom = (typeof DAY_TOTALS_FROM)[number];
+
+export const DEFAULT_DAY_STARTS_AT = '06:30';
+export const DEFAULT_DAY_ENDS_AT = '18:00';
 
 export const TWO_NAP_WINDOW_COUNT = 3;
 export const THREE_NAP_WINDOW_COUNT = 4;

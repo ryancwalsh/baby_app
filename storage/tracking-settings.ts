@@ -1,6 +1,14 @@
 import { query } from '@/storage/database';
 import { toOptionalString, type Value } from '@/storage/tracking';
-import { DEFAULT_DAY_ENDS_AT, DEFAULT_DAY_STARTS_AT, PREDICTION_METHODS, THREE_NAP_WINDOW_COUNT, type TrackingSettings, TWO_NAP_WINDOW_COUNT } from '@/storage/tracking-types';
+import {
+  DAY_TOTALS_FROM,
+  DEFAULT_DAY_ENDS_AT,
+  DEFAULT_DAY_STARTS_AT,
+  PREDICTION_METHODS,
+  THREE_NAP_WINDOW_COUNT,
+  type TrackingSettings,
+  TWO_NAP_WINDOW_COUNT,
+} from '@/storage/tracking-types';
 
 const TIME_OF_DAY_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/u;
 
@@ -17,11 +25,13 @@ export async function getSettings(): Promise<TrackingSettings> {
   }
 
   const method = String(row.prediction_method);
+  const totalsFrom = String(row.day_totals_from);
 
   return {
     birthDate: toOptionalString(row.birth_date),
     dayEndsAt: toOptionalString(row.day_ends_at) ?? DEFAULT_DAY_ENDS_AT,
     dayStartsAt: toOptionalString(row.day_starts_at) ?? DEFAULT_DAY_STARTS_AT,
+    dayTotalsFrom: DAY_TOTALS_FROM.find((candidate) => candidate === totalsFrom) ?? 'midnight',
     predictionMethod: PREDICTION_METHODS.find((candidate) => candidate === method) ?? 'fixed',
     threeNapWakeWindowMinutes: parseWindows(row.three_nap_wake_window_minutes, THREE_NAP_WINDOW_COUNT),
     twoNapWakeWindowMinutes: parseWindows(row.two_nap_wake_window_minutes, TWO_NAP_WINDOW_COUNT),
@@ -50,6 +60,10 @@ export async function saveSettings(settings: TrackingSettings) {
     throw new Error('Predicting from age needs a birth date.');
   }
 
+  if (!DAY_TOTALS_FROM.includes(settings.dayTotalsFrom)) {
+    throw new Error('Unknown start for the day totals.');
+  }
+
   if (!TIME_OF_DAY_PATTERN.test(settings.dayStartsAt) || !TIME_OF_DAY_PATTERN.test(settings.dayEndsAt)) {
     throw new Error('The day start and end need to be times.');
   }
@@ -62,7 +76,7 @@ export async function saveSettings(settings: TrackingSettings) {
   }
 
   await query(
-    'UPDATE settings SET prediction_method = ?, birth_date = ?, two_nap_wake_window_minutes = ?, three_nap_wake_window_minutes = ?, day_starts_at = ?, day_ends_at = ? WHERE id = 1',
+    'UPDATE settings SET prediction_method = ?, birth_date = ?, two_nap_wake_window_minutes = ?, three_nap_wake_window_minutes = ?, day_starts_at = ?, day_ends_at = ?, day_totals_from = ? WHERE id = 1',
     [
       settings.predictionMethod,
       birthDate,
@@ -70,6 +84,7 @@ export async function saveSettings(settings: TrackingSettings) {
       JSON.stringify(validateWindows(settings.threeNapWakeWindowMinutes, THREE_NAP_WINDOW_COUNT, 'A 3-nap day')),
       settings.dayStartsAt,
       settings.dayEndsAt,
+      settings.dayTotalsFrom,
     ],
   );
 }
