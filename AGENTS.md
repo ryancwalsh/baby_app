@@ -333,7 +333,10 @@ in `.env.production.local`.
   production server lists `public/` once at start, so a recording or a rename
   would not be served until the next restart, and they are runtime data like
   `secrets/`. They are served by `app/api/lullabies/`, behind the login.
-  Recordings arrive as WebM or MP4 and ffmpeg turns them into mp3.
+  Recordings arrive as WebM or MP4 and ffmpeg turns them into mp3. They are
+  named for when they were made, in UTC like every stored time here, and the
+  pages show that name in the phone's own time zone (`storage/timestamps.ts`).
+  Database backups are named in UTC the same way.
 - `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
   and safe to run. Yarn, not npm; `--exact` when adding.
 - `yarn dev` is safe to run beside the live app, and is the way to look at a

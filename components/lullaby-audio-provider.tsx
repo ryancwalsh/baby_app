@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type Lullaby } from '@/app/actions/lullaby';
+import { toLocalTimestampName } from '@/storage/timestamps';
 
 const LOOP_MODE_STORAGE_KEY = 'lullaby-loop-mode';
 
@@ -39,6 +40,9 @@ type LullabyAudio = {
   cycleLoopMode: () => void;
   isPlaying: boolean;
   loopMode: LoopMode;
+  /**
+   * With a recording's UTC name shown in this phone's time zone.
+   */
   lullabies: Lullaby[] | null;
   nextLoopMode: LoopMode;
   playTrack: (url: string) => void;
@@ -143,7 +147,16 @@ export function LullabyAudioProvider({ children }: { readonly children: React.Re
   }
 
   const value = useMemo(
-    () => ({ currentUrl, cycleLoopMode, isPlaying, loopMode, lullabies, nextLoopMode, playTrack, setLullabies }),
+    () => ({
+      currentUrl,
+      cycleLoopMode,
+      isPlaying,
+      loopMode,
+      lullabies: lullabies?.map((lullaby) => ({ ...lullaby, name: toLocalTimestampName(lullaby.name) })) ?? null,
+      nextLoopMode,
+      playTrack,
+      setLullabies,
+    }),
     [currentUrl, cycleLoopMode, isPlaying, loopMode, lullabies, nextLoopMode, playTrack],
   );
 
