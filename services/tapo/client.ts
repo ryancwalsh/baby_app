@@ -1,5 +1,6 @@
 import { getEnvironment } from '@/constants/environment';
 import { readTapoSwitchPower, setTapoSwitchPower } from '@/services/tapo/cloud-nbu';
+import { readStoredSecret, writeStoredSecret } from '@/storage/stored-secrets';
 
 const CLOUD_LOGIN_URL = 'https://use1-wap.tplinkcloud.com/';
 /**
@@ -62,11 +63,28 @@ async function postJson<Result>(url: string, body: unknown): Promise<CloudRespon
   throw new Error(`Tapo request to ${url} failed (${response.status}).`);
 }
 
+const KASA_TOKEN_SECRET_NAME = 'kasa-cloud-token';
+
 let cachedToken: null | { obtainedAt: number; value: string } = null;
 
+function isFresh(token: null | { obtainedAt: number; value: string }): token is { obtainedAt: number; value: string } {
+  return token !== null && Date.now() - token.obtainedAt < TOKEN_LIFETIME_MILLISECONDS;
+}
+
+/**
+ * Kept in memory for this instance, and in the database so that another instance, or this one after a cold start, can use it without signing in to TP-Link again.
+ */
 async function getCloudToken(): Promise<string> {
-  if (cachedToken !== null && Date.now() - cachedToken.obtainedAt < TOKEN_LIFETIME_MILLISECONDS) {
+  if (isFresh(cachedToken)) {
     return cachedToken.value;
+  }
+
+  const stored = await readStoredSecret(KASA_TOKEN_SECRET_NAME);
+  const storedToken = stored === null ? null : { obtainedAt: new Date(stored.updatedAt).getTime(), value: stored.value };
+  if (isFresh(storedToken)) {
+    // eslint-disable-next-line require-atomic-updates -- A concurrent read would only overwrite one valid token with another equally valid one.
+    cachedToken = storedToken;
+    return storedToken.value;
   }
 
   const environment = getEnvironment();
@@ -82,7 +100,8 @@ async function getCloudToken(): Promise<string> {
 
   // eslint-disable-next-line require-atomic-updates -- A concurrent login would only overwrite one valid token with another equally valid one.
   cachedToken = { obtainedAt: Date.now(), value: body.result.token };
-  return cachedToken.value;
+  await writeStoredSecret(KASA_TOKEN_SECRET_NAME, body.result.token);
+  return body.result.token;
 }
 
 type Device = {

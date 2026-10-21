@@ -100,6 +100,17 @@ const MIGRATIONS: Migration[] = [
     name: '2026-10-21_day_totals_from',
     statements: ['ALTER TABLE settings ADD COLUMN day_totals_from TEXT'],
   },
+  /**
+   * What the laptop kept in memory or in files, moved here so the app can run on serverless instances too: device cloud tokens, the login throttle, and the Nanit's last known state for when the laptop is off. Times are UTC ISO strings.
+   */
+  {
+    name: '2026-10-21_cloud_state',
+    statements: [
+      'CREATE TABLE stored_secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)',
+      'CREATE TABLE login_failures (client TEXT PRIMARY KEY, failure_count INTEGER NOT NULL, first_failed_at TEXT NOT NULL)',
+      'CREATE TABLE device_state (name TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)',
+    ],
+  },
 ];
 
 function quote(value: unknown): string {

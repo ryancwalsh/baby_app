@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 
 import { headers } from 'next/headers';
 
-import { clearFailures, getLockoutSeconds, recordFailure } from '@/auth/login-rate-limit';
+import { clearFailures, getLockout, recordFailure } from '@/auth/login-rate-limit';
 import { getEnvironment } from '@/constants/environment';
 
 /**
@@ -53,18 +53,21 @@ function matchesSecret(secretHash: string): boolean {
  */
 export async function attemptLogin(secretHash: string): Promise<LoginAttempt> {
   const client = await getClient();
-  const lockedForSeconds = getLockoutSeconds(client);
+  const { hasFailures, lockoutSeconds } = await getLockout(client);
 
-  if (lockedForSeconds !== null) {
-    return { isLoggedIn: false, lockedForSeconds };
+  if (lockoutSeconds !== null) {
+    return { isLoggedIn: false, lockedForSeconds: lockoutSeconds };
   }
 
   if (matchesSecret(secretHash)) {
-    clearFailures(client);
+    if (hasFailures) {
+      await clearFailures(client);
+    }
+
     return { isLoggedIn: true, lockedForSeconds: null };
   }
 
-  recordFailure(client);
+  await recordFailure(client);
   return { isLoggedIn: false, lockedForSeconds: null };
 }
 
