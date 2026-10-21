@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { getEnvironment } from '@/constants/environment';
 import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
 import { getAccessToken, getFirstCamera, TOKEN_LIFETIME_MILLISECONDS } from '@/services/nanit/auth';
 import { MINIMUM_BRIGHTNESS } from '@/services/nanit/brightness';
@@ -223,6 +224,13 @@ export function getNightLightState(): NightLightState {
 }
 
 async function openConnection(): Promise<CameraConnection> {
+  /**
+   * `proxy.ts` already keeps the cloud away from every Nanit route; this is the backstop, because a socket from the cloud would be a second one against the camera's connection limit.
+   */
+  if (getEnvironment().APP_ROLE === 'cloud') {
+    throw new Error('The cloud never connects to the Nanit; only the worker does.');
+  }
+
   const shared = getShared();
   const accessToken = await getAccessToken();
   const { cameraUid } = await getFirstCamera(accessToken);
