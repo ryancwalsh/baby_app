@@ -23,6 +23,6 @@ export default function nextConfig(phase: string): NextConfig {
     /**
      * The device libraries and the database client are Node-only, so keep them out of the bundle.
      */
-    serverExternalPackages: ['@libsql/client', 'mqtt', 'protobufjs', 'ws'],
+    serverExternalPackages: ['@libsql/client', 'protobufjs', 'ws'],
   };
 }

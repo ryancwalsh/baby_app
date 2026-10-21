@@ -6,7 +6,7 @@ import { type ComponentType } from 'react';
  * follow Material Design Icons' `ceiling-light` and `ceiling-fan-light`, but
  * they are redrawn to Lucide's conventions — a 24×24 box, `currentColor`,
  * round caps and joins — so they sit beside the Lucide icons without looking
- * foreign, the same way `SwaddleIcon` does.
+ * foreign.
  */
 
 type IconProperties = Readonly<{ className?: string }>;
