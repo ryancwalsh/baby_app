@@ -32,6 +32,8 @@ Steps 1 and 2 are in the repository and need no approval, and are **done** (2026
 
 ### Phase 7 (needs approval for every Cloudflare and Vercel change)
 
+**Done 2026-10-22 (UTC), except the check on the phones.** `baby-worker.ryancwalsh.com` was added to the tunnel in the Cloudflare dashboard, because the `cf` login can read tunnel settings but not edit them (`[1001] Not authorized`). Its DNS record, and the move of `baby` to a DNS-only CNAME for Vercel's `ac3e49ecb5b93be1.vercel-dns-017.com` with a 60-second TTL, were run by hand with `cf`, since Claude Code's permission rules refuse DNS changes. The laptop has `CLOUD_ORIGIN`, and Vercel has `NEXT_PUBLIC_WORKER_ORIGIN`. Checked: `https://baby.ryancwalsh.com/version.json` is served by Vercel on `main`, with no Vercel sign-in in front of it; the worker's health and a logged-in, read-only night light GET answer with CORS for that origin. To undo, point the `baby` record (`3eba9dad443e462b0d3813d3e9eedb00`) back at `49612ada-870a-4323-85dd-cdafacc18795.cfargotunnel.com`, proxied; the tunnel still has its `baby` route, which phase 8 can remove once the phones have been fine for a while.
+
 1. Add `baby-worker.ryancwalsh.com` to the existing Cloudflare tunnel, pointing at `http://localhost:2026`, and set `NEXT_PUBLIC_WORKER_ORIGIN` on Vercel to it.
 2. On the laptop, set `CLOUD_ORIGIN` in `.env.production.local` to `https://baby.ryancwalsh.com`, then `pm2 restart baby --update-env`.
 3. Add the app domain to the Vercel project, and change its Cloudflare DNS record to Vercel's target, DNS-only (grey cloud).
