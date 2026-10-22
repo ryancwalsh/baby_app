@@ -12,7 +12,7 @@ Written 2026-10-21 at the end of phase 5, for whoever picks this up in a fresh c
 - Moved off the laptop's memory and files: the login throttle (`login_failures`), the Kasa token and the Tapo session (`stored_secrets`, with `stored_secret_history`), webcam signaling (`webcam_*` tables), the Nanit's last known state (`device_state`), and the lullabies (private Blob store `baby-app-lullabies`).
 - The pages reach the Nanit only through `/api/worker/*` (`components/worker-client.ts`), and dim while `hooks/use-worker-status.ts` says the worker is offline.
 - On Vercel: a project `baby-app` linked to this folder (`.vercel/`, gitignored), **not** connected to GitHub, with the Blob store attached for Production. Its `BLOB_READ_WRITE_TOKEN` is in the laptop's `.env.production.local`. Nothing else is configured there.
-- Still open: **which domain the worker should use** (for example `worker.<app domain>`). The app's current domain is the Cloudflare tunnel's; ask the user rather than guessing.
+- Decided 2026-10-21: the app stays at `https://baby.ryancwalsh.com` and the worker becomes `https://baby-worker.ryancwalsh.com` (a sibling rather than `worker.baby…`, so the two sort together), on the existing Cloudflare tunnel. Tailscale was considered, since both phones are always on it, and would keep the worker off the public internet; it was passed over for now because a public page calling a `100.x` address may meet Chrome's local network access checks on Android, and the tunnel is already known to work. Moving later is only a change of `NEXT_PUBLIC_WORKER_ORIGIN`.
 
 ### Phase 6, in order
 
@@ -32,8 +32,8 @@ Steps 1 and 2 are in the repository and need no approval, and are **done** (2026
 
 ### Phase 7 (needs approval for every Cloudflare and Vercel change)
 
-1. Add the `worker.` hostname to the existing Cloudflare tunnel, pointing at `http://localhost:2026`.
-2. On the laptop, set `CLOUD_ORIGIN` in `.env.production.local` to the app's final origin, then `pm2 restart baby --update-env`.
+1. Add `baby-worker.ryancwalsh.com` to the existing Cloudflare tunnel, pointing at `http://localhost:2026`, and set `NEXT_PUBLIC_WORKER_ORIGIN` on Vercel to it.
+2. On the laptop, set `CLOUD_ORIGIN` in `.env.production.local` to `https://baby.ryancwalsh.com`, then `pm2 restart baby --update-env`.
 3. Add the app domain to the Vercel project, and change its Cloudflare DNS record to Vercel's target, DNS-only (grey cloud).
 4. Check: the installed PWA on both phones opens, stays logged in (local storage is per origin and the origin does not change), and shows the laptop online; then, with the laptop asleep, everything in the "Laptop off" column of "What works when" behaves as described. No camera command may be sent to check any of this without asking.
 
