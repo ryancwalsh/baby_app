@@ -2,6 +2,7 @@
 
 import { requireLogin } from '@/auth/login';
 import { MILLISECONDS_PER_DAY } from '@/constants/time';
+import { deleteMedicine, getLatestMedicine, getMedicine, listMedicineNames, listMedicines, saveMedicine } from '@/storage/medicines';
 import {
   deleteBottle,
   deleteDiaper,
@@ -21,7 +22,18 @@ import {
   startSleepNow,
 } from '@/storage/tracking';
 import { getSettings, saveSettings } from '@/storage/tracking-settings';
-import { type Bottle, type BottleInput, type Diaper, type DiaperInput, type Sleep, type SleepInput, type TrackingSettings } from '@/storage/tracking-types';
+import {
+  type Bottle,
+  type BottleInput,
+  DEFAULT_MEDICINE_NAMES,
+  type Diaper,
+  type DiaperInput,
+  type Medicine,
+  type MedicineInput,
+  type Sleep,
+  type SleepInput,
+  type TrackingSettings,
+} from '@/storage/tracking-types';
 
 /**
  * Enough sleep history for the learned predictions, which look back two weeks, with a couple of days to spare for a night that crossed the boundary.
@@ -31,6 +43,7 @@ const RECENT_SLEEP_DAYS = 16;
 export type TrackingSummary = {
   latestBottle: Bottle | null;
   latestDiaper: Diaper | null;
+  latestMedicine: Medicine | null;
   recentSleeps: Sleep[];
   settings: TrackingSettings;
 };
@@ -38,6 +51,7 @@ export type TrackingSummary = {
 export type TrackingLog = {
   bottles: Bottle[];
   diapers: Diaper[];
+  medicines: Medicine[];
   /**
    * For telling naps from night sleep in the day totals.
    */
@@ -66,17 +80,23 @@ export async function getTrackingSummaryAction(secretHash: string): Promise<Trac
   await requireLogin(secretHash);
 
   const since = new Date(Date.now() - RECENT_SLEEP_DAYS * MILLISECONDS_PER_DAY).toISOString();
-  const [latestBottle, latestDiaper, recentSleeps, settings] = await Promise.all([getLatestBottle(), getLatestDiaper(), listSleeps(since), getSettings()]);
+  const [latestBottle, latestDiaper, latestMedicine, recentSleeps, settings] = await Promise.all([
+    getLatestBottle(),
+    getLatestDiaper(),
+    getLatestMedicine(),
+    listSleeps(since),
+    getSettings(),
+  ]);
 
-  return { latestBottle, latestDiaper, recentSleeps, settings };
+  return { latestBottle, latestDiaper, latestMedicine, recentSleeps, settings };
 }
 
 export async function getTrackingLogAction(secretHash: string): Promise<TrackingLog> {
   await requireLogin(secretHash);
 
-  const [bottles, diapers, sleeps, settings] = await Promise.all([listBottles(), listDiapers(), listSleeps(), getSettings()]);
+  const [bottles, diapers, medicines, sleeps, settings] = await Promise.all([listBottles(), listDiapers(), listMedicines(), listSleeps(), getSettings()]);
 
-  return { bottles, diapers, settings, sleeps };
+  return { bottles, diapers, medicines, settings, sleeps };
 }
 
 export async function getSleepAction(secretHash: string, id: number): Promise<null | Sleep> {
@@ -97,6 +117,24 @@ export async function getDiaperAction(secretHash: string, id: number): Promise<D
   return getDiaper(id);
 }
 
+export async function getMedicineAction(secretHash: string, id: number): Promise<Medicine | null> {
+  await requireLogin(secretHash);
+
+  return getMedicine(id);
+}
+
+/**
+ * The suggestions for the medicine name: everything given before, and the defaults that have not been.
+ */
+export async function listMedicineNamesAction(secretHash: string): Promise<string[]> {
+  await requireLogin(secretHash);
+
+  const names = await listMedicineNames();
+  const given = new Set(names.map((name) => name.toLowerCase()));
+
+  return [...names, ...DEFAULT_MEDICINE_NAMES.filter((name) => !given.has(name.toLowerCase()))];
+}
+
 export async function saveSleepAction(secretHash: string, id: null | number, input: SleepInput): Promise<ActionResult> {
   return attempt(secretHash, async () => saveSleep(id, input), 'Could not save the sleep.');
 }
@@ -109,6 +147,10 @@ export async function saveDiaperAction(secretHash: string, id: null | number, in
   return attempt(secretHash, async () => saveDiaper(id, input), 'Could not save the diaper.');
 }
 
+export async function saveMedicineAction(secretHash: string, id: null | number, input: MedicineInput): Promise<ActionResult> {
+  return attempt(secretHash, async () => saveMedicine(id, input), 'Could not save the medicine.');
+}
+
 export async function deleteSleepAction(secretHash: string, id: number): Promise<ActionResult> {
   return attempt(secretHash, async () => deleteSleep(id), 'Could not delete the sleep.');
 }
@@ -119,6 +161,10 @@ export async function deleteBottleAction(secretHash: string, id: number): Promis
 
 export async function deleteDiaperAction(secretHash: string, id: number): Promise<ActionResult> {
   return attempt(secretHash, async () => deleteDiaper(id), 'Could not delete the diaper.');
+}
+
+export async function deleteMedicineAction(secretHash: string, id: number): Promise<ActionResult> {
+  return attempt(secretHash, async () => deleteMedicine(id), 'Could not delete the medicine.');
 }
 
 export async function startSleepNowAction(secretHash: string): Promise<ActionResult> {

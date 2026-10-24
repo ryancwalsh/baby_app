@@ -3,12 +3,14 @@
 import { BottleForm } from '@/components/bottle-form';
 import { DiaperForm } from '@/components/diaper-form';
 import { LoginGuard } from '@/components/login-guard';
+import { MedicineForm } from '@/components/medicine-form';
 import { SleepForm } from '@/components/sleep-form';
 import { useFormTextSize } from '@/hooks/use-text-size';
 
 const FORMS = {
   bottle: BottleForm,
   diaper: DiaperForm,
+  medicine: MedicineForm,
   sleep: SleepForm,
 } as const;
 

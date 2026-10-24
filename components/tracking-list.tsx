@@ -87,6 +87,18 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean, bottleTimeB
     });
   }
 
+  for (const medicine of log.medicines) {
+    events.push({
+      colorClassName: TILE_COLORS.medicine.label,
+      details: `${medicine.name} ${medicine.amountMilliliters} ml`,
+      href: `/track/medicine?id=${medicine.id}`,
+      key: `medicine-${medicine.id}`,
+      label: 'Medicine',
+      note: '',
+      time: new Date(medicine.givenAt).getTime(),
+    });
+  }
+
   events.sort((first, second) => second.time - first.time);
 
   const days: ListDay[] = [];

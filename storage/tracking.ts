@@ -17,7 +17,7 @@ function toOptionalNumber(value: Value) {
   return value === null || value === undefined ? null : Number(value);
 }
 
-function toFirst<T>(rows: Row[], convert: (row: Row) => T): null | T {
+export function toFirst<T>(rows: Row[], convert: (row: Row) => T): null | T {
   const [row] = rows;
 
   return row === undefined ? null : convert(row);
@@ -54,7 +54,7 @@ function toDiaper(row: Row): Diaper {
 /**
  * Anything the browser sends is normalised here, so a time that is not a time never reaches the table.
  */
-function toTime(value: string, label: string): string {
+export function toTime(value: string, label: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     throw new TypeError(`${label} is not a valid time.`);

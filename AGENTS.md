@@ -259,7 +259,7 @@ curl -s http://localhost:2026/version.json
 
 ## The tracking log lives on Turso
 
-Sleeps, bottles, diapers, and the shared sleep-prediction settings replace the
+Sleeps, bottles, diapers, medicines, and the shared sleep-prediction settings replace the
 Huckleberry app. They are the one part of the app whose data is not on this
 machine: they live in the Turso database **`baby-app`** (Turso refuses
 underscores in names), reached with `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`

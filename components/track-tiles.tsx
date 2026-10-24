@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 
 import { deleteSleepAction, endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
 import { DeleteSleepButton } from '@/components/delete-sleep-button';
+import { MedicineTile } from '@/components/medicine-tile';
 import { NextBottle } from '@/components/next-bottle';
 import { SleepPredictionTable } from '@/components/sleep-prediction-table';
 import { predictNextSleeps } from '@/components/sleep-predictions';
@@ -213,6 +214,7 @@ export function TrackTiles({ secretHash }: { readonly secretHash: string }) {
           />
           <BottleTile now={now} summary={summary} />
           <DiaperTile now={now} summary={summary} />
+          <MedicineTile medicine={summary.latestMedicine} now={now} />
           <StopwatchTile now={now} />
         </div>
       )}
