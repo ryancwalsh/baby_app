@@ -12,7 +12,7 @@ const HOUR_HEIGHT_PIXELS = 64;
 const TIMELINE_HEIGHT_PIXELS = HOUR_HEIGHT_PIXELS * HOURS_PER_DAY;
 
 /**
- * Tall enough to tap in the dark. A bottle or a diaper is a moment rather than a length of time, so its mark is always this tall.
+ * Tall enough to tap in the dark. A bottle, a diaper, or a medicine is a moment rather than a length of time, so its mark is always this tall.
  */
 const MARK_HEIGHT_PIXELS = 28;
 const SLEEP_MINIMUM_HEIGHT_PIXELS = 16;
@@ -34,6 +34,7 @@ type TimelineMark = {
 type Timeline = {
   bottles: TimelineMark[];
   diapers: TimelineMark[];
+  medicines: TimelineMark[];
   sleeps: TimelineMark[];
 };
 
@@ -60,7 +61,7 @@ function buildTimeline(log: TrackingLog, dayStart: number, now: number, is24Hour
     return `/track/${kind}?id=${id}&from=day&date=${date}`;
   }
 
-  const timeline: Timeline = { bottles: [], diapers: [], sleeps: [] };
+  const timeline: Timeline = { bottles: [], diapers: [], medicines: [], sleeps: [] };
 
   for (const sleep of log.sleeps) {
     const start = new Date(sleep.startedAt).getTime();
@@ -103,6 +104,20 @@ function buildTimeline(log: TrackingLog, dayStart: number, now: number, is24Hour
         href: getHref('diaper', diaper.id),
         key: `diaper-${diaper.id}`,
         label: `Diaper at ${formatClockTime(time, is24Hour)}`,
+        text: '',
+        top: toMarkTop(time),
+      });
+    }
+  }
+
+  for (const medicine of log.medicines) {
+    const time = new Date(medicine.givenAt).getTime();
+    if (time >= dayStart && time < dayEnd) {
+      timeline.medicines.push({
+        height: MARK_HEIGHT_PIXELS,
+        href: getHref('medicine', medicine.id),
+        key: `medicine-${medicine.id}`,
+        label: `${medicine.name} ${medicine.amountMilliliters} ml at ${formatClockTime(time, is24Hour)}`,
         text: '',
         top: toMarkTop(time),
       });
@@ -171,7 +186,8 @@ export function DayTimeline({
       <div className="w-15 shrink-0" />
       <Lane className="flex-1" linkClassName={`border ${TILE_COLORS.sleep.border} ${TILE_COLORS.sleep.surface} ${TILE_COLORS.sleep.label}`} marks={timeline.sleeps} />
       <Lane className="w-20 shrink-0" linkClassName="bg-orange-500/60 text-background font-semibold" marks={timeline.bottles} />
-      <Lane className="w-10 shrink-0" linkClassName="bg-yellow-500/60" marks={timeline.diapers} />
+      <Lane className="w-6 shrink-0" linkClassName="bg-yellow-500/60" marks={timeline.diapers} />
+      <Lane className="w-6 shrink-0" linkClassName="bg-rose-500/60" marks={timeline.medicines} />
     </div>
   );
 }
