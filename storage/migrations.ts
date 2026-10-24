@@ -135,4 +135,11 @@ export const MIGRATIONS: Migration[] = [
       'CREATE INDEX medicines_given_at ON medicines (given_at)',
     ],
   },
+  /**
+   * A note on a medicine, like the other entries have. Nullable so the build before this one can still insert without it; null reads as no note.
+   */
+  {
+    name: '2026-10-24_medicine_note',
+    statements: ['ALTER TABLE medicines ADD COLUMN note TEXT'],
+  },
 ];

@@ -23,6 +23,7 @@ export function MedicineTile({ medicine, now }: { readonly medicine: Medicine | 
             {medicine.name} {medicine.amountMilliliters} ml, {formatAgo(now - new Date(medicine.givenAt).getTime())}
           </span>
         )}
+        {medicine !== null && medicine.note !== '' && <p className="text-foreground/50 truncate italic text-base">{medicine.note}</p>}
       </div>
       <div className="flex gap-2">
         <Link className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`} href="/track/medicine">

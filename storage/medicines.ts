@@ -1,7 +1,7 @@
 import { type Row } from '@libsql/client';
 
 import { query } from '@/storage/database';
-import { toFirst, toTime } from '@/storage/tracking';
+import { toFirst, toOptionalString, toTime } from '@/storage/tracking';
 import { type Medicine, type MedicineInput } from '@/storage/tracking-types';
 
 function toMedicine(row: Row): Medicine {
@@ -10,6 +10,7 @@ function toMedicine(row: Row): Medicine {
     givenAt: String(row.given_at),
     id: Number(row.id),
     name: String(row.name),
+    note: toOptionalString(row.note) ?? '',
   };
 }
 
@@ -23,7 +24,7 @@ function validateMedicine(input: MedicineInput): MedicineInput {
     throw new TypeError('The amount must be more than 0 ml.');
   }
 
-  return { amountMilliliters: input.amountMilliliters, givenAt: toTime(input.givenAt, 'Time'), name };
+  return { amountMilliliters: input.amountMilliliters, givenAt: toTime(input.givenAt, 'Time'), name, note: input.note.trim() };
 }
 
 export async function listMedicines(): Promise<Medicine[]> {
@@ -52,11 +53,11 @@ export async function getMedicine(id: number): Promise<Medicine | null> {
 }
 
 export async function saveMedicine(id: null | number, input: MedicineInput) {
-  const { amountMilliliters, givenAt, name } = validateMedicine(input);
+  const { amountMilliliters, givenAt, name, note } = validateMedicine(input);
   if (id === null) {
-    await query('INSERT INTO medicines (given_at, name, amount_milliliters) VALUES (?, ?, ?)', [givenAt, name, amountMilliliters]);
+    await query('INSERT INTO medicines (given_at, name, amount_milliliters, note) VALUES (?, ?, ?, ?)', [givenAt, name, amountMilliliters, note]);
   } else {
-    await query('UPDATE medicines SET given_at = ?, name = ?, amount_milliliters = ? WHERE id = ?', [givenAt, name, amountMilliliters, id]);
+    await query('UPDATE medicines SET given_at = ?, name = ?, amount_milliliters = ?, note = ? WHERE id = ?', [givenAt, name, amountMilliliters, note, id]);
   }
 }
 

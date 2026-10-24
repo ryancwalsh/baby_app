@@ -94,7 +94,7 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean, bottleTimeB
       href: `/track/medicine?id=${medicine.id}`,
       key: `medicine-${medicine.id}`,
       label: 'Medicine',
-      note: '',
+      note: medicine.note,
       time: new Date(medicine.givenAt).getTime(),
     });
   }

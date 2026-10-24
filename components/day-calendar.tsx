@@ -33,9 +33,12 @@ function parseDate(value: string | undefined): null | number {
  * The local midnight of the earliest thing ever logged, or null when nothing has been.
  */
 function getFirstDayStart(log: TrackingLog): null | number {
-  const times = [...log.sleeps.map((sleep) => sleep.startedAt), ...log.bottles.map((bottle) => bottle.preparedAt), ...log.diapers.map((diaper) => diaper.changedAt)].map((time) =>
-    new Date(time).getTime(),
-  );
+  const times = [
+    ...log.sleeps.map((sleep) => sleep.startedAt),
+    ...log.bottles.map((bottle) => bottle.preparedAt),
+    ...log.diapers.map((diaper) => diaper.changedAt),
+    ...log.medicines.map((medicine) => medicine.givenAt),
+  ].map((time) => new Date(time).getTime());
 
   return times.length === 0 ? null : startOfDay(Math.min(...times));
 }

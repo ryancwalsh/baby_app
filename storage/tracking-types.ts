@@ -32,6 +32,7 @@ export type Medicine = {
   givenAt: string;
   id: number;
   name: string;
+  note: string;
 };
 
 /**
