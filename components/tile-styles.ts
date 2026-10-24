@@ -4,6 +4,7 @@
 export const TILE_COLORS = {
   bottle: { border: 'border-orange-500/30', label: 'text-orange-500', surface: 'bg-orange-500/10' },
   diaper: { border: 'border-yellow-500/30', label: 'text-yellow-600 dark:text-yellow-400', surface: 'bg-yellow-500/10' },
+  medicine: { border: 'border-rose-500/30', label: 'text-rose-500 dark:text-rose-400', surface: 'bg-rose-500/10' },
   sleep: { border: 'border-sky-400/30', label: 'text-sky-500 dark:text-sky-400', surface: 'bg-sky-400/10' },
   stopwatch: { border: 'border-emerald-500/30', label: 'text-emerald-600 dark:text-emerald-400', surface: 'bg-emerald-500/10' },
 } as const;

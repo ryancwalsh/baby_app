@@ -7,7 +7,7 @@ import { formatClockTime, formatDate, toDateTimeInputValue } from '@/components/
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
 
-const INPUT_CLASS_NAME = 'border-foreground/15 bg-background w-full rounded-lg border px-3 py-2 text-base';
+export const INPUT_CLASS_NAME = 'border-foreground/15 bg-background w-full rounded-lg border px-3 py-2 text-base';
 
 /**
  * A native `datetime-local` input shows the time however the browser's locale likes, ignoring the clock and date formats chosen in settings. So the input is laid invisibly over a readout in those formats, and a tap still opens the native picker.
@@ -90,12 +90,17 @@ function ClearButton({ onClear }: { readonly onClear: () => void }) {
   );
 }
 
+/**
+ * Whole ml unless `allowsDecimals`, which a medicine dose such as 2.5 ml needs.
+ */
 export function MillilitersField({
+  allowsDecimals = false,
   isOptional = false,
   label,
   onChange,
   value,
 }: {
+  readonly allowsDecimals?: boolean;
   readonly isOptional?: boolean;
   readonly label: string;
   readonly onChange: (value: string) => void;
@@ -112,13 +117,13 @@ export function MillilitersField({
       >
         <input
           className={`${INPUT_CLASS_NAME} pr-8 tabular-nums`}
-          inputMode="numeric"
+          inputMode={allowsDecimals ? 'decimal' : 'numeric'}
           min={0}
           onChange={(event) => {
             onChange(event.target.value);
           }}
           required={!isOptional}
-          step={1}
+          step={allowsDecimals ? 'any' : 1}
           type="number"
           value={value}
         />

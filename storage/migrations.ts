@@ -120,4 +120,19 @@ export const MIGRATIONS: Migration[] = [
       'CREATE TABLE stored_secret_history (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, value TEXT NOT NULL, updated_at TEXT NOT NULL, replaced_at TEXT NOT NULL)',
     ],
   },
+  /**
+   * Medicines given, with the dose in ml. The amount is `REAL` because a dose is often a fraction of a ml, such as 2.5.
+   */
+  {
+    name: '2026-10-24_medicines',
+    statements: [
+      `CREATE TABLE medicines (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        given_at TEXT NOT NULL,
+        name TEXT NOT NULL,
+        amount_milliliters REAL NOT NULL
+      )`,
+      'CREATE INDEX medicines_given_at ON medicines (given_at)',
+    ],
+  },
 ];

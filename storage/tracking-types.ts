@@ -27,6 +27,18 @@ export type Diaper = {
   note: string;
 };
 
+export type Medicine = {
+  amountMilliliters: number;
+  givenAt: string;
+  id: number;
+  name: string;
+};
+
+/**
+ * Always offered by the medicine form, even before it has ever been given.
+ */
+export const DEFAULT_MEDICINE_NAMES = ['Acetaminophen'];
+
 export const PREDICTION_METHODS = ['fixed', 'learned', 'age'] as const;
 
 export type PredictionMethod = (typeof PREDICTION_METHODS)[number];
@@ -66,3 +78,4 @@ export const THREE_NAP_WINDOW_COUNT = 4;
 export type SleepInput = Omit<Sleep, 'id'>;
 export type BottleInput = Omit<Bottle, 'id'>;
 export type DiaperInput = Omit<Diaper, 'id'>;
+export type MedicineInput = Omit<Medicine, 'id'>;
