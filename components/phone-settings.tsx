@@ -5,7 +5,7 @@ import { useBottleInterval } from '@/hooks/use-bottle-interval';
 import { BOTTLE_TIMES, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
-import { TEXT_SIZES, type TextSize, useFormTextSize, useLogTextSize, useTileTextSize } from '@/hooks/use-text-size';
+import { TEXT_SIZES, type TextSize, useDayCalendarTextSize, useFormTextSize, useLogTextSize, useTileTextSize } from '@/hooks/use-text-size';
 import { THEMES, useTheme } from '@/hooks/use-theme';
 import { TRACKING_VIEWS, useTrackingView } from '@/hooks/use-tracking-view';
 
@@ -36,7 +36,7 @@ function TextSizeChoice({ legend, onChange, textSize }: { readonly legend: strin
 }
 
 /**
- * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the text size on the tiles, on the forms, and in the tracking list, what the notepad button opens, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
+ * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the text size on the tiles, on the forms, in the tracking list, and in the day calendar, what the notepad button opens, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
  */
 export function PhoneSettings() {
   const { is24Hour, setIs24Hour } = useClockFormat();
@@ -44,6 +44,7 @@ export function PhoneSettings() {
   const tileTextSize = useTileTextSize();
   const formTextSize = useFormTextSize();
   const logTextSize = useLogTextSize();
+  const dayCalendarTextSize = useDayCalendarTextSize();
   const { setTheme, theme } = useTheme();
   const { setTrackingView, trackingView } = useTrackingView();
   const { bottleTimeBasis, setBottleTimeBasis } = useBottleTime();
@@ -127,6 +128,14 @@ export function PhoneSettings() {
           logTextSize.setTextSize(next);
         }}
         textSize={logTextSize.textSize}
+      />
+
+      <TextSizeChoice
+        legend="Day calendar text on this phone"
+        onChange={(next) => {
+          dayCalendarTextSize.setTextSize(next);
+        }}
+        textSize={dayCalendarTextSize.textSize}
       />
 
       <fieldset className="flex flex-col gap-2">

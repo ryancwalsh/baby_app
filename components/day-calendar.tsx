@@ -15,6 +15,7 @@ import { useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
 import { useNow } from '@/hooks/use-now';
+import { useDayCalendarTextSize } from '@/hooks/use-text-size';
 import { useTrackingLog } from '@/hooks/use-tracking-log';
 import { DAY_CALENDAR_HREF, TRACKING_LIST_HREF } from '@/hooks/use-tracking-view';
 
@@ -60,6 +61,7 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
   const { is24Hour } = useClockFormat();
   const { bottleTimeBasis } = useBottleTime();
   const { dateFormat } = useDateFormat();
+  const { zoom } = useDayCalendarTextSize();
   const now = useNow();
   const [chosenDayStart, setChosenDayStart] = useState(() => parseDate(date));
 
@@ -74,7 +76,7 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
   const totals = getDayTotals(log, selectedDayStart, now, bottleTimeBasis);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5" style={{ zoom }}>
       {error !== null && <p className="text-sm text-accent">{error}</p>}
       {/* Stays at the top while the timeline scrolls underneath, painted with the page background so the timeline does not show through. */}
       <div className="bg-background sticky top-0 z-10 -mx-6 flex flex-col gap-5 px-6 py-2">
