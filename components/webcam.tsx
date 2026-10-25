@@ -94,7 +94,7 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
               Cancel
             </button>
             <button
-              className="flex-1 rounded-xl border border-amber-500/40 py-3 text-sm text-amber-500"
+              className="flex-1 rounded-xl border border-accent/40 py-3 text-sm text-accent"
               onClick={() => {
                 setRole('camera');
               }}
@@ -119,7 +119,7 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
           <WebcamIcon aria-hidden className="size-6 opacity-50" />
           <span className="flex-1">
             <span className="block opacity-80">Camera</span>
-            <span className="block text-sm opacity-60">Put this phone/tablet near the baby.</span>
+            <span className="text-muted block text-sm">Put this phone/tablet near the baby.</span>
           </span>
         </button>
       )}
@@ -139,11 +139,11 @@ export function Webcam({ secretHash }: { readonly secretHash: string }) {
         <EyeIcon aria-hidden className="size-6 opacity-50" />
         <span className="flex-1">
           <span className="block opacity-80">Watch</span>
-          <span className="block text-sm opacity-60">See and hear the camera phone/tablet.</span>
+          <span className="text-muted block text-sm">See and hear the camera phone/tablet.</span>
         </span>
       </button>
 
-      <p className="text-foreground/40 text-sm">
+      <p className="text-faint text-sm">
         {cameraStartedAt === undefined ? '' : cameraStartedAt === null ? 'No camera is running.' : `A camera has been running since ${formatTime(cameraStartedAt)}.`}
       </p>
     </div>

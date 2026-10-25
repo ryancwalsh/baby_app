@@ -34,7 +34,7 @@ export function LoginGate({ onUnlock }: { readonly onUnlock: (hash: string) => v
 
   return (
     <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-      <label className="text-foreground/60 font-semibold" htmlFor="password">
+      <label className="text-muted font-semibold" htmlFor="password">
         Password
       </label>
       <input
@@ -46,7 +46,7 @@ export function LoginGate({ onUnlock }: { readonly onUnlock: (hash: string) => v
         type="password"
         value={password}
       />
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
       <button
         className="border-foreground/15 bg-foreground/2 dark:bg-black rounded-2xl border px-5 py-4 font-semibold disabled:opacity-40"
         disabled={isPending || password === ''}

@@ -107,7 +107,7 @@ export function BottomNav() {
               <Action />
               <Link
                 aria-current={isCurrent ? 'page' : undefined}
-                className={`flex flex-col items-center gap-1 self-stretch py-2 text-xs ${isCurrent ? 'font-semibold text-amber-500' : 'text-foreground/50'}`}
+                className={`flex flex-col items-center gap-1 self-stretch py-2 text-xs ${isCurrent ? 'font-semibold text-accent' : 'text-faint'}`}
                 href={item.href}
                 /**
                  * Recorded here rather than inferred on arrival, because this is
@@ -132,7 +132,7 @@ export function BottomNav() {
                   A small amber dot, the same accent the device controls use, so
                   a tab that is still making sound says so from any other tab.
                 */}
-                  {isSounding && <span aria-hidden className="absolute -top-0.5 -right-1 size-1.5 rounded-full bg-amber-500" />}
+                  {isSounding && <span aria-hidden className="absolute -top-0.5 -right-1 size-1.5 rounded-full bg-accent" />}
                 </span>
                 {item.label}
                 {isSounding && <span className="sr-only">, playing</span>}

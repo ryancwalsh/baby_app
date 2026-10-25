@@ -98,11 +98,11 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
   }
 
   if (error !== null) {
-    return <p className="text-sm text-amber-500">{error}</p>;
+    return <p className="text-sm text-accent">{error}</p>;
   }
 
   if (state === null) {
-    return <p className="text-sm opacity-60">Loading the room…</p>;
+    return <p className="text-muted text-sm">Loading the room…</p>;
   }
 
   return (
@@ -118,7 +118,7 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
         <div className="flex flex-1 justify-end">
           <button
             aria-label="Refresh the switches"
-            className="text-foreground/40 dark:text-foreground/70 shrink-0 rounded-lg p-2 disabled:opacity-60"
+            className="text-faint dark:text-foreground/70 shrink-0 rounded-lg p-2 disabled:opacity-60"
             disabled={isRefreshing}
             onClick={refresh}
             type="button"

@@ -70,7 +70,7 @@ export function LoginGuard({ children }: { readonly children: (secretHash: strin
   if (secretHash === null || secretHash === undefined) {
     return (
       <div className="flex flex-col gap-3">
-        {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+        {error !== null && <p className="text-sm text-accent">{error}</p>}
         <LoginGate onUnlock={store} />
       </div>
     );
@@ -80,5 +80,5 @@ export function LoginGuard({ children }: { readonly children: (secretHash: strin
     return children(secretHash);
   }
 
-  return <p className="text-sm opacity-60">{error ?? 'Unlocking…'}</p>;
+  return <p className="text-muted text-sm">{error ?? 'Unlocking…'}</p>;
 }

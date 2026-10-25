@@ -33,7 +33,7 @@ const DAY_TOTALS_FROM_LABELS: Record<DayTotalsFrom, string> = {
 function WindowFields({ label, onChange, windows }: { readonly label: string; readonly onChange: (windows: string[]) => void; readonly windows: string[] }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-foreground/60 mb-1 text-sm">{label} wake windows (minutes)</legend>
+      <legend className="text-muted mb-1 text-sm">{label} wake windows (minutes)</legend>
       {windows.map((minutes, index) => (
         // eslint-disable-next-line react/no-array-index-key -- The windows are positions in the day, and never reorder.
         <label className="flex items-center justify-between gap-3 text-sm" key={index}>
@@ -129,12 +129,12 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
           }}
         >
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-foreground/60 mb-1 text-sm">Predict the next sleep from</legend>
+            <legend className="text-muted mb-1 text-sm">Predict the next sleep from</legend>
             {PREDICTION_METHODS.map((option) => (
               <label className="flex items-center gap-2 text-sm" key={option}>
                 <input
                   checked={method === option}
-                  className="accent-amber-500"
+                  className="accent-accent"
                   name="method"
                   onChange={() => {
                     setMethod(option);
@@ -144,16 +144,16 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
                 {METHOD_LABELS[option]}
               </label>
             ))}
-            <p className="text-foreground/50 text-xs">Learning falls back to the wake windows below for any window it has not seen yet.</p>
+            <p className="text-faint text-xs">Learning falls back to the wake windows below for any window it has not seen yet.</p>
           </fieldset>
 
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-foreground/60">Birth date{method === 'age' ? '' : ' (only for age)'}</span>
+            <span className="text-muted">Birth date{method === 'age' ? '' : ' (only for age)'}</span>
             {/*
               Like the time fields on the tracking forms, the native input is laid invisibly over a readout in the date format chosen above, since the browser would otherwise show its own locale's.
             */}
             <div className="relative">
-              <span className={`${INPUT_CLASS_NAME} block tabular-nums ${birthDate === '' ? 'text-foreground/40' : ''}`}>
+              <span className={`${INPUT_CLASS_NAME} block tabular-nums ${birthDate === '' ? 'text-faint' : ''}`}>
                 {birthDate === '' ? 'Not set' : formatDate(new Date(`${birthDate}T00:00`).getTime(), dateFormat)}
               </span>
               <input
@@ -172,22 +172,22 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
           </label>
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-foreground/60 mb-1 text-sm">Day vs night time start times</legend>
-            <p className="text-foreground/50 text-xs">A sleep that starts between these times, and is under 4 hours, counts as a nap. Everything else is night sleep.</p>
+            <legend className="text-muted mb-1 text-sm">Day vs night time start times</legend>
+            <p className="text-faint text-xs">A sleep that starts between these times, and is under 4 hours, counts as a nap. Everything else is night sleep.</p>
             <div className="flex items-start gap-3">
               <TimeOfDayField label="Start" onChange={setDayStartsAt} value={dayStartsAt} />
-              <ArrowRightIcon className="text-foreground/40 mt-2.5 size-5 shrink-0" />
+              <ArrowRightIcon className="text-faint mt-2.5 size-5 shrink-0" />
               <TimeOfDayField label="End" onChange={setDayEndsAt} value={dayEndsAt} />
             </div>
           </fieldset>
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-foreground/60 mb-1 text-sm">Count a day&apos;s totals from</legend>
+            <legend className="text-muted mb-1 text-sm">Count a day&apos;s totals from</legend>
             {DAY_TOTALS_FROM.map((option) => (
               <label className="flex items-center gap-2 text-sm" key={option}>
                 <input
                   checked={dayTotalsFrom === option}
-                  className="accent-amber-500"
+                  className="accent-accent"
                   name="dayTotalsFrom"
                   onChange={() => {
                     setDayTotalsFrom(option);
@@ -202,13 +202,13 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
           <WindowFields label="2-nap day" onChange={setTwoNap} windows={twoNap} />
           <WindowFields label="3-nap day" onChange={setThreeNap} windows={threeNap} />
 
-          {error !== null && <p className="text-sm text-amber-500">{error}</p>}
-          <button className="border-foreground/15 self-start rounded-lg border px-4 py-2 font-semibold text-amber-500 disabled:opacity-60" disabled={isBusy} type="submit">
+          {error !== null && <p className="text-sm text-accent">{error}</p>}
+          <button className="border-foreground/15 self-start rounded-lg border px-4 py-2 font-semibold text-accent disabled:opacity-60" disabled={isBusy} type="submit">
             Save
           </button>
         </form>
       ) : (
-        <p className="text-sm opacity-60">Loading…</p>
+        <p className="text-muted text-sm">Loading…</p>
       )}
     </div>
   );

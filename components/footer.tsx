@@ -91,8 +91,8 @@ export function Footer() {
   }, []);
 
   return (
-    <footer className="text-foreground/40 mx-auto flex w-full max-w-md flex-col gap-1 px-6 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-center text-xs">
-      <Link className="border-foreground/10 text-foreground/60 mb-6 flex items-center justify-center gap-3 rounded-2xl border py-4 text-lg" href="/settings">
+    <footer className="text-faint mx-auto flex w-full max-w-md flex-col gap-1 px-6 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-center text-xs">
+      <Link className="border-foreground/10 text-muted mb-6 flex items-center justify-center gap-3 rounded-2xl border py-4 text-lg" href="/settings">
         <SettingsIcon className="size-6" />
         Settings
       </Link>

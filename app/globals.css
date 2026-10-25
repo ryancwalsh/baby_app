@@ -6,6 +6,10 @@
 :root {
   --background: #fdfcfa;
   --foreground: #2c2a33;
+  --muted: color-mix(in srgb, var(--foreground) 78%, var(--background));
+  --faint: color-mix(in srgb, var(--foreground) 70%, var(--background));
+  --accent: oklch(47.3% 0.137 46.201); /* Tailwind's amber-800. */
+  --moon: #6a5aa6;
   color-scheme: light;
 }
 
@@ -13,6 +17,10 @@
   :root:not([data-theme='light']) {
     --background: #16151a;
     --foreground: #ece9f2;
+    --muted: color-mix(in srgb, var(--foreground) 68%, var(--background));
+    --faint: color-mix(in srgb, var(--foreground) 56%, var(--background));
+    --accent: oklch(76.9% 0.188 70.08); /* Tailwind's amber-500. */
+    --moon: #9888d0;
     color-scheme: dark;
   }
 }
@@ -20,6 +28,10 @@
 :root[data-theme='dark'] {
   --background: #16151a;
   --foreground: #ece9f2;
+  --muted: color-mix(in srgb, var(--foreground) 68%, var(--background));
+  --faint: color-mix(in srgb, var(--foreground) 56%, var(--background));
+  --accent: oklch(76.9% 0.188 70.08); /* Tailwind's amber-500. */
+  --moon: #9888d0;
   color-scheme: dark;
 }
 
@@ -38,8 +50,16 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* The favicon's crescent-moon purple, used for a brightness of 0%. */
-  --color-moon: #7c6bb0;
+  /**
+   * The favicon's crescent-moon purple, used for a brightness of 0%, made darker in light and lighter in dark so its text keeps a WCAG AA contrast of at least 4.5:1.
+   */
+  --color-moon: var(--moon);
+  /**
+   * Secondary and tertiary text, and the amber accent, as solid colours chosen per theme to keep at least 4.5:1 against the background (WCAG AA). A fixed opacity cannot do that in both themes: 50% of the foreground passes on dark but not on light.
+   */
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
   --font-sans: var(--font-nunito-sans), ui-sans-serif, system-ui, sans-serif;
 }
 

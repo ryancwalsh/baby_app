@@ -62,6 +62,13 @@ The phone is used in an unlit room at night. Keep large surfaces dim — no
 bright backgrounds, borders or text that flip on when a device is on. Small
 amber accents for state are fine.
 
+Dim is not the same as low contrast. Text keeps WCAG AA (4.5:1) in both
+themes, so secondary text is `text-muted` or `text-faint` and the amber accent
+is `text-accent`, solid colours chosen per theme in `app/globals.css`, rather
+than `text-foreground/50` or `opacity-50`, which pass in one theme and fail in
+the other. Text on the black camera picture uses fixed colours instead
+(`text-white/60`, `text-amber-500`), since that box is black in both themes.
+
 ## Two protocols, one cloud account
 
 `TAPO_DEVICES` mixes device families and they are **not** interchangeable. Which

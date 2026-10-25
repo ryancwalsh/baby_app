@@ -51,7 +51,7 @@ export function MonitorModes({ secretHash }: { readonly secretHash: string }) {
           ].map((option) => (
             <button
               aria-checked={option.isSelected}
-              className={`flex-1 rounded-xl py-2 text-sm ${option.isSelected ? 'bg-foreground/10 text-amber-500' : 'opacity-50'}`}
+              className={`flex-1 rounded-xl py-2 text-sm ${option.isSelected ? 'bg-foreground/10 text-accent' : 'text-faint'}`}
               key={option.label}
               onClick={() => {
                 store(option.value);
@@ -68,9 +68,9 @@ export function MonitorModes({ secretHash }: { readonly secretHash: string }) {
       {isWebcam && <Webcam secretHash={secretHash} />}
       {!isWebcam && isOffline && (
         <div className="border-foreground/10 flex flex-col items-start gap-3 rounded-2xl border px-5 py-4 text-sm">
-          <p className="opacity-60">The laptop is offline, so the Nanit cannot be watched or heard. Webcam mode works without it.</p>
+          <p className="text-muted">The laptop is offline, so the Nanit cannot be watched or heard. Webcam mode works without it.</p>
           <button
-            className="border-foreground/15 rounded-lg border px-4 py-2 font-semibold text-amber-500"
+            className="border-foreground/15 rounded-lg border px-4 py-2 font-semibold text-accent"
             onClick={() => {
               store(WEBCAM_MODE);
             }}

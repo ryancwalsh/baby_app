@@ -80,15 +80,15 @@ export function InstallBanner() {
   const isOffered = installEvent !== null || isIos;
 
   return isOffered && !isInstalled && !isDismissed ? (
-    <header className="border-foreground/10 text-foreground/60 flex items-center gap-3 border-b px-6 py-3 text-xs">
+    <header className="border-foreground/10 text-muted flex items-center gap-3 border-b px-6 py-3 text-xs">
       {isIos ? (
         <p className="flex-1">
-          Add to your home screen: <span className="text-amber-500">Share</span> then <span className="text-amber-500">Add to Home Screen</span>.
+          Add to your home screen: <span className="text-accent">Share</span> then <span className="text-accent">Add to Home Screen</span>.
         </p>
       ) : (
         <>
           <p className="flex-1">Add this to your home screen.</p>
-          <button className="border-foreground/15 text-amber-500 rounded-lg border px-3 py-1 font-semibold" onClick={handleInstall} type="button">
+          <button className="border-foreground/15 text-accent rounded-lg border px-3 py-1 font-semibold" onClick={handleInstall} type="button">
             Install
           </button>
         </>

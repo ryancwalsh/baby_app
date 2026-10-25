@@ -19,7 +19,7 @@ export function EndlessNoise() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-foreground/60 flex items-center gap-2 text-lg font-semibold">
+      <h2 className="text-muted flex items-center gap-2 text-lg font-semibold">
         <WavesIcon className="size-5 opacity-60" />
         Endless noise
       </h2>
@@ -32,7 +32,7 @@ export function EndlessNoise() {
         }}
         type="button"
       >
-        {isPlaying ? <PauseIcon className="size-6 text-amber-500" /> : <PlayIcon className="size-6 opacity-50" />}
+        {isPlaying ? <PauseIcon className="size-6 text-accent" /> : <PlayIcon className="size-6 opacity-50" />}
         <span className="flex-1">
           <span className="block font-semibold capitalize">{noiseType} noise</span>
           <span className="block text-sm opacity-70">{isPlaying ? 'Playing' : 'Stopped'}</span>
@@ -43,15 +43,13 @@ export function EndlessNoise() {
         <div className="grid grid-cols-3 gap-2">
           {NOISE_TYPES.map((option) => (
             <button
-              className={`flex flex-col gap-1 rounded-lg border px-2 py-3 text-center ${
-                option.value === noiseType ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15'
-              }`}
+              className={`flex flex-col gap-1 rounded-lg border px-2 py-3 text-center ${option.value === noiseType ? 'border-accent/60 text-accent' : 'border-foreground/15'}`}
               key={option.value}
               onClick={() => update({ noiseType: option.value })}
               type="button"
             >
               <span className="text-sm font-semibold">{option.label}</span>
-              <span className="text-xs opacity-60">{option.description}</span>
+              <span className="text-muted text-xs">{option.description}</span>
             </button>
           ))}
         </div>
@@ -79,7 +77,7 @@ export function EndlessNoise() {
               </span>
             </div>
             <input
-              className="mt-2 w-full accent-amber-500"
+              className="mt-2 w-full accent-accent"
               id={`noise-${slider.label}`}
               max={MAXIMUM_PERCENT}
               min={MINIMUM_PERCENT}
@@ -87,7 +85,7 @@ export function EndlessNoise() {
               type="range"
               value={slider.value}
             />
-            <p className="text-xs opacity-50">{slider.hint}</p>
+            <p className="text-faint text-xs">{slider.hint}</p>
           </div>
         ))}
       </div>
@@ -97,7 +95,7 @@ export function EndlessNoise() {
         silent comes with a reason.
       */}
       {log.length > 0 && (
-        <ol className="flex flex-col gap-1 px-5 text-xs opacity-50">
+        <ol className="text-faint flex flex-col gap-1 px-5 text-xs">
           {log
             .toReversed()
             .slice(0, VISIBLE_LOG_ENTRIES)

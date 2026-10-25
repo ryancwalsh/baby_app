@@ -56,7 +56,7 @@ export function TapoCloudLogin({ onSignedIn, secretHash }: { readonly onSignedIn
 
   return (
     <section className={`${CARD_CLASS_NAME} flex flex-col gap-3`}>
-      <h2 className="text-foreground/60 flex items-center gap-2 font-semibold">
+      <h2 className="text-muted flex items-center gap-2 font-semibold">
         <KeyRoundIcon className="size-5 opacity-60" />
         Tapo cloud sign-in
       </h2>
@@ -87,7 +87,7 @@ export function TapoCloudLogin({ onSignedIn, secretHash }: { readonly onSignedIn
         </button>
       )}
 
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
     </section>
   );
 }

@@ -179,15 +179,20 @@ export function DayTimeline({
           key={time}
           style={{ top: ((time - dayStart) / (dayEnd - dayStart)) * TIMELINE_HEIGHT_PIXELS }}
         >
-          <span className="text-foreground/50 absolute -top-2.5 left-0 w-14 text-sm tabular-nums">{formatHour(time, is24Hour)}</span>
+          <span className="text-faint absolute -top-2.5 left-0 w-14 text-sm tabular-nums">{formatHour(time, is24Hour)}</span>
         </div>
       ))}
       {/* Each kind has its own lane, so a bottle given during a sleep, or a diaper changed at the same time as a bottle, never covers the other. */}
       <div className="w-15 shrink-0" />
       <Lane className="flex-1" linkClassName={`border ${TILE_COLORS.sleep.border} ${TILE_COLORS.sleep.surface} ${TILE_COLORS.sleep.label}`} marks={timeline.sleeps} />
-      <Lane className="w-20 shrink-0" linkClassName="bg-orange-500/60 text-background font-semibold" marks={timeline.bottles} />
-      <Lane className="w-6 shrink-0" linkClassName="bg-yellow-500/60" marks={timeline.diapers} />
-      <Lane className="w-6 shrink-0" linkClassName="bg-rose-500/60" marks={timeline.medicines} />
+      {/* A bottle carries its amount, so it is tinted like a sleep rather than filled, with text a shade darker than the bottle label in light mode to hold 4.5:1 on the tint: dark text on a filled orange fell under 3:1 in dark mode. The diaper and medicine marks have no text, and their fills keep at least 3:1 against the page, the WCAG minimum for a graphic. */}
+      <Lane
+        className="w-20 shrink-0"
+        linkClassName={`border bg-orange-500/20 font-semibold text-orange-800 dark:text-orange-500 ${TILE_COLORS.bottle.border}`}
+        marks={timeline.bottles}
+      />
+      <Lane className="w-6 shrink-0" linkClassName="bg-yellow-700 dark:bg-yellow-500/60" marks={timeline.diapers} />
+      <Lane className="w-6 shrink-0" linkClassName="bg-fuchsia-600 dark:bg-fuchsia-500/80" marks={timeline.medicines} />
     </div>
   );
 }

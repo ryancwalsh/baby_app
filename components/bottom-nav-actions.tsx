@@ -29,7 +29,7 @@ import { type NightLightState } from '@/services/nanit/night-light';
  * the dark must not land on something that changes the light or the sound.
  */
 function getActionClassName(isActive: boolean) {
-  return `mb-3 rounded-lg border p-1.5 transition-colors disabled:opacity-60 ${isActive ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`;
+  return `mb-3 rounded-lg border p-1.5 transition-colors disabled:opacity-60 ${isActive ? 'border-accent/60 text-accent' : 'border-foreground/15 text-faint'}`;
 }
 
 /**

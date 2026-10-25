@@ -64,7 +64,7 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
   const [chosenDayStart, setChosenDayStart] = useState(() => parseDate(date));
 
   if (now === null || log === null) {
-    return error === null ? <p className="text-sm opacity-60">Loading…</p> : <p className="text-sm text-amber-500">{error}</p>;
+    return error === null ? <p className="text-muted text-sm">Loading…</p> : <p className="text-sm text-accent">{error}</p>;
   }
 
   const today = startOfDay(now);
@@ -75,7 +75,7 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
 
   return (
     <div className="flex flex-col gap-5">
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
       {/* Stays at the top while the timeline scrolls underneath, painted with the page background so the timeline does not show through. */}
       <div className="bg-background sticky top-0 z-10 -mx-6 flex flex-col gap-5 px-6 py-2">
         <DateStrip
@@ -92,7 +92,7 @@ function DayCalendar({ date, secretHash }: { readonly date: string | undefined; 
 
         <header className="flex items-start justify-between gap-3">
           <h2 className="text-2xl font-semibold">{formatDayLabel(selectedDayStart, now, dateFormat)}</h2>
-          <Link aria-label="Tracking list" className="text-foreground/40 p-1" href={TRACKING_LIST_HREF}>
+          <Link aria-label="Tracking list" className="text-faint p-1" href={TRACKING_LIST_HREF}>
             <ListIcon className="size-7" />
           </Link>
         </header>

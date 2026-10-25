@@ -131,7 +131,7 @@ function NightLightControls({
   return (
     <section className="border-foreground/15 bg-foreground/2 dark:bg-black flex flex-col gap-4 rounded-2xl border px-5 py-4">
       <div className="flex items-center gap-3">
-        <h2 className="text-foreground/60 flex flex-1 items-center gap-2 text-lg font-semibold">
+        <h2 className="text-muted flex flex-1 items-center gap-2 text-lg font-semibold">
           <LightbulbIcon className="size-5 opacity-60" />
           Nanit night light
         </h2>
@@ -139,7 +139,7 @@ function NightLightControls({
         <button
           aria-checked={state.isOn}
           aria-label="Nanit night light"
-          className={`shrink-0 rounded-lg border p-2 transition-colors disabled:opacity-60 ${state.isOn ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/40'}`}
+          className={`shrink-0 rounded-lg border p-2 transition-colors disabled:opacity-60 ${state.isOn ? 'border-accent/60 text-accent' : 'border-foreground/15 text-faint'}`}
           disabled={isPending || !isKnown}
           onClick={() => run({ ...state, isOn: !state.isOn }, async () => changeNightLight(secretHash, { action: 'power', isOn: !state.isOn }))}
           role="switch"
@@ -149,13 +149,13 @@ function NightLightControls({
         </button>
       </div>
 
-      {!isKnown && <p className="text-sm opacity-60">Asking the laptop…</p>}
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
-      {audioError !== null && <p className="text-sm text-amber-500">{audioError}</p>}
+      {!isKnown && <p className="text-muted text-sm">Asking the laptop…</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
+      {audioError !== null && <p className="text-sm text-accent">{audioError}</p>}
 
       <div>
         <div className="flex items-baseline justify-between">
-          <label className="font-semibold opacity-60" htmlFor="brightness">
+          <label className="text-muted font-semibold" htmlFor="brightness">
             Brightness
           </label>
           {/*
@@ -173,7 +173,7 @@ function NightLightControls({
           moves the handle, and the camera is told once the finger lifts.
         */}
         <input
-          className={`brightness-slider mt-3 w-full ${state.brightness === MINIMUM_BRIGHTNESS ? 'text-moon' : 'text-amber-500'}`}
+          className={`brightness-slider mt-3 w-full ${state.brightness === MINIMUM_BRIGHTNESS ? 'text-moon' : 'text-accent'}`}
           disabled={!isKnown}
           id="brightness"
           max={MAXIMUM_BRIGHTNESS}
@@ -191,7 +191,7 @@ function NightLightControls({
             <button
               className={`rounded-lg border py-2 text-lg tabular-nums disabled:opacity-60 ${
                 state.brightness === preset
-                  ? `font-semibold ${preset === MINIMUM_BRIGHTNESS ? 'border-moon/60 text-moon' : 'border-amber-500/60 text-amber-500'}`
+                  ? `font-semibold ${preset === MINIMUM_BRIGHTNESS ? 'border-moon/60 text-moon' : 'border-accent/60 text-accent'}`
                   : 'border-foreground/15'
               }`}
               disabled={isPending || !isKnown}
@@ -207,7 +207,7 @@ function NightLightControls({
 
         <button
           className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg border p-2 disabled:opacity-40 ${
-            state.isFading ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'
+            state.isFading ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'
           }`}
           disabled={isPending || !isKnown || (!state.isFading && state.brightness <= FADE_TARGET_BRIGHTNESS)}
           onClick={toggleFading}

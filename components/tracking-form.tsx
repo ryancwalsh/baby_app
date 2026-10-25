@@ -46,13 +46,13 @@ export function DeleteButton({ children = 'Delete', onDelete }: { readonly child
   }, [isConfirming]);
 
   return isConfirming ? (
-    <div className="flex items-center gap-2 text-sm text-red-500">
+    <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
       <span>Delete for good?</span>
       <button className="rounded-lg border border-red-500/60 px-3 py-1.5 disabled:opacity-60" disabled={!isArmed} onClick={onDelete} type="button">
         Delete
       </button>
       <button
-        className="border-foreground/15 text-foreground/60 rounded-lg border px-3 py-1.5"
+        className="border-foreground/15 text-muted rounded-lg border px-3 py-1.5"
         onClick={() => {
           setIsConfirming(false);
           setIsArmed(false);
@@ -64,7 +64,7 @@ export function DeleteButton({ children = 'Delete', onDelete }: { readonly child
     </div>
   ) : (
     <button
-      className="self-start text-sm text-red-500/80"
+      className="self-start text-sm text-red-600 dark:text-red-400"
       onClick={() => {
         setIsConfirming(true);
       }}
@@ -129,13 +129,13 @@ export function TrackingForm({
         {isEditing ? 'Edit' : 'New'} {title.toLowerCase()}
       </h2>
       {children}
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
       <div className="flex gap-3">
         <button className={`border-foreground/15 rounded-lg border px-4 py-2 font-semibold disabled:opacity-60 ${colorClassName}`} disabled={isBusy} type="submit">
           Save
         </button>
         <button
-          className="text-foreground/60 px-4 py-2"
+          className="text-muted px-4 py-2"
           onClick={() => {
             router.push(returnHref);
           }}
@@ -153,6 +153,6 @@ export function TrackingForm({
       )}
     </form>
   ) : (
-    <p className="text-sm opacity-60">Loading…</p>
+    <p className="text-muted text-sm">Loading…</p>
   );
 }

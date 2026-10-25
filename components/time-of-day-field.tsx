@@ -28,7 +28,7 @@ export function TimeOfDayField({ label, onChange, value }: { readonly label: str
           value={value}
         />
       </div>
-      <span className="text-foreground/60 text-xs uppercase">{label}</span>
+      <span className="text-muted text-xs uppercase">{label}</span>
     </label>
   );
 }

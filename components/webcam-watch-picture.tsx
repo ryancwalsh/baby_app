@@ -61,8 +61,9 @@ export function WebcamWatchPicture({ isStale, status, videoRef }: { readonly isS
 
       {status !== 'live' && !isStale && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
-          {(status === 'waiting' || status === 'connecting') && <Loader2Icon aria-hidden className="text-foreground/40 size-8 animate-spin" />}
-          <p className="text-foreground/50 text-sm">
+          {(status === 'waiting' || status === 'connecting') && <Loader2Icon aria-hidden className="size-8 animate-spin text-white/50" />}
+          {/* On the black picture box in either theme, so in fixed colours rather than the theme's. */}
+          <p className="text-sm text-white/50">
             {status === 'waiting' && 'Waiting for a camera. Start one on the other phone/tablet.'}
             {status === 'connecting' && 'Connecting to the camera…'}
             {status === 'stopped' && 'The camera was stopped.'}
@@ -76,7 +77,7 @@ export function WebcamWatchPicture({ isStale, status, videoRef }: { readonly isS
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 px-6 text-center">
           <TriangleAlertIcon aria-hidden className="size-10 text-amber-500" />
           <p className="text-lg font-semibold text-amber-500">No picture: connection lost</p>
-          <p className="text-foreground/60 text-sm">Reconnecting…</p>
+          <p className="text-sm text-white/60">Reconnecting…</p>
         </div>
       )}
     </div>

@@ -86,7 +86,7 @@ function RenameForm({ lullaby, onChanged, onDone, secretHash }: Omit<LullabyPlay
           <XIcon className="size-4" />
         </button>
       </div>
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
     </form>
   );
 }
@@ -105,7 +105,7 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-foreground/60 flex items-center gap-2 text-lg font-semibold">
+      <h2 className="text-muted flex items-center gap-2 text-lg font-semibold">
         <MusicIcon className="size-5 opacity-60" />
         Lullabies
       </h2>
@@ -120,7 +120,7 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
             <span className="flex-1 text-sm opacity-70">{currentLullaby === undefined ? 'Nothing playing' : currentLullaby.name}</span>
             <button
               aria-label={`${LOOP_MODES[loopMode].label}. Switch to ${LOOP_MODES[nextLoopMode].label}.`}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${loopMode === 'off' ? 'border-foreground/15' : 'border-amber-500/60 font-semibold text-amber-500'}`}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${loopMode === 'off' ? 'border-foreground/15' : 'border-accent/60 font-semibold text-accent'}`}
               onClick={() => cycleLoopMode()}
               type="button"
             >
@@ -149,7 +149,7 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
               return (
                 <div className="flex items-center gap-2" key={lullaby.url}>
                   <button
-                    className={`${ROW_CLASS_NAME} flex-1 ${isSounding ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15'}`}
+                    className={`${ROW_CLASS_NAME} flex-1 ${isSounding ? 'border-accent/60 text-accent' : 'border-foreground/15'}`}
                     onClick={() => playTrack(lullaby.url)}
                     type="button"
                   >
