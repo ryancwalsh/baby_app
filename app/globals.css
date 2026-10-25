@@ -71,6 +71,15 @@
   button:not(:disabled) {
     cursor: pointer;
   }
+
+  /**
+   * iOS zooms into any field smaller than 16px when it is focused, and stays zoomed afterwards, now that the page can be pinched.
+   */
+  input,
+  textarea,
+  select {
+    font-size: max(1rem, 1em);
+  }
 }
 
 /**
