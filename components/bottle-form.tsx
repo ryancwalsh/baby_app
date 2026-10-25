@@ -66,7 +66,7 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
       <DateTimeField label="Prepared" onChange={setPreparedAt} value={preparedAt} />
       <DateTimeField isOptional label="Touched lips" onChange={setTouchedLipsAt} value={touchedLipsAt} />
       <fieldset className="flex flex-col gap-1">
-        <legend className="text-foreground/60 mb-1 text-sm">Amounts (ml)</legend>
+        <legend className="text-muted mb-1 text-sm">Amounts (ml)</legend>
         <div className="flex gap-3">
           <MillilitersField
             isOptional

@@ -36,8 +36,8 @@ const REVERT_SETTINGS = 'Remember to revert your device settings afterwards.';
 function ChecklistItem({ children, status }: { readonly children: React.ReactNode; readonly status: 'ok' | 'problem' | 'reminder' }) {
   return (
     <li className="flex gap-3">
-      {status === 'ok' && <CircleCheckIcon aria-label="Done" className="mt-0.5 size-4 shrink-0 text-amber-500" />}
-      {status === 'problem' && <CircleAlertIcon aria-label="Needs attention" className="mt-0.5 size-4 shrink-0 text-amber-500" />}
+      {status === 'ok' && <CircleCheckIcon aria-label="Done" className="mt-0.5 size-4 shrink-0 text-accent" />}
+      {status === 'problem' && <CircleAlertIcon aria-label="Needs attention" className="mt-0.5 size-4 shrink-0 text-accent" />}
       {status === 'reminder' && <CircleIcon aria-hidden className="mt-0.5 size-4 shrink-0 opacity-40" />}
       <span className="text-sm opacity-70">{children}</span>
     </li>
@@ -111,13 +111,13 @@ export function WebcamChecklist({ error, onBack, onStart }: { readonly error: nu
         )}
       </ul>
 
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
 
       <div className="flex gap-2">
         <button className="border-foreground/15 rounded-2xl border px-5 py-3 opacity-70" onClick={onBack} type="button">
           Back
         </button>
-        <button className="flex-1 rounded-2xl border border-amber-500/40 px-5 py-3 text-amber-500" onClick={onStart} type="button">
+        <button className="flex-1 rounded-2xl border border-accent/40 px-5 py-3 text-accent" onClick={onStart} type="button">
           Start camera
         </button>
       </div>

@@ -13,7 +13,7 @@ import { type Notes } from '@/storage/notes';
  * Milkdown needs the DOM, so it is not rendered on the server. Loading it this way also keeps it out of the bundles of every other page.
  */
 const MilkdownEditor = dynamic(async () => import('@/components/milkdown-editor'), {
-  loading: () => <p className="text-foreground/60 p-4">Loading the editor…</p>,
+  loading: () => <p className="text-muted p-4">Loading the editor…</p>,
   ssr: false,
 });
 
@@ -35,9 +35,9 @@ function SaveStatusText({ savedAt, status }: { readonly savedAt: null | string; 
   const now = useNow();
   let text = <span>Nothing saved yet.</span>;
   if (status === 'conflict') {
-    text = <span className="text-amber-500">Not saved.</span>;
+    text = <span className="text-accent">Not saved.</span>;
   } else if (status === 'failed') {
-    text = <span className="text-amber-500">Could not save. Check the connection.</span>;
+    text = <span className="text-accent">Could not save. Check the connection.</span>;
   } else if (status === 'saving' || status === 'unsaved') {
     text = <span>Saving…</span>;
   } else if (savedAt !== null && now !== null) {
@@ -147,7 +147,7 @@ function NotesEditor({ initialNotes, secretHash }: { readonly initialNotes: Note
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-foreground/60 flex flex-wrap items-center gap-3 text-sm">
+      <div className="text-muted flex flex-wrap items-center gap-3 text-sm">
         <SaveStatusText savedAt={savedAt} status={status} />
         {status === 'failed' && (
           <button
@@ -165,7 +165,7 @@ function NotesEditor({ initialNotes, secretHash }: { readonly initialNotes: Note
         </div>
       </div>
       {status === 'conflict' && (
-        <p className="rounded-lg border border-amber-500/40 p-3 text-sm text-amber-500" role="alert">
+        <p className="rounded-lg border border-accent/40 p-3 text-sm text-accent" role="alert">
           These notes were saved somewhere else, perhaps on another phone, so saving stopped to avoid overwriting that. Copy what you changed, reload the page, and paste it back
           in.
         </p>
@@ -196,9 +196,9 @@ export function NotesPage({ secretHash }: { readonly secretHash: string }) {
     load();
   }, [secretHash]);
 
-  let body = <p className="text-sm opacity-60">Loading…</p>;
+  let body = <p className="text-muted text-sm">Loading…</p>;
   if (error !== null) {
-    body = <p className="text-sm text-amber-500">{error}</p>;
+    body = <p className="text-sm text-accent">{error}</p>;
   } else if (notes !== null) {
     body = <NotesEditor initialNotes={notes} secretHash={secretHash} />;
   }

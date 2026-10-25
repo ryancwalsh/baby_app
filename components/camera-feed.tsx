@@ -244,10 +244,10 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           role="switch"
           type="button"
         >
-          <VideoIcon className={isWatching ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
+          <VideoIcon className={isWatching ? 'size-6 text-accent' : 'size-6 opacity-50'} />
           <span className="flex-1">
-            <span className="block opacity-60">Live video</span>
-            <span className="block text-sm opacity-60">{isStarting ? 'Starting the camera…' : ''}</span>
+            <span className="text-muted block">Live video</span>
+            <span className="text-muted block text-sm">{isStarting ? 'Starting the camera…' : ''}</span>
           </span>
           <ToggleSwitch isOn={isWatching} />
         </button>
@@ -260,7 +260,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           role="switch"
           type="button"
         >
-          {isAlarmOn ? <BellIcon className="size-5 text-amber-500" /> : <BellOffIcon className="size-5 opacity-50" />}
+          {isAlarmOn ? <BellIcon className="size-5 text-accent" /> : <BellOffIcon className="size-5 opacity-50" />}
         </button>
         <button
           aria-checked={isMonitoring}
@@ -273,12 +273,12 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           role="switch"
           type="button"
         >
-          {isMonitoring ? <Volume2Icon className="size-5 text-amber-500" /> : <VolumeIcon className="size-5 opacity-50" />}
+          {isMonitoring ? <Volume2Icon className="size-5 text-accent" /> : <VolumeIcon className="size-5 opacity-50" />}
         </button>
       </div>
 
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
-      {audioError !== null && <p className="text-sm text-amber-500">{audioError}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
+      {audioError !== null && <p className="text-sm text-accent">{audioError}</p>}
 
       {/* Pulled out through the page's own padding: the picture is the point, and every pixel of a phone's width is worth more to it than a tidy margin. */}
       <div className="relative -mx-6" ref={pictureRef}>
@@ -293,7 +293,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
             style={getPictureBoxStyle(availableHeightPixels, VIDEO_ASPECT_RATIO)}
           >
             <VideoIcon aria-hidden className="text-foreground/30 size-8" />
-            <p className="text-foreground/40 text-sm">The camera is not streaming</p>
+            <p className="text-faint text-sm">The camera is not streaming</p>
           </div>
         )}
 
@@ -315,7 +315,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
         */}
         {isStarting && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <Loader2Icon aria-label="Starting the camera" className="text-foreground/40 size-8 animate-spin" />
+            <Loader2Icon aria-label="Starting the camera" className="text-faint size-8 animate-spin" />
           </div>
         )}
       </div>

@@ -128,11 +128,11 @@ export function TrackingList({ secretHash }: { readonly secretHash: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link aria-label="Day calendar" className="text-foreground/40 self-end p-1" href={DAY_CALENDAR_HREF}>
+      <Link aria-label="Day calendar" className="text-faint self-end p-1" href={DAY_CALENDAR_HREF}>
         <CalendarDaysIcon className="size-5" />
       </Link>
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
-      {log !== null && days.length === 0 && <p className="text-foreground/50 text-sm">Nothing tracked yet.</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
+      {log !== null && days.length === 0 && <p className="text-faint text-sm">Nothing tracked yet.</p>}
       {now !== null && (
         <div className="flex flex-col gap-6" style={{ zoom }}>
           {days.map((day) => (
@@ -141,11 +141,11 @@ export function TrackingList({ secretHash }: { readonly secretHash: string }) {
                 <h2 className="text-lg font-semibold">
                   <Link href={`${DAY_CALENDAR_HREF}?date=${formatDate(day.start, 'iso')}`}>{formatDayLabel(day.start, now, dateFormat)}</Link>
                 </h2>
-                <p className="text-foreground/50 text-sm">
+                <p className="text-faint text-sm">
                   Total sleep {formatDuration(day.totals.sleepMilliseconds)} · night total {formatDuration(day.totals.nightMilliseconds)} · nap total{' '}
                   {formatDuration(day.totals.napMilliseconds)}
                 </p>
-                <p className="text-foreground/50 text-sm">
+                <p className="text-faint text-sm">
                   Drank {day.totals.drankMilliliters} ml · {day.totals.diaperCount} {day.totals.diaperCount === 1 ? 'diaper' : 'diapers'}
                 </p>
               </header>
@@ -153,13 +153,13 @@ export function TrackingList({ secretHash }: { readonly secretHash: string }) {
                 {day.events.map((event) => (
                   <li key={event.key}>
                     <Link className="flex gap-3 py-2" href={event.href}>
-                      <span className="text-foreground/60 w-16 shrink-0 text-sm tabular-nums">{formatClockTime(event.time, is24Hour)}</span>
+                      <span className="text-muted w-16 shrink-0 text-sm tabular-nums">{formatClockTime(event.time, is24Hour)}</span>
                       <span className="flex min-w-0 flex-col">
                         <span className="text-sm">
                           <span className={`font-semibold ${event.colorClassName}`}>{event.label}</span>
                           {event.details !== '' && <span className="text-foreground/70"> {event.details}</span>}
                         </span>
-                        {event.note !== '' && <span className="text-foreground/50 truncate text-sm italic">{event.note}</span>}
+                        {event.note !== '' && <span className="text-faint truncate text-sm italic">{event.note}</span>}
                       </span>
                     </Link>
                   </li>

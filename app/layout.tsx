@@ -39,11 +39,12 @@ export function generateMetadata(): Metadata {
   };
 }
 
+/**
+ * Pinching to zoom is allowed, so small text such as the footer's can be read up close. app/globals.css keeps form fields at 16px or more, because iOS zooms into a smaller one on focus and stays zoomed, and the camera pictures handle their own pinch with `touch-action: none`.
+ */
 export const viewport: Viewport = {
   initialScale: 1,
-  maximumScale: 1,
   themeColor: '#000000',
-  userScalable: false,
   width: 'device-width',
 };
 

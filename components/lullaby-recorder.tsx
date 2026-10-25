@@ -107,7 +107,7 @@ export function LullabyRecorder({ onSaved, secretHash }: { readonly onSaved: () 
   return (
     <div className="flex flex-col gap-2">
       <button
-        className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm ${state === 'recording' ? 'border-amber-500/60 font-semibold text-amber-500' : 'border-foreground/15'}`}
+        className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm ${state === 'recording' ? 'border-accent/60 font-semibold text-accent' : 'border-foreground/15'}`}
         disabled={state === 'saving'}
         onClick={() => {
           if (state === 'recording') {
@@ -125,7 +125,7 @@ export function LullabyRecorder({ onSaved, secretHash }: { readonly onSaved: () 
         {state === 'recording' && `Stop recording · ${formatElapsed(elapsedSeconds)}`}
         {state === 'saving' && 'Saving…'}
       </button>
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
     </div>
   );
 }

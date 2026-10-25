@@ -298,7 +298,7 @@ export function PinchZoomView({
   }
 
   const isChanged = scale !== MINIMUM_SCALE || offset.x !== 0 || offset.y !== 0;
-  const buttonClassName = 'rounded-full bg-black/50 p-2 text-foreground/60 backdrop-blur';
+  const buttonClassName = 'rounded-full bg-black/50 p-2 text-white/60 backdrop-blur';
 
   return (
     <div

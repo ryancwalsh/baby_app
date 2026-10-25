@@ -35,7 +35,7 @@ export function NightLightOffline({ secretHash }: { readonly secretHash: string 
 
   return (
     <section className="border-foreground/10 flex flex-col gap-2 rounded-2xl border px-5 py-4 opacity-60">
-      <h2 className="text-foreground/60 flex items-center gap-2 text-lg font-semibold">
+      <h2 className="text-muted flex items-center gap-2 text-lg font-semibold">
         <LightbulbIcon className="size-5 opacity-60" />
         Nanit night light
       </h2>

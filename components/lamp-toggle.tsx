@@ -52,10 +52,10 @@ export function LampToggle({
 
   return (
     <button aria-checked={isOn} className={`${CARD_CLASS_NAME} disabled:opacity-60`} disabled={isPending} onClick={handleClick} role="switch" type="button">
-      <Icon className={isOn ? 'size-6 text-amber-500' : 'size-6 opacity-50'} />
+      <Icon className={isOn ? 'size-6 text-accent' : 'size-6 opacity-50'} />
       <span className="flex-1">
-        <span className="block opacity-60">{lamp.alias}</span>
-        <span className="block text-sm opacity-60">{error ?? ''}</span>
+        <span className="text-muted block">{lamp.alias}</span>
+        <span className="text-muted block text-sm">{error ?? ''}</span>
       </span>
       <ToggleSwitch isOn={isOn} />
     </button>

@@ -66,7 +66,7 @@ export function MedicineForm({ id, secretHash }: { readonly id: null | number; r
     >
       <DateTimeField label="Time" onChange={setGivenAt} value={givenAt} />
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-foreground/60">Medicine</span>
+        <span className="text-muted">Medicine</span>
         {/* A datalist suggests what has been given before, and still takes any new name typed in. */}
         <input
           autoCapitalize="words"

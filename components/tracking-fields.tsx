@@ -29,10 +29,10 @@ export function DateTimeField({
 
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="text-foreground/60">{label}</span>
+      <span className="text-muted">{label}</span>
       <div className="flex gap-2">
         <div className="relative w-full">
-          <span className={`${INPUT_CLASS_NAME} block tabular-nums ${isOptional ? 'pr-8' : ''} ${value === '' ? 'text-foreground/40' : ''}`}>{readout}</span>
+          <span className={`${INPUT_CLASS_NAME} block tabular-nums ${isOptional ? 'pr-8' : ''} ${value === '' ? 'text-faint' : ''}`}>{readout}</span>
           <input
             className="absolute inset-0 size-full opacity-0"
             onChange={(event) => {
@@ -54,7 +54,7 @@ export function DateTimeField({
           )}
         </div>
         <button
-          className="border-foreground/15 text-foreground/60 rounded-lg border px-3 text-sm"
+          className="border-foreground/15 text-muted rounded-lg border px-3 text-sm"
           onClick={() => {
             onChange(toDateTimeInputValue(Date.now()));
           }}
@@ -84,7 +84,7 @@ function Clearable({ children, onClear, value }: { readonly children: ReactNode;
  */
 function ClearButton({ onClear }: { readonly onClear: () => void }) {
   return (
-    <button aria-label="Clear" className="text-foreground/40 absolute top-0 right-0 flex h-full items-start p-2.5" onClick={onClear} type="button">
+    <button aria-label="Clear" className="text-faint absolute top-0 right-0 flex h-full items-start p-2.5" onClick={onClear} type="button">
       <XIcon className="size-4" />
     </button>
   );
@@ -108,7 +108,7 @@ export function MillilitersField({
 }) {
   return (
     <label className="flex w-28 flex-col gap-1 text-sm">
-      <span className="text-foreground/60">{label}</span>
+      <span className="text-muted">{label}</span>
       <Clearable
         onClear={() => {
           onChange('');
@@ -135,7 +135,7 @@ export function MillilitersField({
 export function NoteField({ onChange, value }: { readonly onChange: (value: string) => void; readonly value: string }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="text-foreground/60">Note</span>
+      <span className="text-muted">Note</span>
       <Clearable
         onClear={() => {
           onChange('');

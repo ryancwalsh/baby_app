@@ -63,11 +63,11 @@ export function NotesHistory({ onRestore, secretHash }: { readonly onRestore: (c
           </div>
           <div className="flex min-h-0 flex-1 flex-col">
             <ul className="border-foreground/10 max-h-40 shrink-0 overflow-y-auto border-b p-2">
-              {versions?.length === 0 && <li className="text-foreground/60 p-2 text-sm">No earlier versions yet. One is kept for every ten minutes of editing.</li>}
+              {versions?.length === 0 && <li className="text-muted p-2 text-sm">No earlier versions yet. One is kept for every ten minutes of editing.</li>}
               {versions?.map((version) => (
                 <li key={version.id}>
                   <button
-                    className={`w-full rounded-md p-2 text-left text-sm ${preview?.id === version.id ? 'font-semibold text-amber-500' : ''}`}
+                    className={`w-full rounded-md p-2 text-left text-sm ${preview?.id === version.id ? 'font-semibold text-accent' : ''}`}
                     onClick={() => {
                       showVersion(version.id);
                     }}
@@ -80,12 +80,12 @@ export function NotesHistory({ onRestore, secretHash }: { readonly onRestore: (c
             </ul>
             <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
               {preview === null ? (
-                <p className="text-foreground/60 text-sm">{isPending ? 'Loading…' : 'Pick a version to see it.'}</p>
+                <p className="text-muted text-sm">{isPending ? 'Loading…' : 'Pick a version to see it.'}</p>
               ) : (
                 <>
                   <pre className="bg-foreground/5 min-h-0 flex-1 overflow-auto rounded-md p-3 text-sm whitespace-pre-wrap">{preview.content}</pre>
                   <button
-                    className={`${NOTES_BUTTON_CLASS_NAME} self-start text-amber-500`}
+                    className={`${NOTES_BUTTON_CLASS_NAME} self-start text-accent`}
                     onClick={() => {
                       restore(preview.content);
                     }}

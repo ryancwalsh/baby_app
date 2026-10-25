@@ -20,7 +20,7 @@ import { useNow } from '@/hooks/use-now';
 import { useTileTextSize } from '@/hooks/use-text-size';
 
 function Note({ note }: { readonly note: string }) {
-  return note === '' ? null : <p className="text-foreground/50 truncate italic text-base">{note}</p>;
+  return note === '' ? null : <p className="text-faint truncate italic text-base">{note}</p>;
 }
 
 function SleepTile({
@@ -62,7 +62,7 @@ function SleepTile({
         )}
         {latest !== undefined && <Note note={latest.note} />}
         <SleepPredictionTable now={now} predictions={predictions} />
-        {active === undefined && latest === undefined && <span className="text-foreground/50 text-base">No sleeps yet.</span>}
+        {active === undefined && latest === undefined && <span className="text-faint text-base">No sleeps yet.</span>}
       </Link>
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -88,7 +88,7 @@ function SleepTile({
           />
         )}
       </div>
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
     </div>
   );
 }
@@ -119,7 +119,7 @@ function BottleTile({ now, summary }: { readonly now: number; readonly summary: 
           {nextBottleTime !== null && <NextBottle is24Hour={is24Hour} nextBottleTime={nextBottleTime} now={now} />}
         </div>
         {bottle === null ? (
-          <span className="text-foreground/50 text-base">No bottles yet.</span>
+          <span className="text-faint text-base">No bottles yet.</span>
         ) : (
           <>
             <span className="text-foreground/70 tabular-nums text-base">Prepared {formatAgo(now - new Date(bottle.preparedAt).getTime())}</span>
@@ -151,7 +151,7 @@ function DiaperTile({ now, summary }: { readonly now: number; readonly summary: 
     <Link className={`flex flex-col gap-1 rounded-2xl border p-4 ${colors.border} ${colors.surface}`} href="/track/diaper">
       <span className={`text-lg font-semibold ${colors.label}`}>Diaper</span>
       {diaper === null ? (
-        <span className="text-foreground/50 text-base">No diapers yet.</span>
+        <span className="text-faint text-base">No diapers yet.</span>
       ) : (
         <>
           <span className="text-foreground/70 tabular-nums text-base">{formatAgo(now - new Date(diaper.changedAt).getTime())}</span>
@@ -201,7 +201,7 @@ export function TrackTiles({ secretHash }: { readonly secretHash: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      {error !== null && <p className="text-sm text-amber-500">{error}</p>}
+      {error !== null && <p className="text-sm text-accent">{error}</p>}
       {summary !== null && now !== null && (
         <div className="flex flex-col gap-2" style={{ zoom }}>
           <SleepTile

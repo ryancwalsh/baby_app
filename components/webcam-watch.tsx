@@ -219,7 +219,7 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
 
       {needsTapForSound && (
         <button
-          className="flex items-center justify-center gap-2 rounded-2xl border border-amber-500/40 px-5 py-3 text-amber-500"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-accent/40 px-5 py-3 text-accent"
           onClick={() => {
             unlockAlarm();
             play();
@@ -230,14 +230,14 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
         </button>
       )}
 
-      <p className="text-foreground/50 text-sm">{status === 'live' && !isStale ? '● Live' : ''}</p>
+      <p className="text-faint text-sm">{status === 'live' && !isStale ? '● Live' : ''}</p>
 
-      {isIos && <p className="text-foreground/40 text-xs">On iPhone, sound may stop when the screen locks. Keep the screen on to be sure.</p>}
+      {isIos && <p className="text-faint text-xs">On iPhone, sound may stop when the screen locks. Keep the screen on to be sure.</p>}
 
       <div className="flex gap-2">
         <button
           aria-checked={isAlarmOn}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm ${isAlarmOn ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 opacity-70'}`}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm ${isAlarmOn ? 'border-accent/60 text-accent' : 'border-foreground/15 opacity-70'}`}
           onClick={() => {
             storeAlarmSetting(isAlarmOn ? ALARM_OFF : null);
           }}

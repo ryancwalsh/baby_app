@@ -5,7 +5,7 @@ import { useBottleInterval } from '@/hooks/use-bottle-interval';
 import { BOTTLE_TIMES, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
-import { TEXT_SIZES, type TextSize, useFormTextSize, useLogTextSize, useTileTextSize } from '@/hooks/use-text-size';
+import { TEXT_SIZES, type TextSize, useDayCalendarTextSize, useFormTextSize, useLogTextSize, useTileTextSize } from '@/hooks/use-text-size';
 import { THEMES, useTheme } from '@/hooks/use-theme';
 import { TRACKING_VIEWS, useTrackingView } from '@/hooks/use-tracking-view';
 
@@ -15,11 +15,11 @@ import { TRACKING_VIEWS, useTrackingView } from '@/hooks/use-tracking-view';
 function TextSizeChoice({ legend, onChange, textSize }: { readonly legend: string; readonly onChange: (next: TextSize) => void; readonly textSize: TextSize }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-foreground/60 mb-1 text-sm">{legend}</legend>
+      <legend className="text-muted mb-1 text-sm">{legend}</legend>
       <div className="flex flex-wrap items-center gap-2">
         {TEXT_SIZES.map(({ label, size: option, zoom }) => (
           <button
-            className={`rounded-lg border px-4 py-2 text-sm ${textSize === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+            className={`rounded-lg border px-4 py-2 text-sm ${textSize === option ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'}`}
             key={option}
             onClick={() => {
               onChange(option);
@@ -36,7 +36,7 @@ function TextSizeChoice({ legend, onChange, textSize }: { readonly legend: strin
 }
 
 /**
- * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the text size on the tiles, on the forms, and in the tracking list, what the notepad button opens, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
+ * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the text size on the tiles, on the forms, in the tracking list, and in the day calendar, what the notepad button opens, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
  */
 export function PhoneSettings() {
   const { is24Hour, setIs24Hour } = useClockFormat();
@@ -44,6 +44,7 @@ export function PhoneSettings() {
   const tileTextSize = useTileTextSize();
   const formTextSize = useFormTextSize();
   const logTextSize = useLogTextSize();
+  const dayCalendarTextSize = useDayCalendarTextSize();
   const { setTheme, theme } = useTheme();
   const { setTrackingView, trackingView } = useTrackingView();
   const { bottleTimeBasis, setBottleTimeBasis } = useBottleTime();
@@ -52,11 +53,11 @@ export function PhoneSettings() {
   return (
     <>
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Theme on this phone</legend>
+        <legend className="text-muted mb-1 text-sm">Theme on this phone</legend>
         <div className="flex gap-2">
           {THEMES.map(({ label, theme: option }) => (
             <button
-              className={`rounded-lg border px-4 py-2 text-sm ${theme === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+              className={`rounded-lg border px-4 py-2 text-sm ${theme === option ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'}`}
               key={option}
               onClick={() => {
                 setTheme(option);
@@ -70,11 +71,11 @@ export function PhoneSettings() {
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Clock on this phone</legend>
+        <legend className="text-muted mb-1 text-sm">Clock on this phone</legend>
         <div className="flex gap-2">
           {[false, true].map((option) => (
             <button
-              className={`rounded-lg border px-4 py-2 text-sm ${is24Hour === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+              className={`rounded-lg border px-4 py-2 text-sm ${is24Hour === option ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'}`}
               key={String(option)}
               onClick={() => {
                 setIs24Hour(option);
@@ -88,11 +89,11 @@ export function PhoneSettings() {
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Dates on this phone</legend>
+        <legend className="text-muted mb-1 text-sm">Dates on this phone</legend>
         <div className="flex flex-wrap gap-2">
           {DATE_FORMATS.map((option) => (
             <button
-              className={`rounded-lg border px-4 py-2 text-sm tabular-nums ${dateFormat === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+              className={`rounded-lg border px-4 py-2 text-sm tabular-nums ${dateFormat === option ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'}`}
               key={option}
               onClick={() => {
                 setDateFormat(option);
@@ -129,12 +130,20 @@ export function PhoneSettings() {
         textSize={logTextSize.textSize}
       />
 
+      <TextSizeChoice
+        legend="Day calendar text on this phone"
+        onChange={(next) => {
+          dayCalendarTextSize.setTextSize(next);
+        }}
+        textSize={dayCalendarTextSize.textSize}
+      />
+
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Notepad button on this phone opens</legend>
+        <legend className="text-muted mb-1 text-sm">Notepad button on this phone opens</legend>
         <div className="flex flex-wrap gap-2">
           {TRACKING_VIEWS.map(({ label, view: option }) => (
             <button
-              className={`rounded-lg border px-4 py-2 text-sm ${trackingView === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+              className={`rounded-lg border px-4 py-2 text-sm ${trackingView === option ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'}`}
               key={option}
               onClick={() => {
                 setTrackingView(option);
@@ -148,11 +157,11 @@ export function PhoneSettings() {
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-foreground/60 mb-1 text-sm">Bottles in the log on this phone are placed at</legend>
+        <legend className="text-muted mb-1 text-sm">Bottles in the log on this phone are placed at</legend>
         <div className="flex flex-wrap gap-2">
           {BOTTLE_TIMES.map(({ basis: option, label }) => (
             <button
-              className={`rounded-lg border px-4 py-2 text-sm ${bottleTimeBasis === option ? 'border-amber-500/60 text-amber-500' : 'border-foreground/15 text-foreground/60'}`}
+              className={`rounded-lg border px-4 py-2 text-sm ${bottleTimeBasis === option ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'}`}
               key={option}
               onClick={() => {
                 setBottleTimeBasis(option);
@@ -166,7 +175,7 @@ export function PhoneSettings() {
       </fieldset>
 
       <label className="flex flex-col gap-2 text-sm">
-        <span className="text-foreground/60">Minutes between bottles on this phone</span>
+        <span className="text-muted">Minutes between bottles on this phone</span>
         <input
           className="border-foreground/15 bg-background w-28 rounded-lg border px-3 py-2 text-base tabular-nums"
           defaultValue={bottleIntervalMinutes}

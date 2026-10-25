@@ -57,7 +57,7 @@ export function LullabyDeleteConfirmation({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border-2 border-red-500/80 px-4 py-4 text-sm text-red-500" role="alertdialog">
+    <div className="flex flex-col gap-3 rounded-lg border-2 border-red-500/80 px-4 py-4 text-sm text-red-600 dark:text-red-400" role="alertdialog">
       <p className="flex items-start gap-2 text-base font-bold">
         <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" />
         <span className="break-all">Delete {lullaby.name} forever?</span>

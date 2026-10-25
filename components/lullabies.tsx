@@ -28,11 +28,11 @@ export function Lullabies({ secretHash }: { readonly secretHash: string }) {
   }, [reload]);
 
   if (error !== null) {
-    return <p className="text-sm text-amber-500">{error}</p>;
+    return <p className="text-sm text-accent">{error}</p>;
   }
 
   if (lullabies === null) {
-    return <p className="text-sm opacity-60">Loading the lullabies…</p>;
+    return <p className="text-muted text-sm">Loading the lullabies…</p>;
   }
 
   return <LullabyPlayer lullabies={lullabies} onChanged={reload} secretHash={secretHash} />;
