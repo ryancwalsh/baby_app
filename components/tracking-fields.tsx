@@ -107,7 +107,7 @@ export function MillilitersField({
   readonly value: string;
 }) {
   return (
-    <label className="flex w-28 flex-col gap-1 text-sm">
+    <label className="flex w-20 flex-col gap-1 text-sm">
       <span className="text-muted">{label}</span>
       <Clearable
         onClear={() => {
@@ -116,7 +116,10 @@ export function MillilitersField({
         value={value}
       >
         <input
-          className={`${INPUT_CLASS_NAME} pr-8 tabular-nums`}
+          /**
+           * Without its spinner, which desktop browsers reserve room for even when it is hidden, and which the narrow field cannot spare from the digits.
+           */
+          className={`${INPUT_CLASS_NAME} [appearance:textfield] pr-8 tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
           inputMode={allowsDecimals ? 'decimal' : 'numeric'}
           min={0}
           onChange={(event) => {
