@@ -7,6 +7,7 @@ import { WebcamCameraScreen } from '@/components/webcam-camera-screen';
 import { type FacingMode, WebcamChecklist } from '@/components/webcam-checklist';
 import { getLocalDescription, ICE_SERVERS, openWebcamStream, waitForIceGathering } from '@/components/webcam-connection';
 import { getCameraConstraints, switchCamera } from '@/components/webcam-media';
+import { useWakeLock } from '@/hooks/use-wake-lock';
 import { type WebcamServerMessage } from '@/services/webcam/messages';
 
 /**
@@ -24,7 +25,7 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
   const [facingMode, setFacingMode] = useState<FacingMode>('environment');
   const [error, setError] = useState<null | string>(null);
   const [watcherCount, setWatcherCount] = useState(0);
-  const [isWakeLockHeld, setIsWakeLockHeld] = useState(false);
+  const isWakeLockHeld = useWakeLock(phase === 'running');
   const streamRef = useRef<MediaStream | null>(null);
   /**
    * One connection per watching phone, keyed by that phone's id.
@@ -55,14 +56,16 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
 
   /**
    * Everything that lives only while the camera is running: the camera and
-   * microphone, the wake lock, the signaling stream, and a connection per
-   * watcher. The camera is asked for here rather than in the Start handler so
+   * microphone, the signaling stream, and a connection per watcher. The camera is asked for here rather than in the Start handler so
    * that whatever opens it is also what closes it.
    */
   useEffect(() => {
     const peers = peersRef.current;
     const clientId = clientIdRef.current;
-    let wakeLock: null | WakeLockSentinel = null;
+    /**
+     * The offer each watcher should be answering. An older answer can still be on its way after a newer offer has replaced it, and applying it would make the right answer fail when it arrives.
+     */
+    const offerIds = new Map<string, string>();
     let isCurrent = true;
     let source: EventSource | null = null;
     let stream: MediaStream | null = null;
@@ -75,30 +78,6 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
       peers.get(watcherId)?.close();
       peers.delete(watcherId);
       countWatchers();
-    }
-
-    async function holdWakeLock() {
-      if ('wakeLock' in window.navigator && document.visibilityState === 'visible') {
-        try {
-          wakeLock = await window.navigator.wakeLock.request('screen');
-          setIsWakeLockHeld(true);
-          wakeLock.addEventListener('release', () => {
-            setIsWakeLockHeld(false);
-          });
-        } catch {
-          setIsWakeLockHeld(false);
-        }
-      }
-    }
-
-    /**
-     * A lock is released whenever the page is hidden, so it is taken again each
-     * time the page comes back.
-     */
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        holdWakeLock();
-      }
     }
 
     async function offer(watcherId: string) {
@@ -114,7 +93,10 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
 
         const connection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
+        const offerId = window.crypto.randomUUID();
+
         peers.set(watcherId, connection);
+        offerIds.set(watcherId, offerId);
 
         for (const track of cameraStream.getTracks()) {
           connection.addTrack(track, cameraStream);
@@ -133,7 +115,7 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
           await waitForIceGathering(connection);
 
           if (peers.get(watcherId) === connection && clientId !== null) {
-            await sendWebcamSignalAction(secretHash, { description: getLocalDescription(connection), from: clientId, to: watcherId, type: 'offer' });
+            await sendWebcamSignalAction(secretHash, { description: getLocalDescription(connection), from: clientId, offerId, to: watcherId, type: 'offer' });
           }
         } catch {
           /**
@@ -151,11 +133,11 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
         source?.close();
         setPhase('replaced');
       } else if (message.type === 'signal') {
-        const { description, from, type } = message.signal;
+        const { description, from, offerId, type } = message.signal;
 
         if (type === 'hello') {
           offer(from);
-        } else if (type === 'answer' && description !== undefined) {
+        } else if (type === 'answer' && description !== undefined && offerId === offerIds.get(from)) {
           try {
             await peers.get(from)?.setRemoteDescription(description);
           } catch {
@@ -179,8 +161,6 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
 
       if (stream !== null && isCurrent) {
         streamRef.current = stream;
-        holdWakeLock();
-        document.addEventListener('visibilitychange', handleVisibilityChange);
         source = openWebcamStream(secretHash, 'camera', id, (message) => {
           if (isCurrent) {
             handleMessage(message);
@@ -203,12 +183,6 @@ export function WebcamCamera({ onExit, secretHash }: { readonly onExit: () => vo
     return () => {
       isCurrent = false;
       source?.close();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-
-      if (wakeLock !== null) {
-        // eslint-disable-next-line promise/prefer-await-to-then -- Cleanup is synchronous; the release finishes on its own.
-        wakeLock.release().catch(() => {});
-      }
 
       /**
        * Told rather than left to notice, so a deliberate stop reads as one on

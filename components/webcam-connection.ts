@@ -68,3 +68,68 @@ export function getLocalDescription(connection: RTCPeerConnection): RTCSessionDe
 
   return { sdp: description.sdp, type: description.type };
 }
+
+export type ReceivedCounts = {
+  audioPackets: number;
+  /**
+   * Empty until the first stats mention one.
+   */
+  codec: string;
+  frames: number;
+};
+
+type InboundReport = { codecId?: string; framesDecoded?: number; kind?: string; mimeType?: string; packetsReceived?: number; type?: string };
+
+/**
+ * What has actually arrived on this connection, and the only evidence of a live camera worth trusting. Measured in Chrome: with frames stopped and even with the sender closed, `currentTime` on the video goes on advancing and `connectionState` goes on saying `connected` for several seconds, while these stop dead.
+ */
+export async function readReceivedCounts(connection: RTCPeerConnection): Promise<ReceivedCounts> {
+  const stats = await connection.getStats();
+  const counts: ReceivedCounts = { audioPackets: 0, codec: '', frames: 0 };
+
+  for (const report of stats.values() as Iterable<InboundReport>) {
+    if (report.type === 'inbound-rtp' && report.kind === 'video') {
+      const codec = report.codecId === undefined ? undefined : (stats.get(report.codecId) as InboundReport | undefined);
+
+      counts.frames = report.framesDecoded ?? 0;
+      counts.codec = codec?.mimeType?.replace('video/', '') ?? '';
+    } else if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+      counts.audioPackets = report.packetsReceived ?? 0;
+    }
+  }
+
+  return counts;
+}
+
+/**
+ * Which kinds of candidate a description offers. `mdns` is a host candidate hidden behind a `.local` name, which is what Chrome sends until the page has microphone or camera permission.
+ */
+function summarizeCandidates(sdp: string | undefined): string {
+  const kinds = new Set<string>();
+
+  for (const line of (sdp ?? '').split(/\r?\n/u)) {
+    if (line.startsWith('a=candidate:')) {
+      const [, , , , address, , , kind] = line.split(' ');
+
+      kinds.add(kind === 'host' && address?.endsWith('.local') === true ? 'mdns' : (kind ?? 'unknown'));
+    }
+  }
+
+  return kinds.size === 0 ? 'none' : [...kinds].join(', ');
+}
+
+/**
+ * One line saying what a connection is doing, shown on the watch screen because a failure on a real phone cannot be looked into any other way.
+ */
+export function describeConnection(connection: null | RTCPeerConnection, received: ReceivedCounts): string {
+  return connection === null
+    ? 'No connection yet'
+    : [
+        connection.connectionState,
+        `ICE ${connection.iceConnectionState}`,
+        `local ${summarizeCandidates(connection.localDescription?.sdp)}`,
+        `remote ${summarizeCandidates(connection.remoteDescription?.sdp)}`,
+        received.codec === '' ? 'no codec' : received.codec,
+        `${received.frames} frames`,
+      ].join(' · ');
+}

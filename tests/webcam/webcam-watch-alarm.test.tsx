@@ -114,12 +114,7 @@ describe('losing the camera', () => {
   it('says so when the alarm cannot make a sound', async () => {
     await goLive();
     FakeAudioContext.resumesTo = 'suspended';
-
-    const [context] = FakeAudioContext.instances;
-
-    if (context !== undefined) {
-      context.state = 'suspended';
-    }
+    FakeAudioContext.state = 'suspended';
 
     await advance(2_000);
 

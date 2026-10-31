@@ -35,12 +35,7 @@ describe('the alarm', () => {
     const { soundAlarm, unlockAlarm } = await importAlarm();
 
     unlockAlarm();
-
-    const [context] = FakeAudioContext.instances;
-
-    if (context !== undefined) {
-      context.state = 'suspended';
-    }
+    FakeAudioContext.state = 'suspended';
 
     FakeAudioContext.resumeCount = 0;
     soundAlarm();

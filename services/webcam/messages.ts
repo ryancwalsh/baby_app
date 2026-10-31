@@ -23,13 +23,15 @@ export type WebcamCameraState = {
  *   one on a watcher's behalf when it first connects.
  * - `offer` and `answer`: a complete session description each. Candidates are
  *   gathered before sending rather than trickled, which keeps this to one
- *   message each way.
+ *   message each way. An answer repeats its offer's `offerId`, so that a late
+ *   answer to a replaced offer is not applied to the connection that replaced it.
  * - `bye`: a watcher that has stopped, so the camera can let go at once rather
  *   than waiting to notice.
  */
 export type WebcamSignal = {
   description?: RTCSessionDescriptionInit;
   from: string;
+  offerId?: string;
   /**
    * A phone's id, or `camera` for whichever phone is the camera right now.
    */

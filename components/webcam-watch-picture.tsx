@@ -13,6 +13,11 @@ import { PinchZoomView, VIDEO_ASPECT_RATIO } from '@/components/pinch-zoom-view'
 
 export type Status = 'connecting' | 'failed' | 'live' | 'stopped' | 'waiting';
 
+/**
+ * What has stopped arriving, if anything.
+ */
+export type Lost = 'picture' | 'sound' | null;
+
 const ROTATION_KEY = 'baby-app-webcam-rotation';
 /**
  * How much of the screen the picture's box takes, leaving the controls below
@@ -20,7 +25,7 @@ const ROTATION_KEY = 'baby-app-webcam-rotation';
  */
 const PICTURE_SHARE_OF_SCREEN = 0.65;
 
-export function WebcamWatchPicture({ isStale, status, videoRef }: { readonly isStale: boolean; readonly status: Status; readonly videoRef: RefObject<HTMLVideoElement | null> }) {
+export function WebcamWatchPicture({ lost, status, videoRef }: { readonly lost: Lost; readonly status: Status; readonly videoRef: RefObject<HTMLVideoElement | null> }) {
   const [pictureHeightPixels, setPictureHeightPixels] = useState<null | number>(null);
   const [aspectRatio, setAspectRatio] = useState(VIDEO_ASPECT_RATIO);
 
@@ -59,7 +64,7 @@ export function WebcamWatchPicture({ isStale, status, videoRef }: { readonly isS
         />
       </PinchZoomView>
 
-      {status !== 'live' && !isStale && (
+      {status !== 'live' && lost !== 'picture' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
           {(status === 'waiting' || status === 'connecting') && <Loader2Icon aria-hidden className="size-8 animate-spin text-white/50" />}
           {/* On the black picture box in either theme, so in fixed colours rather than the theme's. */}
@@ -73,11 +78,18 @@ export function WebcamWatchPicture({ isStale, status, videoRef }: { readonly isS
       )}
 
       {/* Deliberately loud for this app: this is the one moment the screen should demand attention. */}
-      {isStale && (
+      {lost === 'picture' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 px-6 text-center">
           <TriangleAlertIcon aria-hidden className="size-10 text-amber-500" />
           <p className="text-lg font-semibold text-amber-500">No picture: connection lost</p>
           <p className="text-sm text-white/60">Reconnecting…</p>
+        </div>
+      )}
+
+      {lost === 'sound' && (
+        <div className="absolute inset-x-0 top-0 flex items-center justify-center gap-2 bg-black/80 px-6 py-2 text-center">
+          <TriangleAlertIcon aria-hidden className="size-5 text-amber-500" />
+          <p className="text-sm font-semibold text-amber-500">No sound: the picture is still arriving</p>
         </div>
       )}
     </div>

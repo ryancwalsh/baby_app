@@ -80,10 +80,6 @@ export class FakePeerConnection extends EventTarget {
     this.dispatchEvent(event);
   }
 
-  getSenders() {
-    return [];
-  }
-
   async getStats() {
     this.framesDecoded += this.isVideoFlowing ? 15 : 0;
     this.audioPackets += this.isAudioFlowing ? 50 : 0;
@@ -171,11 +167,18 @@ export class FakeAudioContext {
    */
   static resumesTo: AudioContextState = 'running';
 
+  /**
+   * Shared, because the alarm holds on to one context for as long as its module lives, which outlasts a test.
+   */
+  static state: AudioContextState = 'running';
+
   currentTime = 0;
 
   destination = {};
 
-  state: AudioContextState = 'running';
+  get state() {
+    return FakeAudioContext.state;
+  }
 
   constructor() {
     FakeAudioContext.instances.push(this);
@@ -184,6 +187,7 @@ export class FakeAudioContext {
   static reset() {
     FakeAudioContext.oscillatorsStarted = 0;
     FakeAudioContext.resumesTo = 'running';
+    FakeAudioContext.state = 'running';
     FakeAudioContext.resumeCount = 0;
     FakeAudioContext.gainValues = [];
   }
@@ -217,7 +221,7 @@ export class FakeAudioContext {
 
   async resume() {
     FakeAudioContext.resumeCount += 1;
-    this.state = FakeAudioContext.resumesTo;
+    FakeAudioContext.state = FakeAudioContext.resumesTo;
   }
 }
 
