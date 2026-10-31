@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MIGRATIONS } from '@/storage/migrations';
 import { getBottle, resumeBottleNow, saveBottle } from '@/storage/tracking';
+import { type BottleInput } from '@/storage/tracking-types';
 
 const database = vi.hoisted(() => ({ client: null as null | ReturnType<typeof createClient> }));
 
@@ -18,7 +19,7 @@ vi.mock('@/storage/database', () => ({
 
 const TOUCHED_LIPS_AT = '2026-10-31T01:00:00.000Z';
 const RESUMED_AT = '2026-10-31T01:30:00.000Z';
-const INPUT = {
+const INPUT: BottleInput = {
   amountMilliliters: 90,
   drankMilliliters: null,
   note: '',
