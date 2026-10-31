@@ -18,6 +18,7 @@ export type Bottle = {
   id: number;
   note: string;
   preparedAt: string;
+  resumedAt: null | string;
   touchedLipsAt: null | string;
 };
 

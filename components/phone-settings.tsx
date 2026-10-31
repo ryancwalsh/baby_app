@@ -2,6 +2,7 @@
 
 import { DATE_FORMATS, formatDate } from '@/components/tracking-format';
 import { useBottleInterval } from '@/hooks/use-bottle-interval';
+import { useBottleResumeDelay } from '@/hooks/use-bottle-resume-delay';
 import { BOTTLE_TIMES, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
@@ -49,6 +50,7 @@ export function PhoneSettings() {
   const { setTrackingView, trackingView } = useTrackingView();
   const { bottleTimeBasis, setBottleTimeBasis } = useBottleTime();
   const { bottleIntervalMinutes, setBottleIntervalMinutes } = useBottleInterval();
+  const { bottleResumeDelayMinutes, setBottleResumeDelayMinutes } = useBottleResumeDelay();
 
   return (
     <>
@@ -185,6 +187,24 @@ export function PhoneSettings() {
             const minutes = Number(event.target.value);
             if (Number.isInteger(minutes) && minutes > 0) {
               setBottleIntervalMinutes(minutes);
+            }
+          }}
+          step={1}
+          type="number"
+        />
+      </label>
+
+      <label className="flex flex-col gap-2 text-sm">
+        <span className="text-muted">Minutes after touched lips before offering Resume on this phone</span>
+        <input
+          className="border-foreground/15 bg-background w-28 rounded-lg border px-3 py-2 text-base tabular-nums"
+          defaultValue={bottleResumeDelayMinutes}
+          inputMode="numeric"
+          min={1}
+          onChange={(event) => {
+            const minutes = Number(event.target.value);
+            if (Number.isInteger(minutes) && minutes > 0) {
+              setBottleResumeDelayMinutes(minutes);
             }
           }}
           step={1}

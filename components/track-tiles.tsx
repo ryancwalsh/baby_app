@@ -4,24 +4,17 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState, useTransition } from 'react';
 
 import { deleteSleepAction, endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
+import { BottleTile } from '@/components/bottle-tile';
 import { DeleteSleepButton } from '@/components/delete-sleep-button';
 import { MedicineTile } from '@/components/medicine-tile';
-import { NextBottle } from '@/components/next-bottle';
 import { SleepPredictionTable } from '@/components/sleep-prediction-table';
 import { predictNextSleeps } from '@/components/sleep-predictions';
 import { StopwatchTile } from '@/components/stopwatch-tile';
+import { TileNote } from '@/components/tile-note';
 import { TILE_BUTTON_CLASS_NAME, TILE_COLORS } from '@/components/tile-styles';
 import { formatAgo, formatDuration, formatRunningDuration } from '@/components/tracking-format';
-import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
-import { useBottleInterval } from '@/hooks/use-bottle-interval';
-import { getBottleTime, useBottleTime } from '@/hooks/use-bottle-time';
-import { useClockFormat } from '@/hooks/use-clock-format';
 import { useNow } from '@/hooks/use-now';
 import { useTileTextSize } from '@/hooks/use-text-size';
-
-function Note({ note }: { readonly note: string }) {
-  return note === '' ? null : <p className="text-faint truncate italic text-base">{note}</p>;
-}
 
 function SleepTile({
   now,
@@ -60,7 +53,7 @@ function SleepTile({
             Woke {formatAgo(now - new Date(latest.endedAt).getTime())} from {formatDuration(new Date(latest.endedAt).getTime() - new Date(latest.startedAt).getTime())} sleep
           </span>
         )}
-        {latest !== undefined && <Note note={latest.note} />}
+        {latest !== undefined && <TileNote note={latest.note} />}
         <SleepPredictionTable now={now} predictions={predictions} />
         {active === undefined && latest === undefined && <span className="text-faint text-base">No sleeps yet.</span>}
       </Link>
@@ -93,56 +86,6 @@ function SleepTile({
   );
 }
 
-/**
- * The whole tile adds a bottle, through a link stretched underneath everything else; the content lets taps fall through to it. Edit is the one thing on top that catches its own taps. New does nothing of its own — it is there to say what tapping the tile does.
- */
-function BottleTile({ now, summary }: { readonly now: number; readonly summary: TrackingSummary }) {
-  const { is24Hour } = useClockFormat();
-  const { bottleTimeBasis } = useBottleTime();
-  const { bottleIntervalMinutes } = useBottleInterval();
-  const bottle = summary.latestBottle;
-  const colors = TILE_COLORS.bottle;
-  const amounts =
-    bottle === null
-      ? []
-      : [bottle.amountMilliliters === null ? '' : `${bottle.amountMilliliters} ml`, bottle.drankMilliliters === null ? '' : `drank ${bottle.drankMilliliters} ml`].filter(
-          (amount) => amount !== '',
-        );
-  const nextBottleTime = bottle === null ? null : getBottleTime(bottle, bottleTimeBasis) + bottleIntervalMinutes * MILLISECONDS_PER_MINUTE;
-
-  return (
-    <div className={`relative flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
-      <Link aria-label="New bottle" className="absolute inset-0 rounded-2xl" href="/track/bottle" />
-      <div className="pointer-events-none relative flex flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className={`text-lg font-semibold ${colors.label}`}>Bottle</span>
-          {nextBottleTime !== null && <NextBottle is24Hour={is24Hour} nextBottleTime={nextBottleTime} now={now} />}
-        </div>
-        {bottle === null ? (
-          <span className="text-faint text-base">No bottles yet.</span>
-        ) : (
-          <>
-            <span className="text-foreground/70 tabular-nums text-base">Prepared {formatAgo(now - new Date(bottle.preparedAt).getTime())}</span>
-            {bottle.touchedLipsAt !== null && (
-              <span className="text-foreground/70 tabular-nums text-base">Touched lips {formatAgo(now - new Date(bottle.touchedLipsAt).getTime())}</span>
-            )}
-            {amounts.length > 0 && <span className="text-foreground/70 text-base">{amounts.join(', ')}</span>}
-            <Note note={bottle.note} />
-          </>
-        )}
-      </div>
-      <div className="pointer-events-none relative flex gap-2">
-        <span className={`${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`}>New</span>
-        {bottle !== null && (
-          <Link className={`pointer-events-auto ${TILE_BUTTON_CLASS_NAME} ${colors.border} ${colors.label}`} href={`/track/bottle?id=${bottle.id}&from=track`}>
-            Edit
-          </Link>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function DiaperTile({ now, summary }: { readonly now: number; readonly summary: TrackingSummary }) {
   const diaper = summary.latestDiaper;
   const colors = TILE_COLORS.diaper;
@@ -155,7 +98,7 @@ function DiaperTile({ now, summary }: { readonly now: number; readonly summary: 
       ) : (
         <>
           <span className="text-foreground/70 tabular-nums text-base">{formatAgo(now - new Date(diaper.changedAt).getTime())}</span>
-          <Note note={diaper.note} />
+          <TileNote note={diaper.note} />
         </>
       )}
     </Link>
@@ -212,7 +155,14 @@ export function TrackTiles({ secretHash }: { readonly secretHash: string }) {
             secretHash={secretHash}
             summary={summary}
           />
-          <BottleTile now={now} summary={summary} />
+          <BottleTile
+            now={now}
+            onChange={() => {
+              load();
+            }}
+            secretHash={secretHash}
+            summary={summary}
+          />
           <DiaperTile now={now} summary={summary} />
           <MedicineTile medicine={summary.latestMedicine} now={now} />
           <StopwatchTile now={now} />

@@ -142,4 +142,11 @@ export const MIGRATIONS: Migration[] = [
     name: '2026-10-24_medicine_note',
     statements: ['ALTER TABLE medicines ADD COLUMN note TEXT'],
   },
+  /**
+   * When a bottle that was put down was taken up again. Nullable so the build before this one can still insert without it.
+   */
+  {
+    name: '2026-10-31_bottle_resumed_at',
+    statements: ['ALTER TABLE bottles ADD COLUMN resumed_at TEXT'],
+  },
 ];

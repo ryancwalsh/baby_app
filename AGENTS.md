@@ -46,15 +46,36 @@ A stream ends itself after 280 seconds, inside Vercel's limit, and the phone's
 - Neither role is remembered, and the camera starts only from its Start button.
   A tap on the Monitor tab in webcam mode is consumed and thrown away, so it
   cannot start the Nanit later when someone switches back.
-- The watching phone trusts only frames moving. A frozen last frame looks
-  exactly like a sleeping baby, so a picture that stops for 5 seconds is
-  covered over and, unless turned off, sounds an alarm. A camera that is
-  stopped on purpose says `bye` first, so that does not alarm.
+- The watching phone trusts only what `getStats` says has arrived:
+  `framesDecoded` and `packetsReceived`. **Never `video.currentTime` or
+  `connectionState`.** Measured in Chrome on 2026-10-31: with frames stopped and
+  even with the sender closed, `currentTime` goes on advancing and the state
+  goes on saying `connected`. A frozen last frame looks exactly like a sleeping
+  baby, so a picture or sound that stops for 5 seconds is reported and, unless
+  turned off, sounds an alarm. A camera that is stopped on purpose says `bye`
+  first, so that does not alarm.
+- A new offer closes the attempt in progress on both phones, so the watcher
+  only asks for one when there is no attempt under way or the current one has
+  had 30 seconds. An answer repeats its offer's `offerId`, so a late one is
+  ignored rather than applied to the connection that replaced it.
+- Chrome hides a page's local address behind a `.local` name until it has
+  microphone or camera permission (measured 2026-10-31), and a watcher has
+  neither. The watch screen's "Try a direct wifi connection", offered after a
+  failure, gets the permission and lets go of the microphone at once.
 - Offers and answers carry their candidates (no trickle ICE), which keeps the
   exchange to one message each way.
-- Not yet run on real phones. In particular, whether iOS keeps playing the
-  sound with the screen locked is untested, and the watch screen warns that it
-  may not.
+- The alarm sets `navigator.audioSession` to `playback`, because iOS otherwise
+  mutes Web Audio on the silent switch, and it wakes its audio context before
+  every beep. The watch screen has a Test alarm button and says when the alarm
+  cannot sound.
+- A page frozen by a locked iPhone cannot alarm, and nothing here fixes that.
+  The watcher holds a wake lock, warns when it cannot, and owns up afterwards to
+  time it was not monitoring. A real answer would be server-side detection and
+  push notifications.
+- First real use, 2026-10-30 (old iPad as camera): a Pixel 6 could not connect
+  and an iPhone 12 mini lost the stream silently. The fixes have been run only
+  between two Chrome contexts with fake media, not yet on those phones. The
+  line of diagnostics at the bottom of the watch screen is there for that.
 
 ## Design in the dark
 
@@ -297,7 +318,7 @@ in `.env.production.local`.
   tiles, on the add and edit pages, in the tracking list, and in the day calendar, where the notepad button goes, whether a
   bottle is placed in the log at "touched lips" (the default) or "prepared",
   and the minutes between bottles behind the bottle tile's "Next" are per
-  phone, in local storage (`components/phone-settings.tsx`). The text sizes are
+  phone, in local storage (`components/phone-settings.tsx`), and so are the minutes after touched lips before the bottle tile offers Resume. The text sizes are
   a CSS `zoom` on the whole area, so everything in it grows together. The prediction method and wake windows are
   shared, in the `settings` table.
 - The notes page at `/notes`, linked from the footer, is one shared markdown document in the same database, edited in Milkdown. It saves itself, refuses a save when someone else saved in between, and keeps earlier versions as reverse patches (`storage/notes-history.ts`).
@@ -336,8 +357,11 @@ in `.env.production.local`.
   named for when they were made, in UTC like every stored time here, and the
   pages show that name in the phone's own time zone (`storage/timestamps.ts`).
   Database backups are named in UTC the same way.
-- `yarn typecheck`, `yarn lint`, `yarn prettier --write <files>`. All offline
-  and safe to run. Yarn, not npm; `--exact` when adding.
+- `yarn typecheck`, `yarn lint`, `yarn test`, `yarn prettier --write <files>`.
+  All offline and safe to run. Yarn, not npm; `--exact` when adding. Tests are
+  in `tests/`, on Vitest and jsdom. The fakes in `tests/webcam/fakes.ts` copy
+  what real Chrome was measured doing, so keep them honest rather than
+  convenient.
 - `yarn dev` is safe to run beside the live app, and is the way to look at a
   change without touching the nursery: `next.config.ts` gives the dev server
   its own `distDir` of `.next-dev`, so it cannot rewrite the `.next` the pm2

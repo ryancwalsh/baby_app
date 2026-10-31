@@ -18,6 +18,11 @@ function getDifference(total: string, part: string): string {
 export function BottleForm({ id, secretHash }: { readonly id: null | number; readonly secretHash: string }) {
   const [preparedAt, setPreparedAt] = useState(() => toDateTimeInputValue(Date.now()));
   const [touchedLipsAt, setTouchedLipsAt] = useState('');
+  const [resumedAt, setResumedAt] = useState('');
+  /**
+   * Whether the saved record has been touched, as opposed to what is typed here, because only a bottle already started can be resumed.
+   */
+  const [isSavedAsTouched, setIsSavedAsTouched] = useState(false);
   const [amount, setAmount] = useState('');
   const [remaining, setRemaining] = useState('');
   const [drank, setDrank] = useState('');
@@ -30,6 +35,8 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
       if (bottle !== null) {
         setPreparedAt(toDateTimeInputValue(bottle.preparedAt));
         setTouchedLipsAt(bottle.touchedLipsAt === null ? '' : toDateTimeInputValue(bottle.touchedLipsAt));
+        setResumedAt(bottle.resumedAt === null ? '' : toDateTimeInputValue(bottle.resumedAt));
+        setIsSavedAsTouched(bottle.touchedLipsAt !== null);
         const loadedAmount = bottle.amountMilliliters === null ? '' : String(bottle.amountMilliliters);
         const loadedDrank = bottle.drankMilliliters === null ? '' : String(bottle.drankMilliliters);
         setAmount(loadedAmount);
@@ -58,6 +65,7 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
           drankMilliliters: toOptionalMilliliters(drank),
           note,
           preparedAt: fromDateTimeInputValue(preparedAt) ?? '',
+          resumedAt: fromDateTimeInputValue(resumedAt),
           touchedLipsAt: fromDateTimeInputValue(touchedLipsAt),
         })
       }
@@ -65,6 +73,7 @@ export function BottleForm({ id, secretHash }: { readonly id: null | number; rea
     >
       <DateTimeField label="Prepared" onChange={setPreparedAt} value={preparedAt} />
       <DateTimeField isOptional label="Touched lips" onChange={setTouchedLipsAt} value={touchedLipsAt} />
+      {isSavedAsTouched && <DateTimeField isOptional label="Resumed" onChange={setResumedAt} value={resumedAt} />}
       <fieldset className="flex flex-col gap-1">
         <legend className="text-muted mb-1 text-sm">Amounts (ml)</legend>
         <div className="flex gap-3">

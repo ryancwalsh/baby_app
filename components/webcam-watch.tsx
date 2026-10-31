@@ -1,60 +1,46 @@
 'use client';
 
-import { BellIcon, BellOffIcon, SquareIcon, Volume2Icon } from 'lucide-react';
+import { BellIcon, BellOffIcon, SquareIcon, TriangleAlertIcon, Volume2Icon, WifiIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { sendWebcamSignalAction } from '@/app/actions/webcam';
 import { getIsIos } from '@/components/platform';
+import { formatDuration } from '@/components/tracking-format';
 import { soundAlarm, unlockAlarm } from '@/components/webcam-alarm';
-import { getLocalDescription, ICE_SERVERS, openWebcamStream, waitForIceGathering } from '@/components/webcam-connection';
 import { playWithSound } from '@/components/webcam-media';
-import { type Status, WebcamWatchPicture } from '@/components/webcam-watch-picture';
+import { WebcamWatchPicture } from '@/components/webcam-watch-picture';
 import { useLocalStorage } from '@/hooks/use-local-storage';
-import { CAMERA_ADDRESS, type WebcamServerMessage } from '@/services/webcam/messages';
+import { useWakeLock } from '@/hooks/use-wake-lock';
+import { useWebcamWatch } from '@/hooks/use-webcam-watch';
 
 /**
  * This phone watching and listening to the camera phone.
  *
  * The one thing it must never do is look fine while showing nothing. A frozen
  * last frame of a sleeping baby is indistinguishable from a sleeping baby, so
- * the picture is checked every second for actually moving, and a picture that
- * has stopped is covered over and — unless switched off — sounded.
+ * what has arrived is counted every second, and a picture or sound that has
+ * stopped is reported and — unless switched off — sounded.
  */
 
 const ALARM_SETTING_KEY = 'baby-app-webcam-alarm';
 const ALARM_OFF = 'off';
-const WATCHDOG_MILLISECONDS = 1_000;
-/**
- * How long the picture may stand still before it counts as lost. The camera
- * sends 15 frames a second, so this is far past any ordinary hiccup.
- */
-const STALE_AFTER_MILLISECONDS = 5_000;
-const ALARM_REPEAT_MILLISECONDS = 2_000;
-/**
- * How often to ask the camera for a fresh offer while nothing is arriving.
- * This is the whole of the recovery: a phone that changed networks, or a
- * camera that restarted, answers with a new connection.
- */
-const RETRY_MILLISECONDS = 10_000;
 
 export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => void; readonly secretHash: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState<Status>('waiting');
-  const [isStale, setIsStale] = useState(false);
   const [needsTapForSound, setNeedsTapForSound] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [hasTriedDirectConnection, setHasTriedDirectConnection] = useState(false);
+  const [directConnectionError, setDirectConnectionError] = useState<null | string>(null);
+  const isWakeLockHeld = useWakeLock(true);
   const { store: storeAlarmSetting, value: alarmSetting } = useLocalStorage(ALARM_SETTING_KEY);
   const isAlarmOn = alarmSetting !== ALARM_OFF;
-  /**
-   * Read by the watchdog's interval, which is set up once and would otherwise
-   * only ever see the first render's values.
-   */
-  const isAlarmOnRef = useRef(isAlarmOn);
-  const statusRef = useRef<Status>('waiting');
-
-  useEffect(() => {
-    isAlarmOnRef.current = isAlarmOn;
-  }, [isAlarmOn]);
+  const { askForOffer, diagnostics, dismissUnmonitored, isAlarmAudible, lost, status, unmonitoredMilliseconds } = useWebcamWatch({
+    isAlarmOn,
+    onStream: () => {
+      play();
+    },
+    secretHash,
+    videoRef,
+  });
 
   useEffect(() => {
     setIsIos(getIsIos());
@@ -68,154 +54,29 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
     }
   }
 
-  useEffect(() => {
-    const clientId = window.crypto.randomUUID();
-    let connection: null | RTCPeerConnection = null;
-    let cameraId: null | string = null;
-    let isCameraRunning = false;
-    let hasEverBeenLive = false;
-    let lastTime = -1;
-    let lastProgressAt = Date.now();
-    let lastRetryAt = Date.now();
-    let lastAlarmAt = 0;
+  /**
+   * Chrome hides this phone's address on the wifi until the page has microphone permission, and a same-wifi connection can depend on that address. Having the permission is enough, so the microphone is let go of at once.
+   */
+  async function tryDirectConnection() {
+    setHasTriedDirectConnection(true);
 
-    function setWatchStatus(next: Status) {
-      statusRef.current = next;
-      setStatus(next);
+    try {
+      const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+
+      for (const track of stream.getTracks()) {
+        track.stop();
+      }
+
+      setDirectConnectionError(null);
+      askForOffer();
+    } catch {
+      setDirectConnectionError('The microphone was not allowed, so a direct connection could not be tried.');
     }
-
-    function hangUp() {
-      connection?.close();
-      connection = null;
-
-      if (videoRef.current !== null) {
-        videoRef.current.srcObject = null;
-      }
-    }
-
-    function askForOffer() {
-      lastRetryAt = Date.now();
-      // eslint-disable-next-line promise/prefer-await-to-then -- Fire and forget: the watchdog asks again if this is lost.
-      sendWebcamSignalAction(secretHash, { from: clientId, to: CAMERA_ADDRESS, type: 'hello' }).catch(() => {});
-    }
-
-    async function answer(from: string, description: RTCSessionDescriptionInit) {
-      hangUp();
-
-      const next = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
-      connection = next;
-      cameraId = from;
-      setWatchStatus('connecting');
-
-      next.addEventListener('track', (event) => {
-        const [stream] = event.streams;
-
-        if (videoRef.current !== null && stream !== undefined && videoRef.current.srcObject !== stream) {
-          videoRef.current.srcObject = stream;
-          play();
-        }
-      });
-
-      next.addEventListener('connectionstatechange', () => {
-        if (connection === next) {
-          if (next.connectionState === 'connected') {
-            hasEverBeenLive = true;
-            setWatchStatus('live');
-          } else if (next.connectionState === 'failed' && !hasEverBeenLive) {
-            /**
-             * Never connected at all, which with no relay server usually means
-             * a network that keeps its devices apart.
-             */
-            setWatchStatus('failed');
-          }
-        }
-      });
-
-      try {
-        await next.setRemoteDescription(description);
-        await next.setLocalDescription();
-        await waitForIceGathering(next);
-
-        if (connection === next) {
-          await sendWebcamSignalAction(secretHash, { description: getLocalDescription(next), from: clientId, to: from, type: 'answer' });
-        }
-      } catch {
-        /**
-         * The watchdog asks for a fresh offer.
-         */
-      }
-    }
-
-    function handleMessage(message: WebcamServerMessage) {
-      if (message.type === 'camera') {
-        isCameraRunning = message.startedAt !== null;
-
-        if (!isCameraRunning && connection === null && statusRef.current !== 'stopped') {
-          setWatchStatus('waiting');
-        }
-      } else if (message.type === 'signal') {
-        const { description, from, type } = message.signal;
-
-        if (type === 'offer' && description !== undefined) {
-          answer(from, description);
-        } else if (type === 'bye' && from === cameraId) {
-          /**
-           * Stopped on purpose, which is not an emergency.
-           */
-          hangUp();
-          hasEverBeenLive = false;
-          setWatchStatus('stopped');
-        }
-      }
-    }
-
-    const source = openWebcamStream(secretHash, 'watcher', clientId, handleMessage);
-
-    /**
-     * Frames moving is the only evidence worth trusting. Connection states lag,
-     * and a camera phone that has locked its screen can stay "connected" while
-     * sending nothing at all.
-     */
-    const watchdog = setInterval(() => {
-      const video = videoRef.current;
-      const now = Date.now();
-
-      if (video !== null && video.currentTime !== lastTime) {
-        lastTime = video.currentTime;
-        lastProgressAt = now;
-      }
-
-      const isLost = hasEverBeenLive && statusRef.current !== 'stopped' && now - lastProgressAt > STALE_AFTER_MILLISECONDS;
-
-      setIsStale(isLost);
-
-      if (isLost && isAlarmOnRef.current && now - lastAlarmAt > ALARM_REPEAT_MILLISECONDS) {
-        lastAlarmAt = now;
-        soundAlarm();
-      }
-
-      if (isCameraRunning && now - lastProgressAt > STALE_AFTER_MILLISECONDS && now - lastRetryAt > RETRY_MILLISECONDS) {
-        askForOffer();
-      }
-    }, WATCHDOG_MILLISECONDS);
-
-    return () => {
-      clearInterval(watchdog);
-      source.close();
-
-      if (connection !== null && cameraId !== null) {
-        // eslint-disable-next-line promise/prefer-await-to-then -- Cleanup is synchronous; the camera notices on its own if this is lost.
-        sendWebcamSignalAction(secretHash, { from: clientId, to: cameraId, type: 'bye' }).catch(() => {});
-      }
-
-      hangUp();
-    };
-  }, [secretHash]);
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      <WebcamWatchPicture isStale={isStale} status={status} videoRef={videoRef} />
+      <WebcamWatchPicture lost={lost} status={status} videoRef={videoRef} />
 
       {needsTapForSound && (
         <button
@@ -230,9 +91,50 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
         </button>
       )}
 
-      <p className="text-faint text-sm">{status === 'live' && !isStale ? '● Live' : ''}</p>
+      {isAlarmOn && !isAlarmAudible && (
+        <button className="flex items-center justify-center gap-2 rounded-2xl border border-accent/40 px-5 py-3 text-accent" onClick={unlockAlarm} type="button">
+          <BellOffIcon aria-hidden className="size-5" /> Alarm cannot sound. Tap to enable.
+        </button>
+      )}
 
-      {isIos && <p className="text-faint text-xs">On iPhone, sound may stop when the screen locks. Keep the screen on to be sure.</p>}
+      {status === 'failed' && !isIos && !hasTriedDirectConnection && (
+        <div className="flex flex-col gap-2">
+          <button
+            className="flex items-center justify-center gap-2 rounded-2xl border border-accent/40 px-5 py-3 text-accent"
+            onClick={() => {
+              tryDirectConnection();
+            }}
+            type="button"
+          >
+            <WifiIcon aria-hidden className="size-5" /> Try a direct wifi connection
+          </button>
+          <p className="text-faint text-xs">
+            This asks once for the microphone, because Chrome hides this phone’s wifi address without that permission. Nothing is recorded or sent.
+          </p>
+        </div>
+      )}
+
+      {directConnectionError !== null && <p className="text-sm text-accent">{directConnectionError}</p>}
+
+      {unmonitoredMilliseconds !== null && (
+        <div className="flex items-center gap-2 rounded-2xl border border-accent/40 px-4 py-3">
+          <p className="flex-1 text-sm text-accent">Not monitored for {formatDuration(unmonitoredMilliseconds)} while this page was frozen, so nothing could have sounded.</p>
+          <button className="text-muted text-sm" onClick={dismissUnmonitored} type="button">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <p className="text-faint text-sm">{status === 'live' && lost === null ? '● Live' : ''}</p>
+
+      {!isWakeLockHeld && (
+        <p className="flex gap-2 text-sm text-accent">
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+          The screen may lock, and a locked phone cannot sound the alarm. Set the screen timeout to Never in this phone/tablet’s display settings.
+        </p>
+      )}
+
+      {isIos && <p className="text-faint text-xs">On iPhone, a locked screen stops this page: no picture, no sound, and no alarm. Keep the screen on and this app open.</p>}
 
       <div className="flex gap-2">
         <button
@@ -247,10 +149,24 @@ export function WebcamWatch({ onExit, secretHash }: { readonly onExit: () => voi
           {isAlarmOn ? <BellIcon aria-hidden className="size-4" /> : <BellOffIcon aria-hidden className="size-4" />}
           {isAlarmOn ? 'Alerts are on' : 'Alerts are off'}
         </button>
+        <button
+          className="border-foreground/15 flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm opacity-70"
+          onClick={() => {
+            unlockAlarm();
+            soundAlarm();
+          }}
+          type="button"
+        >
+          <Volume2Icon aria-hidden className="size-4" /> Test alarm
+        </button>
         <button className="border-foreground/15 flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm opacity-70" onClick={onExit} type="button">
           <SquareIcon aria-hidden className="size-4" /> Stop watching
         </button>
       </div>
+
+      <p className="text-faint text-xs tabular-nums" data-testid="webcam-diagnostics">
+        {diagnostics}
+      </p>
     </div>
   );
 }

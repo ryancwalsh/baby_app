@@ -39,6 +39,7 @@ function toBottle(row: Row): Bottle {
     id: Number(row.id),
     note: String(row.note),
     preparedAt: String(row.prepared_at),
+    resumedAt: toOptionalString(row.resumed_at),
     touchedLipsAt: toOptionalString(row.touched_lips_at),
   };
 }
@@ -86,12 +87,18 @@ function validateSleep(input: SleepInput): SleepInput {
 }
 
 function validateBottle(input: BottleInput): BottleInput {
+  const touchedLipsAt = toOptionalTime(input.touchedLipsAt, 'Touched lips');
+
   return {
     amountMilliliters: input.amountMilliliters === null ? null : toMilliliters(input.amountMilliliters, 'Prepared amount'),
     drankMilliliters: input.drankMilliliters === null ? null : toMilliliters(input.drankMilliliters, 'Drank'),
     note: input.note.trim(),
     preparedAt: toTime(input.preparedAt, 'Prepared'),
-    touchedLipsAt: toOptionalTime(input.touchedLipsAt, 'Touched lips'),
+    /**
+     * There is nothing to resume from without a first touch.
+     */
+    resumedAt: touchedLipsAt === null ? null : toOptionalTime(input.resumedAt, 'Resumed'),
+    touchedLipsAt,
   };
 }
 
@@ -159,26 +166,22 @@ export async function saveSleep(id: null | number, input: SleepInput) {
 }
 
 export async function saveBottle(id: null | number, input: BottleInput) {
-  const { amountMilliliters, drankMilliliters, note, preparedAt, touchedLipsAt } = validateBottle(input);
+  const { amountMilliliters, drankMilliliters, note, preparedAt, resumedAt, touchedLipsAt } = validateBottle(input);
   if (id === null) {
-    await query('INSERT INTO bottles (prepared_at, touched_lips_at, amount_milliliters, prepared_milliliters, drank_milliliters, note) VALUES (?, ?, ?, ?, ?, ?)', [
+    await query('INSERT INTO bottles (prepared_at, touched_lips_at, resumed_at, amount_milliliters, prepared_milliliters, drank_milliliters, note) VALUES (?, ?, ?, ?, ?, ?, ?)', [
       preparedAt,
       touchedLipsAt,
+      resumedAt,
       amountMilliliters ?? 0,
       amountMilliliters,
       drankMilliliters,
       note,
     ]);
   } else {
-    await query('UPDATE bottles SET prepared_at = ?, touched_lips_at = ?, amount_milliliters = ?, prepared_milliliters = ?, drank_milliliters = ?, note = ? WHERE id = ?', [
-      preparedAt,
-      touchedLipsAt,
-      amountMilliliters ?? 0,
-      amountMilliliters,
-      drankMilliliters,
-      note,
-      id,
-    ]);
+    await query(
+      'UPDATE bottles SET prepared_at = ?, touched_lips_at = ?, resumed_at = ?, amount_milliliters = ?, prepared_milliliters = ?, drank_milliliters = ?, note = ? WHERE id = ?',
+      [preparedAt, touchedLipsAt, resumedAt, amountMilliliters ?? 0, amountMilliliters, drankMilliliters, note, id],
+    );
   }
 }
 
@@ -218,4 +221,11 @@ export async function startSleepNow() {
  */
 export async function endSleepNow() {
   await query('UPDATE sleeps SET ended_at = ? WHERE ended_at IS NULL', [new Date().toISOString()]);
+}
+
+/**
+ * The one-tap resume on the bottle tile. Overwrites any earlier value, since what matters is the latest time the bottle was taken up again.
+ */
+export async function resumeBottleNow(id: number) {
+  await query('UPDATE bottles SET resumed_at = ? WHERE id = ?', [new Date().toISOString(), id]);
 }

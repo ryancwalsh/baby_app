@@ -16,6 +16,7 @@ import {
   listBottles,
   listDiapers,
   listSleeps,
+  resumeBottleNow,
   saveBottle,
   saveDiaper,
   saveSleep,
@@ -173,6 +174,10 @@ export async function startSleepNowAction(secretHash: string): Promise<ActionRes
 
 export async function endSleepNowAction(secretHash: string): Promise<ActionResult> {
   return attempt(secretHash, endSleepNow, 'Could not end the sleep.');
+}
+
+export async function resumeBottleNowAction(secretHash: string, id: number): Promise<ActionResult> {
+  return attempt(secretHash, async () => resumeBottleNow(id), 'Could not resume the bottle.');
 }
 
 export async function getTrackingSettingsAction(secretHash: string): Promise<TrackingSettings> {
