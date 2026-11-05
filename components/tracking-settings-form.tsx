@@ -118,7 +118,7 @@ export function TrackingSettingsForm({ secretHash }: { readonly secretHash: stri
 
   return (
     <div className="flex flex-col gap-8">
-      <PhoneSettings />
+      <PhoneSettings secretHash={secretHash} />
 
       {isLoaded ? (
         <form

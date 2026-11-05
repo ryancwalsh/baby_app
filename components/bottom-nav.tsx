@@ -11,6 +11,7 @@ import { MONITOR_HREF, recordNavigationTap } from '@/components/navigation-tap';
 import { useNoiseAudio } from '@/components/noise-audio-provider';
 import { unlockAlarm } from '@/components/webcam-alarm';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { useNavigationBottomSpace } from '@/hooks/use-navigation-bottom-space';
 import { TRACKING_VIEWS } from '@/hooks/use-tracking-view';
 
 const LULLABIES_HREF = '/lullabies';
@@ -57,6 +58,7 @@ export function BottomNav() {
   const { isPlaying: isLullabyPlaying } = useLullabyAudio();
   const { isPlaying: isNoisePlaying } = useNoiseAudio();
   const hasRestored = useRef(false);
+  const { bottomSpacePixels } = useNavigationBottomSpace();
 
   useEffect(() => {
     if (isLoaded) {
@@ -95,7 +97,13 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="border-foreground/10 bg-background/95 sticky bottom-0 z-10 border-t pt-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav
+      className="border-foreground/10 bg-background/95 sticky bottom-0 z-10 border-t pt-2 backdrop-blur"
+      /**
+       * The safe area keeps the tabs above the iPhone's home indicator, where a tap is taken as the start of the swipe home rather than reaching the page, and the extra space is a per-phone setting for when that is still not enough.
+       */
+      style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${bottomSpacePixels}px)` }}
+    >
       <div className="mx-auto flex max-w-md">
         {NAV_ITEMS.map((item) => {
           const { Action, icon: Icon } = item;

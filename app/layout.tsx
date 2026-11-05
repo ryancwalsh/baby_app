@@ -45,6 +45,10 @@ export function generateMetadata(): Metadata {
 export const viewport: Viewport = {
   initialScale: 1,
   themeColor: '#000000',
+  /**
+   * Without `cover`, iOS reports every safe-area inset as zero, so the navigation's `env(safe-area-inset-bottom)` padding did nothing and the tabs sat under the home indicator.
+   */
+  viewportFit: 'cover',
   width: 'device-width',
 };
 

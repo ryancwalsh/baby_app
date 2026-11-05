@@ -47,7 +47,7 @@ function SleepTile({
     <div className={`flex flex-col gap-3 rounded-2xl border p-4 ${colors.border} ${colors.surface}`}>
       <Link className="flex flex-col gap-1" href="/track/sleep">
         <span className={`text-lg font-semibold ${colors.label}`}>Sleep</span>
-        {active !== undefined && <span className="text-2xl tabular-nums">Sleeping {formatRunningDuration(now - new Date(active.startedAt).getTime())}</span>}
+        {active !== undefined && <span className="tabular-nums text-base">Sleeping {formatRunningDuration(now - new Date(active.startedAt).getTime())}</span>}
         {latest !== undefined && latest.endedAt !== null && (
           <span className="text-foreground/70 tabular-nums text-base">
             Woke {formatAgo(now - new Date(latest.endedAt).getTime())} from {formatDuration(new Date(latest.endedAt).getTime() - new Date(latest.startedAt).getTime())} sleep

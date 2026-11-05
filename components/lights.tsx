@@ -10,6 +10,7 @@ import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
 import { NanitTemperature } from '@/components/nanit-temperature';
 import { NightLight } from '@/components/night-light';
 import { TapoCloudLogin } from '@/components/tapo-cloud-login';
+import { useHiddenSwitches } from '@/hooks/use-hidden-switches';
 import { type NightLightState } from '@/services/nanit/night-light';
 
 type LightsState = {
@@ -53,6 +54,7 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
   const [state, setState] = useState<LightsState | null>(() => (remembered?.secretHash === secretHash ? remembered.state : null));
   const [error, setError] = useState<null | string>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { hiddenDeviceIds, isLoaded: isHiddenSwitchesLoaded } = useHiddenSwitches();
   /**
    * Bumped on every read, and part of each control's key, so a fresh read
    * replaces the controls outright. Keying on the read state alone is not
@@ -129,18 +131,21 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
       </Clock>
 
       <div className="flex flex-col gap-3">
-        {state.lamps.map((lamp) =>
-          /**
-           * Keyed on the read as well, so a fresh read replaces the switch
-           * rather than being ignored by one that only looks at its lamp when
-           * it mounts.
-           */
-          lamp.isReachable ? (
-            <LampToggle key={`${generation}-${lamp.deviceId}`} lamp={lamp} onChange={rememberLamp} secretHash={secretHash} />
-          ) : (
-            <UnreachableLampRow key={lamp.deviceId} lamp={lamp} />
-          ),
-        )}
+        {/* Nothing is shown until this phone's hidden switches are known, so a hidden one never flashes up first. */}
+        {state.lamps
+          .filter((lamp) => isHiddenSwitchesLoaded && !hiddenDeviceIds.includes(lamp.deviceId))
+          .map((lamp) =>
+            /**
+             * Keyed on the read as well, so a fresh read replaces the switch
+             * rather than being ignored by one that only looks at its lamp when
+             * it mounts.
+             */
+            lamp.isReachable ? (
+              <LampToggle key={`${generation}-${lamp.deviceId}`} lamp={lamp} onChange={rememberLamp} secretHash={secretHash} />
+            ) : (
+              <UnreachableLampRow key={lamp.deviceId} lamp={lamp} />
+            ),
+          )}
       </div>
 
       {!state.isTapoSignedIn && <TapoCloudLogin onSignedIn={load} secretHash={secretHash} />}

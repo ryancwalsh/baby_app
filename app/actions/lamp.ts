@@ -63,6 +63,14 @@ export async function getLampsAction(secretHash: string): Promise<Lamp[]> {
   );
 }
 
+/**
+ * Only the names, for the settings page's list of switches to show. Nothing is asked of the plugs.
+ */
+export async function getSwitchNamesAction(secretHash: string): Promise<Array<{ alias: string; deviceId: string }>> {
+  await requireLogin(secretHash);
+  return getConfiguredDevices().map(({ alias, deviceId }) => ({ alias, deviceId }));
+}
+
 export async function setLampPowerAction(secretHash: string, deviceId: string, isOn: boolean): Promise<boolean> {
   await requireLogin(secretHash);
   return setLampPower(deviceId, isOn);
