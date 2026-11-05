@@ -1,11 +1,13 @@
 'use client';
 
+import { ShownSwitches } from '@/components/shown-switches';
 import { DATE_FORMATS, formatDate } from '@/components/tracking-format';
 import { useBottleInterval } from '@/hooks/use-bottle-interval';
 import { useBottleResumeDelay } from '@/hooks/use-bottle-resume-delay';
 import { BOTTLE_TIMES, useBottleTime } from '@/hooks/use-bottle-time';
 import { useClockFormat } from '@/hooks/use-clock-format';
 import { useDateFormat } from '@/hooks/use-date-format';
+import { NAVIGATION_BOTTOM_SPACES, useNavigationBottomSpace } from '@/hooks/use-navigation-bottom-space';
 import { TEXT_SIZES, type TextSize, useDayCalendarTextSize, useFormTextSize, useLogTextSize, useTileTextSize } from '@/hooks/use-text-size';
 import { THEMES, useTheme } from '@/hooks/use-theme';
 import { TRACKING_VIEWS, useTrackingView } from '@/hooks/use-tracking-view';
@@ -37,9 +39,9 @@ function TextSizeChoice({ legend, onChange, textSize }: { readonly legend: strin
 }
 
 /**
- * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the text size on the tiles, on the forms, in the tracking list, and in the day calendar, what the notepad button opens, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
+ * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the text size on the tiles, on the forms, in the tracking list, and in the day calendar, what the notepad button opens, which switches the Switches tab shows, how much room is left under the tabs, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
  */
-export function PhoneSettings() {
+export function PhoneSettings({ secretHash }: { readonly secretHash: string }) {
   const { is24Hour, setIs24Hour } = useClockFormat();
   const { dateFormat, setDateFormat } = useDateFormat();
   const tileTextSize = useTileTextSize();
@@ -51,6 +53,7 @@ export function PhoneSettings() {
   const { bottleTimeBasis, setBottleTimeBasis } = useBottleTime();
   const { bottleIntervalMinutes, setBottleIntervalMinutes } = useBottleInterval();
   const { bottleResumeDelayMinutes, setBottleResumeDelayMinutes } = useBottleResumeDelay();
+  const { bottomSpace, setBottomSpace } = useNavigationBottomSpace();
 
   return (
     <>
@@ -149,6 +152,26 @@ export function PhoneSettings() {
               key={option}
               onClick={() => {
                 setTrackingView(option);
+              }}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <ShownSwitches secretHash={secretHash} />
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-muted mb-1 text-sm">Extra space under the tabs on this phone</legend>
+        <div className="flex flex-wrap gap-2">
+          {NAVIGATION_BOTTOM_SPACES.map(({ label, space: option }) => (
+            <button
+              className={`rounded-lg border px-4 py-2 text-sm ${bottomSpace === option ? 'border-accent/60 text-accent' : 'border-foreground/15 text-muted'}`}
+              key={option}
+              onClick={() => {
+                setBottomSpace(option);
               }}
               type="button"
             >

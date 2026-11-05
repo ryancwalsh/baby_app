@@ -318,7 +318,7 @@ in `.env.production.local`.
   tiles, on the add and edit pages, in the tracking list, and in the day calendar, where the notepad button goes, whether a
   bottle is placed in the log at "touched lips" (the default) or "prepared",
   and the minutes between bottles behind the bottle tile's "Next" are per
-  phone, in local storage (`components/phone-settings.tsx`), and so are the minutes after touched lips before the bottle tile offers Resume. The text sizes are
+  phone, in local storage (`components/phone-settings.tsx`), and so are the minutes after touched lips before the bottle tile offers Resume, which `TAPO_DEVICES` switches the Switches tab shows (all of them unless turned off), and any extra space under the tabs. The tabs sit above the iPhone home indicator through `env(safe-area-inset-bottom)`, which iOS reports as zero unless the viewport is `viewport-fit=cover`. The text sizes are
   a CSS `zoom` on the whole area, so everything in it grows together. The prediction method and wake windows are
   shared, in the `settings` table.
 - The notes page at `/notes`, linked from the footer, is one shared markdown document in the same database, edited in Milkdown. It saves itself, refuses a save when someone else saved in between, and keeps earlier versions as reverse patches (`storage/notes-history.ts`).
