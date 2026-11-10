@@ -11,6 +11,7 @@ Written 2026-10-21 at the end of phase 5, for whoever picks this up in a fresh c
 - `main` runs on the laptop under pm2 exactly as before, serving both the pages and the worker routes from one origin. Nothing is served from Vercel yet.
 - Moved off the laptop's memory and files: the login throttle (`login_failures`), the Kasa token and the Tapo session (`stored_secrets`, with `stored_secret_history`), webcam signaling (`webcam_*` tables), the Nanit's last known state (`device_state`), and the lullabies (private Blob store `baby-app-lullabies`).
 - The pages reach the Nanit only through `/api/worker/*` (`components/worker-client.ts`), and dim while `hooks/use-worker-status.ts` says the worker is offline.
+- Added 2026-11-10, after this plan was written: the hallway ecobee thermostat, read over HomeKit by the worker at `/api/worker/thermostat` and shown in the dialog the Switches tab's temperature opens. Its pairing keys are the `ecobee-homekit-pairing` row of `stored_secrets`. See `ecobee_plan.md`, which owns that work; what it means for this plan is noted under "What the worker does", "Last known Nanit state in Turso", "Risks", and phase 8.
 - On Vercel: a project `baby-app` linked to this folder (`.vercel/`, gitignored), **not** connected to GitHub, with the Blob store attached for Production. Its `BLOB_READ_WRITE_TOKEN` is in the laptop's `.env.production.local`. Nothing else is configured there.
 - Decided 2026-10-21: the app stays at `https://baby.ryancwalsh.com` and the worker becomes `https://baby-worker.ryancwalsh.com` (a sibling rather than `worker.baby…`, so the two sort together), on the existing Cloudflare tunnel. Tailscale was considered, since both phones are always on it, and would keep the worker off the public internet; it was passed over for now because a public page calling a `100.x` address may meet Chrome's local network access checks on Android, and the tunnel is already known to work. Moving later is only a change of `NEXT_PUBLIC_WORKER_ORIGIN`.
 
@@ -41,7 +42,7 @@ Steps 1 and 2 are in the repository and need no approval, and are **done** (2026
 
 ### Phase 8, what is left
 
-The Snoo is already gone. Still to do: update `README.md`, `AGENTS.md` ("How this is deployed"), and `CLAUDE.private.md` for the split deployment; remove what the move made dead — the `secrets/nanit-night-light.json` cache once `device_state` has proven itself, the laptop-only `lullabies/` folder (keep a copy in `backups/` first, and ask), and the lazy migration if phase 6 replaced it.
+The Snoo is already gone. Still to do: update `README.md`, `AGENTS.md` ("How this is deployed"), and `CLAUDE.private.md` for the split deployment; remove what the move made dead — the `secrets/nanit-night-light.json` cache once `device_state` has proven itself, the laptop-only `lullabies/` folder (keep a copy in `backups/` first, and ask), and the lazy migration if phase 6 replaced it. Also give the ecobee its own short section in `AGENTS.md` (thermostat writes start real heating and cooling in a house with a sleeping baby, so they follow the same ask-first rule as the camera; pairing and recovery are in `ecobee_plan.md`), and a line in `CLAUDE.private.md` for the thermostat (`Upstairs`, an ecobee3 lite on the main wifi, out of Apple Home since 2026-11-10).
 
 ### Things that cost time in this session
 
@@ -82,10 +83,11 @@ With the Snoo gone, the worker is only the Nanit. It is today's app, running und
 2. **Runs the night light's two-minute fade,** as a loop that steps the brightness down. It has to live on a server because a phone freezes a backgrounded page's timers.
 3. **Streams the temperature,** which the camera pushes about every 30 seconds over that same websocket.
 4. **Relays the room's audio and video:** one ffmpeg pulls the camera's RTMP stream and cuts it into HLS segments that the phone plays.
+5. **Reads the hallway ecobee over HomeKit** (added 2026-11-10, see `ecobee_plan.md`), and will run the loop that steers it from the crib's temperature. HomeKit is reachable only on the home network, so this is the one job that ties the worker to the house rather than to a long-lived process. The loop also belongs here because the crib reading it needs arrives on the Nanit websocket.
 
-Vercel runs code only for the length of a request, at most 300 seconds, and keeps nothing between requests. It cannot hold the websocket, so the night light's state would be unknown again, and it cannot run ffmpeg continuously, so there would be no audio or video.
+Vercel runs code only for the length of a request, at most 300 seconds, and keeps nothing between requests. It cannot hold the websocket, so the night light's state would be unknown again, and it cannot run ffmpeg continuously, so there would be no audio or video. It cannot reach the thermostat at all, since that is on the home network.
 
-Moving the worker off the laptop later (to a Raspberry Pi or a rented server) would be a DNS change rather than a code change, because the worker reaches the camera through Nanit's cloud and needs nothing on the home network. That is only recorded here so the design does not close the door; it is not part of this plan.
+Moving the worker off the laptop later would be a DNS change rather than a code change for the Nanit, which the worker reaches through Nanit's cloud. The ecobee is different: a Raspberry Pi at home keeps it, but a rented server would lose it unless the thermostat moved to the ecobee cloud route (route B in `ecobee_plan.md`). That is only recorded here so the design does not close the door; it is not part of this plan.
 
 ## What ties the app to the laptop today
 
@@ -117,6 +119,7 @@ phone (PWA)
   │
   └── https://worker.<app domain>  ──►  Cloudflare tunnel  ──►  worker (the laptop, under pm2)
                                          ├── Nanit websocket, night light and fade, temperature, audio and video (ffmpeg)
+                                         ├── ecobee thermostat over HomeKit, on the home network
                                          └── writes last-known Nanit state to Turso
 ```
 
@@ -172,6 +175,7 @@ These are the parts most likely to be broken by accident, so they are listed on 
 - The worker writes the night light (`isOn`, `brightness`) and the latest temperature to a new `device_state` table whenever they change, with the time in UTC. This replaces `secrets/nanit-night-light.json` as the cache, and gives the cloud something honest to show when the worker is down.
 - These are still _last known_, exactly as `AGENTS.md` says of the current cache, and the UI always shows their age.
 - Writes are throttled (temperature arrives every ~30 s; storing one per minute at most is plenty).
+- The ecobee's hallway reading and setpoints should get a `thermostat` row here the same way, so the temperature dialog can show them dimmed, with their age, while the worker is offline. Not built yet (2026-11-10); until then the dialog says it cannot reach the thermostat.
 
 ### 5. Secrets and tokens
 
@@ -275,6 +279,7 @@ None of these will be done without a specific prompt to you first, per your stan
 - **A second Nanit socket.** A dev server, a second worker, or a fallback path each count against the camera's limit. Mitigated by keeping Vercel away from the Nanit entirely.
 - **Cross-origin on iOS.** Safari is stricter about cross-origin media and event streams in an installed PWA. Native HLS with a query-parameter credential and plain CORS should be fine, but this is the first thing to test on a real iPhone in phase 5.
 - **Version skew between the cloud and the worker.** Handled by treating worker routes as an additive contract, and by the version footer showing both commits.
+- **`hap-controller` brings a native Bluetooth module** (`@stoprocent/noble`) into every install, Vercel's included, though only the worker uses HomeKit and only over IP. It ships a prebuilt Linux x64 binary, so nothing should compile, and the package loads it inside a `try`, so a missing one is harmless at runtime. If a Vercel install ever fails on it, Vercel keeps serving the previous deployment; the fix is `dependenciesMeta` in `package.json` with `built: false` for it.
 - **Webcam signaling latency.** Pairing may take a second or two longer than now. Acceptable; it happens once a night.
 
 ## Open question
