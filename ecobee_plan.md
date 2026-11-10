@@ -1,6 +1,6 @@
 # Plan: keep the crib in a temperature range by steering the ecobee
 
-Status: planned 2026-11-04. Phase 0 mostly done 2026-11-10: route A (HomeKit) chosen, the thermostat paired, and everything it exposes listed below. Still open from phase 0: the crib thermometer comparison and the ecobee Hold Action setting. Nothing has written a setpoint yet. Read `AGENTS.md` first; its standing rules (the sleeping baby, pm2, deploy only from `main`, and asking before touching Vercel, Turso, Cloudflare, or GitHub) all apply.
+Status: planned 2026-11-04. Phase 0 mostly done 2026-11-10: route A (HomeKit) chosen, the thermostat paired, and everything it exposes listed below. Still open from phase 0: the ecobee Hold Action setting. Phase 1 partly built the same day: tapping the temperature on the Switches tab opens a dialog with the crib and hallway readings and the range the ecobee is holding. Nothing has written a setpoint yet. Read `AGENTS.md` first; its standing rules (the sleeping baby, pm2, deploy only from `main`, and asking before touching Vercel, Turso, Cloudflare, or GitHub) all apply.
 
 ## Goal
 
@@ -55,7 +55,7 @@ The thermostat is good at holding the hallway at a setpoint; it is just measurin
 
 Ecobee's auto mode enforces a minimum gap between the heat and cool setpoints (5 °F by default). A crib range narrower than that is widened around its middle, and the settings page says so.
 
-The Nanit sits on electronics and may read warm. Phase 0 compares it with a separate thermometer at the crib, and if it is off, a calibration offset is added to the settings.
+The Nanit sits on electronics and may read warm. Decided 2026-11-10 not to check it against a separate thermometer; the Nanit is taken as the crib temperature as it reads.
 
 ## Fail safe
 
@@ -72,16 +72,16 @@ A thermostat write turns on equipment, noise, and airflow in the house with a sl
 
 All additive, per the migration rules in `AGENTS.md`:
 
-- `settings` gains nullable columns: `crib_temperature_low_celsius`, `crib_temperature_high_celsius`, `crib_temperature_calibration_celsius`, and `thermostat_automation_enabled`. Stored in Celsius like the Nanit reading, and shown in Fahrenheit as `components/nanit-temperature.tsx` does today.
+- `settings` gains nullable columns: `crib_temperature_low_celsius`, `crib_temperature_high_celsius`, and `thermostat_automation_enabled`. Stored in Celsius like the Nanit reading, and shown in Fahrenheit as `components/nanit-temperature.tsx` does today.
 - A new table `thermostat_actions`: when, crib reading, hallway reading, smoothed offset, mode, heat and cool setpoints sent, and why (for example `crib below range`, `released: reading stale`, `paused: changed by a person`). Times as UTC ISO strings.
 - `device_state` gains a `thermostat` row with the last known hallway reading, setpoints, and pause state, so pages served from Vercel can show them dimmed while the worker is offline. `DeviceStateName` in `storage/device-state.ts` grows to include it.
 - The pairing keys (route A) or refresh token (route B) go in `stored_secrets`.
 
 ## In the app
 
-- A thermostat section beside the Nanit temperature: hallway reading, crib reading, the range, what the loop is doing (holding, released, paused, or off), and when it last acted.
-- Settings: the range, the calibration, and the on/off switch. These are shared, not per phone, because there is one nursery.
-- A worker route, `/api/worker/thermostat/stream`, shaped like `app/api/worker/temperature/stream/route.ts`, plus one for the switch and the resume button, called through `components/worker-client.ts`.
+- Everything lives in the dialog that tapping the temperature on the Switches tab opens (`components/temperature-dialog.tsx`). Today it shows the crib and hallway readings in large type and the range the ecobee is holding. It will gain the crib range, the on/off switch, what the loop is doing (holding, released, paused, or off), and when it last acted.
+- The range and the switch are shared, in the `settings` table, not per phone, because there is one nursery.
+- The worker serves the reading at `/api/worker/thermostat`, called through `components/worker-client.ts`; the switch and the resume button will be POSTs to the same route.
 
 ## Phase 0 findings (2026-11-10)
 
@@ -104,7 +104,6 @@ All additive, per the migration rules in `AGENTS.md`:
 Next in phase 0, for a person rather than code:
 
 - Set the ecobee app's **Hold Action** to the shortest timed option, so a hold placed by the loop ends by itself if the laptop dies. Then one supervised write (phase 3) checks that a threshold written over HomeKit really becomes a hold of that length.
-- Put a separate thermometer at the crib for a night and compare it with the Nanit.
 
 ## Phases
 
@@ -112,9 +111,8 @@ Next in phase 0, for a person rather than code:
    1. On the thermostat or in the ecobee app, find which wifi network it is on. If it is on the guest network, decide whether moving it to the main network is acceptable (it is not a smart plug, so the reason the plugs stay on guest may not apply), or whether to go with route B.
    2. If it is reachable: browse for `_hap._tcp` again, pair with `hap-controller` from a script, and dump every service and characteristic. Look for a way to clear a hold. Pairing writes nothing to the HVAC.
    3. If it is not reachable: try route B's sign-in and a read-only `GET /1/thermostat`. Check whether the account has two-factor sign-in.
-   4. Put a separate thermometer at the crib for a night and compare it with the Nanit's readings in `device_state`.
-   5. Write the findings here and choose route A or B.
-1. **Read only in the app.** The `services/ecobee/` client, the hallway reading and setpoints in the thermostat section, and `device_state`. Still no writes.
+   4. Write the findings here and choose route A or B.
+1. **Read only in the app.** Built 2026-11-10: `services/ecobee/thermostat.ts` reads the thermostat over HomeKit (about 2 seconds a read, most of it HomeKit's pair-verify, since no connection is kept), `/api/worker/thermostat` serves it, and `components/temperature-dialog.tsx` is the dialog the Switches tab's temperature opens: the crib and hallway readings in large type, the range the ecobee is holding, and whether it is heating or cooling. It reads every 30 seconds, only while open. Still to do: the last known hallway reading in `device_state`, for when the laptop cannot be reached, and rediscovering the thermostat if DHCP gives it a new address. Still no writes.
 2. **The loop in dry-run.** The settings, the migration, and the loop running and logging what it _would_ send, for a few days and nights. Tests in `tests/ecobee/` for the arithmetic, the clamps, the stale-reading release, and the pause on a person's change.
 3. **Writes, with someone watching.** One supervised write and release, asked for first and done while awake and nearby, then the loop switched on.
 

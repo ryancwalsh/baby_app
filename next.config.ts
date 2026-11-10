@@ -30,6 +30,6 @@ export default function nextConfig(phase: string): NextConfig {
     /**
      * The device libraries and the database client are Node-only, so keep them out of the bundle. `ffmpeg-static` is kept out so that its `__dirname` still points at its binary.
      */
-    serverExternalPackages: ['@libsql/client', 'ffmpeg-static', 'protobufjs', 'ws'],
+    serverExternalPackages: ['@libsql/client', 'ffmpeg-static', 'hap-controller', 'protobufjs', 'ws'],
   };
 }

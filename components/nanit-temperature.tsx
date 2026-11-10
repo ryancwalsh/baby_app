@@ -45,7 +45,7 @@ function ThermometerOffIcon({ className }: { readonly className?: string }) {
  *
  * Opening the stream only reads — see app/api/temperature/stream/route.ts.
  */
-export function NanitTemperature({ secretHash }: { readonly secretHash: string }) {
+export function NanitTemperature({ isLarge = false, secretHash }: { readonly isLarge?: boolean; readonly secretHash: string }) {
   /**
    * When the reading was taken, by this phone's clock.
    */
@@ -109,14 +109,14 @@ export function NanitTemperature({ secretHash }: { readonly secretHash: string }
   const freshReading = isConnected && reading !== null && now - reading.measuredAt <= FRESH_MILLISECONDS ? reading : null;
 
   return (
-    <div className="flex shrink-0 items-center text-2xl tabular-nums opacity-70">
+    <div className={`flex shrink-0 items-center tabular-nums opacity-70 ${isLarge ? 'text-6xl' : 'text-2xl'}`}>
       {freshReading === null && isOffline && lastKnown !== null ? (
         <span aria-label="Last known nursery temperature" className="text-base opacity-50">
           {Math.round(toFahrenheit(lastKnown.celsius))}°F at {formatClockTime(lastKnown.measuredAt, is24Hour)}
         </span>
       ) : freshReading === null ? (
         <span aria-label="Nursery temperature unknown" role="img">
-          <ThermometerOffIcon className="size-6" />
+          <ThermometerOffIcon className={isLarge ? 'size-14' : 'size-6'} />
         </span>
       ) : (
         <span aria-label="Nursery temperature">{Math.round(toFahrenheit(freshReading.celsius))}°F</span>

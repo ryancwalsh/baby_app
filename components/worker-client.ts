@@ -1,3 +1,4 @@
+import { type ThermostatState } from '@/services/ecobee/thermostat';
 import { type MediaKind } from '@/services/nanit/media-files';
 import { type NightLightState } from '@/services/nanit/night-light';
 
@@ -43,6 +44,10 @@ type NightLightRequest = { action: 'brightness'; brightness: number } | { action
 
 export function changeNightLight(secretHash: string, request: NightLightRequest) {
   return callWorker<NightLightState>('/night-light', secretHash, { body: JSON.stringify(request), method: 'POST' });
+}
+
+export function readThermostat(secretHash: string) {
+  return callWorker<ThermostatState>('/thermostat', secretHash);
 }
 
 export async function stopWorkerMedia(secretHash: string, kind: MediaKind) {
