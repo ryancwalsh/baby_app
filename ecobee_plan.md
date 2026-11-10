@@ -1,6 +1,6 @@
 # Plan: keep the crib in a temperature range by steering the ecobee
 
-Status: planned 2026-11-04, nothing built. Read `AGENTS.md` first; its standing rules (the sleeping baby, pm2, deploy only from `main`, and asking before touching Vercel, Turso, Cloudflare, or GitHub) all apply.
+Status: planned 2026-11-04. Phase 0 mostly done 2026-11-10: route A (HomeKit) chosen, the thermostat paired, and everything it exposes listed below. Still open from phase 0: the crib thermometer comparison and the ecobee Hold Action setting. Nothing has written a setpoint yet. Read `AGENTS.md` first; its standing rules (the sleeping baby, pm2, deploy only from `main`, and asking before touching Vercel, Turso, Cloudflare, or GitHub) all apply.
 
 ## Goal
 
@@ -26,7 +26,7 @@ The ecobee3 lite supports HomeKit. HomeKit Accessory Protocol (HAP) over IP is l
 - Losing the pairing keys is **recoverable**, unlike the Tapo refresh token: reset HomeKit on the thermostat and pair again.
 - Exposed: current temperature, current heating or cooling state, target mode (off, heat, cool, or auto), target temperature, and heating and cooling thresholds for auto mode. Not exposed: the comfort settings, the schedule, or remote sensors.
 - A write over HomeKit becomes an ecobee hold, and how long that hold lasts is ecobee's **Hold Action** preference (in the ecobee app). Whether ecobee exposes a way to clear a hold over HomeKit (vendor characteristics, as Home Assistant's `homekit_controller` suggests) must be checked in phase 0. If it does not, the hold length setting becomes the way holds end (see "Fail safe" below).
-- **Blocker found 2026-11-04:** an `avahi-browse -rt _hap._tcp` from the laptop found no HomeKit accessories at all, while the same scan does see the printer and the Macs on the main network. So the thermostat is either on a different network (the smart plugs live on the guest network, per `CLAUDE.private.md`) or not advertising HomeKit. Phase 0 settles which.
+- **Resolved 2026-11-10.** On 2026-11-04 the laptop saw no HomeKit accessories. The thermostat was then put on the main wifi and removed from Apple Home, and it now advertises as `Upstairs` (`md=ecobee3 lite`, `id=FE:EF:78:75:63:0C`) at `192.168.1.73`, port `40797`, firmware `4.8.70240`. `scripts/ecobee-pair.ts` paired with it. See "Phase 0 findings" below.
 
 ### B. The ecobee cloud with the account's own sign-in (fallback)
 
@@ -82,6 +82,29 @@ All additive, per the migration rules in `AGENTS.md`:
 - A thermostat section beside the Nanit temperature: hallway reading, crib reading, the range, what the loop is doing (holding, released, paused, or off), and when it last acted.
 - Settings: the range, the calibration, and the on/off switch. These are shared, not per phone, because there is one nursery.
 - A worker route, `/api/worker/thermostat/stream`, shaped like `app/api/worker/temperature/stream/route.ts`, plus one for the switch and the resume button, called through `components/worker-client.ts`.
+
+## Phase 0 findings (2026-11-10)
+
+- **Paired.** `scripts/ecobee-pair.ts` found the thermostat by browsing `_hap._tcp` (5 seconds of browsing was too short to see it, so it waits for up to 20) and paired with the setup code. The pairing is the `ecobee-homekit-pairing` row of `stored_secrets` in the production database, with a copy at `secrets/ecobee-homekit-pairing.json`. It holds the address and port too, which DHCP may change, so the client should rediscover by device id when the stored address stops answering. Losing it means resetting HomeKit on the thermostat and pairing again, nothing worse.
+- **Read works.** `scripts/ecobee-describe.ts` lists every service and characteristic, reading only. Run either script with `NODE_ENV=production yarn tsx --env-file=.env --env-file=.env.production.local scripts/<name>.ts` so it reaches the production database rather than the dev SQLite file.
+- **The standard thermostat service has everything the loop needs.** Characteristic ids are `aid.iid`, all on accessory 1:
+  - `1.17` current heating or cooling state (0 off, 1 heating, 2 cooling), with events.
+  - `1.18` target mode (0 off, 1 heat, 2 cool, 3 auto). It read 3, auto.
+  - `1.19` current temperature, °C in 0.1 steps. It read 20.9.
+  - `1.20` target temperature, `1.22` cooling threshold (18.3–33.3 °C), and `1.23` heating threshold (7.2–26.1 °C), all writable, all °C in 0.1 steps. In auto mode the thresholds are what matter: they read 22.8 and 18.3.
+  - `1.21` display units (1 is Fahrenheit), `1.24` humidity (49%), and `1.75` and `1.76` the fan.
+- **Ecobee's own characteristics are there too, including a way to clear a hold.** Named here as Home Assistant's `aiohomekit` names them; the names are not yet checked against the thermostat's behaviour:
+  - `1.48` `FA128DE6-…` **clear hold**, a write-only bool. This answers phase 0's main question: the loop can hand control back to the schedule over HomeKit.
+  - `1.33` `B7DDB9A3-…` current comfort setting (0 home, 1 sleep, 2 away, 3 something else, probably a hold). It read 3.
+  - `1.34`–`1.39` the heat and cool setpoints of the Home, Sleep, and Away comfort settings, readable and writable. They read 18.9/22.8, 18.9/25.0, and 18.9/22.2 °C. The loop must never write these: they change the schedule itself, not a hold.
+  - `1.40` `1B300BC2-…` hold a comfort setting (write only), `1.41` a timestamp, `1.49`–`1.53` fan and other settings, and `1.54` the status message.
+- **The Nanit and the hallway read almost the same today.** At 21:28 UTC the Nanit read 20.7 °C (`device_state`) and the thermostat 20.9 °C. One reading proves nothing about the offset at night with doors shut, but it is the first data point.
+- **`hap-controller` brings `@stoprocent/noble`**, a native Bluetooth module, as a hard dependency even though only IP is used here. It built on the laptop. Check that it does not break the Vercel build before this reaches `main`; if it does, the HomeKit client has to stay out of what Vercel installs.
+
+Next in phase 0, for a person rather than code:
+
+- Set the ecobee app's **Hold Action** to the shortest timed option, so a hold placed by the loop ends by itself if the laptop dies. Then one supervised write (phase 3) checks that a threshold written over HomeKit really becomes a hold of that length.
+- Put a separate thermometer at the crib for a night and compare it with the Nanit.
 
 ## Phases
 
