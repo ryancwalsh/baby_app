@@ -1,6 +1,6 @@
 # Plan: keep the crib in a temperature range by steering the ecobee
 
-Status: planned 2026-11-04. Phase 0 mostly done 2026-11-10: route A (HomeKit) chosen, the thermostat paired, and everything it exposes listed below. Still open from phase 0: the ecobee Hold Action setting. Phase 1 partly built the same day: tapping the temperature on the Switches tab opens a dialog with the crib and hallway readings and the range the ecobee is holding. Nothing has written a setpoint yet. Read `AGENTS.md` first; its standing rules (the sleeping baby, pm2, deploy only from `main`, and asking before touching Vercel, Turso, Cloudflare, or GitHub) all apply.
+Status: planned 2026-11-04. Phase 0 mostly done 2026-11-10: route A (HomeKit) chosen, the thermostat paired, and everything it exposes listed below. Still open from phase 0: the ecobee Hold Action setting. Phase 1 partly built the same day: tapping the temperature on the Switches tab opens a dialog with the crib and hallway readings and the range the ecobee is holding. Phase 2 built and deployed the same day: the crib range is set in that dialog, and the worker's loop decides every 10 minutes and logs what it would do, writing nothing. Nothing has written a setpoint yet. Read `AGENTS.md` first; its standing rules (the sleeping baby, pm2, deploy only from `main`, and asking before touching Vercel, Turso, Cloudflare, or GitHub) all apply.
 
 ## Goal
 
@@ -72,8 +72,8 @@ A thermostat write turns on equipment, noise, and airflow in the house with a sl
 
 All additive, per the migration rules in `AGENTS.md`:
 
-- `settings` gains nullable columns: `crib_temperature_low_celsius`, `crib_temperature_high_celsius`, and `thermostat_automation_enabled`. Stored in Celsius like the Nanit reading, and shown in Fahrenheit as `components/nanit-temperature.tsx` does today.
-- A new table `thermostat_actions`: when, crib reading, hallway reading, smoothed offset, mode, heat and cool setpoints sent, and why (for example `crib below range`, `released: reading stale`, `paused: changed by a person`). Times as UTC ISO strings.
+- `settings` gains nullable columns `crib_low_celsius` and `crib_high_celsius` (migration `2026-11-10_thermostat`), and later `thermostat_automation_enabled` for phase 3's switch. Stored in Celsius like the Nanit reading, and shown in Fahrenheit as `components/nanit-temperature.tsx` does today.
+- A new table `thermostat_decisions` (built as `thermostat_actions` was planned): when, the outcome, crib reading, hallway reading, smoothed offset, mode, the current heat and cool setpoints, and the proposed ones. The outcome says why (for example `crib below range`, `released: reading stale`, `paused: changed by a person`). Times as UTC ISO strings.
 - `device_state` gains a `thermostat` row with the last known hallway reading, setpoints, and pause state, so pages served from Vercel can show them dimmed while the worker is offline. `DeviceStateName` in `storage/device-state.ts` grows to include it.
 - The pairing keys (route A) or refresh token (route B) go in `stored_secrets`.
 
@@ -114,6 +114,14 @@ Next in phase 0, for a person rather than code:
    4. Write the findings here and choose route A or B.
 1. **Read only in the app.** Built 2026-11-10: `services/ecobee/thermostat.ts` reads the thermostat over HomeKit (about 2 seconds a read, most of it HomeKit's pair-verify, since no connection is kept), `/api/worker/thermostat` serves it, and `components/temperature-dialog.tsx` is the dialog the Switches tab's temperature opens: the crib and hallway readings in large type, the range the ecobee is holding, and whether it is heating or cooling. It reads every 30 seconds, only while open. Still to do: the last known hallway reading in `device_state`, for when the laptop cannot be reached, and rediscovering the thermostat if DHCP gives it a new address. Still no writes.
 2. **The loop in dry-run.** The settings, the migration, and the loop running and logging what it _would_ send, for a few days and nights. Tests in `tests/ecobee/` for the arithmetic, the clamps, the stale-reading release, and the pause on a person's change.
+
+   Built 2026-11-10:
+   - `services/ecobee/decide.ts` is the arithmetic, pure and tested in `tests/ecobee/decide.test.ts`: the offset smoothing, the shift, the hard limits, the widening in auto mode, and the 0.5 °C change threshold.
+   - `services/ecobee/loop.ts` runs it every 10 minutes (the first a minute after start) and writes each decision to `thermostat_decisions`, with an outcome of `would change`, `would leave`, `thermostat is off`, `no crib range set`, `crib reading is stale`, or `could not read the thermostat: …`. The smoothed offset lives in memory and starts afresh after a restart.
+   - `instrumentation.ts` starts the loop once per process, only in a production build with `APP_ROLE=worker`, so neither Vercel nor a dev server runs it. Starting it also opens the shared Nanit connection, read only, so the crib reading arrives without a phone having a page open. Before this, that socket opened only when a page first asked for it.
+   - The dialog shows the crib range with − and + buttons in whole °F, saved to Turso on every tap (60–80 °F, low below high), and the latest decision with its time.
+   - Still to do in this phase: the pause on a person's change, which needs writes to have something to compare against, so it moves to phase 3; and reading the log after a few nights to see whether the offset holds steady.
+
 3. **Writes, with someone watching.** One supervised write and release, asked for first and done while awake and nearby, then the loop switched on.
 
 ## Questions for later

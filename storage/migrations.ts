@@ -149,4 +149,28 @@ export const MIGRATIONS: Migration[] = [
     name: '2026-10-31_bottle_resumed_at',
     statements: ['ALTER TABLE bottles ADD COLUMN resumed_at TEXT'],
   },
+  /**
+   * The temperature range wanted at the crib, which the worker steers the hallway ecobee toward (see ecobee_plan.md), and a log of every decision it makes about the thermostat. Null range columns mean no range has been set, and the loop does nothing. Times are UTC ISO strings.
+   */
+  {
+    name: '2026-11-10_thermostat',
+    statements: [
+      'ALTER TABLE settings ADD COLUMN crib_low_celsius REAL',
+      'ALTER TABLE settings ADD COLUMN crib_high_celsius REAL',
+      `CREATE TABLE thermostat_decisions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        decided_at TEXT NOT NULL,
+        outcome TEXT NOT NULL,
+        crib_celsius REAL,
+        hallway_celsius REAL,
+        offset_celsius REAL,
+        mode TEXT,
+        current_heat_celsius REAL,
+        current_cool_celsius REAL,
+        proposed_heat_celsius REAL,
+        proposed_cool_celsius REAL
+      )`,
+      'CREATE INDEX thermostat_decisions_decided_at ON thermostat_decisions (decided_at)',
+    ],
+  },
 ];
