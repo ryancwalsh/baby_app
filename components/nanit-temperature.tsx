@@ -109,14 +109,14 @@ export function NanitTemperature({ isLarge = false, secretHash }: { readonly isL
   const freshReading = isConnected && reading !== null && now - reading.measuredAt <= FRESH_MILLISECONDS ? reading : null;
 
   return (
-    <div className={`flex shrink-0 items-center tabular-nums opacity-70 ${isLarge ? 'text-6xl' : 'text-2xl'}`}>
+    <div className={`flex shrink-0 items-center tabular-nums opacity-70 ${isLarge ? 'text-8xl' : 'text-2xl'}`}>
       {freshReading === null && isOffline && lastKnown !== null ? (
         <span aria-label="Last known nursery temperature" className={`opacity-50 ${isLarge ? 'text-3xl' : 'text-base'}`}>
           {Math.round(toFahrenheit(lastKnown.celsius))}°F at {formatClockTime(lastKnown.measuredAt, is24Hour)}
         </span>
       ) : freshReading === null ? (
         <span aria-label="Nursery temperature unknown" role="img">
-          <ThermometerOffIcon className={isLarge ? 'size-14' : 'size-6'} />
+          <ThermometerOffIcon className={isLarge ? 'size-20' : 'size-6'} />
         </span>
       ) : (
         <span aria-label="Nursery temperature">{Math.round(toFahrenheit(freshReading.celsius))}°F</span>
