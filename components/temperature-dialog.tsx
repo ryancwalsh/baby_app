@@ -1,7 +1,7 @@
 'use client';
 
 import { MinusIcon, PlusIcon, XIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { getThermostatSettingsAction, saveCribRangeAction, type ThermostatSettings } from '@/app/actions/thermostat';
 import { NanitTemperature } from '@/components/nanit-temperature';
@@ -59,13 +59,25 @@ function Stepper({ label, onChange, value }: { readonly label: string; readonly 
   return (
     <div className="flex items-center gap-2">
       <button aria-label={`Lower the ${label}`} className="border-foreground/20 rounded-lg border p-2" onClick={() => onChange(value - 1)} type="button">
-        <MinusIcon className="size-6" />
+        <MinusIcon className="size-8" />
       </button>
-      <span className="w-14 text-center text-4xl tabular-nums">{value}</span>
+      <span className="w-16 text-center text-5xl tabular-nums">{value}</span>
       <button aria-label={`Raise the ${label}`} className="border-foreground/20 rounded-lg border p-2" onClick={() => onChange(value + 1)} type="button">
-        <PlusIcon className="size-6" />
+        <PlusIcon className="size-8" />
       </button>
     </div>
+  );
+}
+
+/**
+ * One half of the dialog, with its device's name down the left edge, read from bottom to top.
+ */
+function Half({ children, label }: { readonly children: ReactNode; readonly label: string }) {
+  return (
+    <section aria-label={label} className="border-foreground/20 flex min-h-0 flex-1 items-stretch border-b last:border-b-0">
+      <h2 className="text-muted flex rotate-180 items-center justify-center px-2 text-5xl [writing-mode:vertical-rl]">{label}</h2>
+      <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 overflow-y-auto p-4 text-center">{children}</div>
+    </section>
   );
 }
 
@@ -160,55 +172,48 @@ export function TemperatureDialog({ secretHash }: { readonly secretHash: string 
       </button>
       <dialog
         aria-label="Temperatures"
-        className="bg-background text-foreground m-auto w-[95vw] max-w-md rounded-xl backdrop:bg-black/70"
+        className="bg-background text-foreground m-0 h-dvh max-h-none w-screen max-w-none backdrop:bg-black"
         onClose={() => setIsOpen(false)}
         ref={dialog}
       >
-        <div className="flex flex-col gap-6 p-4">
-          <button aria-label="Close" className="text-muted -mb-6 self-end p-2" onClick={() => dialog.current?.close()} type="button">
-            <XIcon className="size-8" />
-          </button>
-
-          <section className="flex flex-col items-center gap-1">
-            <h3 className="text-muted text-2xl">Crib (Nanit)</h3>
-            {isOpen && <NanitTemperature isLarge secretHash={secretHash} />}
-          </section>
-
-          <section className="flex flex-col items-center gap-1">
-            <h3 className="text-muted text-2xl">Hallway (Ecobee)</h3>
+        <button aria-label="Close" className="text-muted fixed top-2 right-2 z-10 p-2" onClick={() => dialog.current?.close()} type="button">
+          <XIcon className="size-10" />
+        </button>
+        <div className="flex h-full flex-col">
+          <Half label="Ecobee">
             {thermostat === null ? (
-              <p className="text-muted text-xl">{error ?? 'Reading the thermostat…'}</p>
+              <p className="text-muted text-3xl">{error ?? 'Reading the thermostat…'}</p>
             ) : (
               <>
                 <p className="text-6xl tabular-nums opacity-70">{toFahrenheit(thermostat.currentCelsius)}°F</p>
                 <p className="text-3xl tabular-nums">{describeTarget(thermostat.target)}</p>
-                <p className="text-muted text-xl">{ACTIVITY_LABELS[thermostat.activity]}</p>
-                {error !== null && <p className="text-accent text-xl">{error}</p>}
+                <p className="text-muted text-3xl">{ACTIVITY_LABELS[thermostat.activity]}</p>
+                {error !== null && <p className="text-accent text-3xl">{error}</p>}
               </>
             )}
-          </section>
-
-          <section className="flex flex-col items-center gap-2">
-            <h3 className="text-muted text-2xl">Crib range (°F)</h3>
+            {settings !== null && settings.latestDecision !== null && (
+              <p className="text-muted text-3xl">
+                Trial run, {formatClockTime(settings.latestDecision.decidedAt, is24Hour)}: {describeDecision(settings.latestDecision)}. Nothing is sent yet.
+              </p>
+            )}
+          </Half>
+          <Half label="Nanit">
+            {isOpen && <NanitTemperature isLarge secretHash={secretHash} />}
+            <h3 className="text-muted text-3xl">Crib range (°F)</h3>
             {settings === null ? (
-              <p className="text-muted text-xl">{rangeError ?? 'Loading…'}</p>
+              <p className="text-muted text-3xl">{rangeError ?? 'Loading…'}</p>
             ) : (
               <>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col items-center gap-1">
                   <Stepper label="low end" onChange={(low) => changeRange(low, rangeFahrenheit.high)} value={rangeFahrenheit.low} />
-                  <span className="text-muted text-2xl">to</span>
+                  <span className="text-muted text-3xl">to</span>
                   <Stepper label="high end" onChange={(high) => changeRange(rangeFahrenheit.low, high)} value={rangeFahrenheit.high} />
                 </div>
-                {settings.cribRange === null && <p className="text-muted text-xl">Not set yet. Tap − or + to set it.</p>}
-                {rangeError !== null && <p className="text-accent text-xl">{rangeError}</p>}
-                {settings.latestDecision !== null && (
-                  <p className="text-muted text-center text-xl">
-                    Trial run, {formatClockTime(settings.latestDecision.decidedAt, is24Hour)}: {describeDecision(settings.latestDecision)}. Nothing is sent to the Ecobee yet.
-                  </p>
-                )}
+                {settings.cribRange === null && <p className="text-muted text-3xl">Not set yet. Tap − or + to set it.</p>}
+                {rangeError !== null && <p className="text-accent text-3xl">{rangeError}</p>}
               </>
             )}
-          </section>
+          </Half>
         </div>
       </dialog>
     </>

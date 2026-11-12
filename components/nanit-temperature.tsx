@@ -111,7 +111,7 @@ export function NanitTemperature({ isLarge = false, secretHash }: { readonly isL
   return (
     <div className={`flex shrink-0 items-center tabular-nums opacity-70 ${isLarge ? 'text-6xl' : 'text-2xl'}`}>
       {freshReading === null && isOffline && lastKnown !== null ? (
-        <span aria-label="Last known nursery temperature" className="text-base opacity-50">
+        <span aria-label="Last known nursery temperature" className={`opacity-50 ${isLarge ? 'text-3xl' : 'text-base'}`}>
           {Math.round(toFahrenheit(lastKnown.celsius))}°F at {formatClockTime(lastKnown.measuredAt, is24Hour)}
         </span>
       ) : freshReading === null ? (
