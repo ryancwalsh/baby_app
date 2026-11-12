@@ -105,6 +105,12 @@ Next in phase 0, for a person rather than code:
 
 - Set the ecobee app's **Hold Action** to the shortest timed option, so a hold placed by the loop ends by itself if the laptop dies. Then one supervised write (phase 3) checks that a threshold written over HomeKit really becomes a hold of that length.
 
+## First supervised write (2026-11-12) and where things stand
+
+At 10:30 AM EST, with a 2-hour Hold Action set in the ecobee app, `scripts/ecobee-set.ts` raised the auto-mode setpoints from 66–72 °F to 70–75 °F. The crib went from 66.2 °F to 67.8 °F within about 10 minutes, while the hallway went from 68.5 °F to 69.4 °F, so the crib follows hallway heating quickly. The user stopped the test: **the crib must stay close to 67 °F, even during tests**. The hold was cleared at 10:43 AM, which returned the thermostat to its schedule (heat 66 °F).
+
+**No more writes to the thermostat until the user explicitly asks again.** Any later test or control design has to keep the crib near 67 °F rather than overshoot it, for example by small steps toward a target instead of a jump. The dry-run loop goes on reading and logging.
+
 ## Phases
 
 0. **Find out what is possible. Read only, nothing written to the thermostat.**
