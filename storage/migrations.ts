@@ -173,4 +173,15 @@ export const MIGRATIONS: Migration[] = [
       'CREATE INDEX thermostat_decisions_decided_at ON thermostat_decisions (decided_at)',
     ],
   },
+  /**
+   * Whether the worker may write to the thermostat, and the local hours when it does. Null means the defaults in storage/thermostat.ts: on, from 18:00 to 06:00.
+   */
+  {
+    name: '2026-11-12_thermostat_active_hours',
+    statements: [
+      'ALTER TABLE settings ADD COLUMN thermostat_enabled INTEGER',
+      'ALTER TABLE settings ADD COLUMN thermostat_active_from TEXT',
+      'ALTER TABLE settings ADD COLUMN thermostat_active_until TEXT',
+    ],
+  },
 ];

@@ -111,6 +111,16 @@ At 10:30 AM EST, with a 2-hour Hold Action set in the ecobee app, `scripts/ecobe
 
 **No more writes to the thermostat until the user explicitly asks again.** Any later test or control design has to keep the crib near 67 °F rather than overshoot it, for example by small steps toward a target instead of a jump. The dry-run loop goes on reading and logging.
 
+## Live from 2026-11-12, 18:00
+
+The user asked the same day for the loop to write, between active hours set on the Settings page (default 18:00 to 06:00 local, with an on/off switch, in `settings` from migration `2026-11-12_thermostat_active_hours`), starting that night, with the crib range left at 66–71 °F.
+
+- Inside the active hours, each 10-minute decision walks the setpoints toward the decision by at most 0.6 °C (about 1 °F), from `stepSetpoints` in `services/ecobee/decide.ts`, because the morning test showed the crib keeps warming after heating stops. In auto mode the cool setpoint is pushed up if the heat step would close the 5 °F gap.
+- Outcomes when live are `changed`, `left as it is`, `paused: changed by a person`, `thermostat is off`, `released: …`, and `could not reach the thermostat: …`. Outside the hours the old dry-run outcomes (`would change`, `would leave`) go on being logged.
+- The loop clears its hold (`1.48`) when the hours end, when switched off, when the crib reading is stale or outside 10–35 °C, or when no range is set. It only clears a hold it placed in this process; after a restart, the 2-hour Hold Action ends any hold it left.
+- A person wins: setpoints that differ from what the loop last wrote by more than 0.3 °C, less than 110 minutes after its write, pause it until the active hours next end. A difference after that is taken for the 2-hour hold ending, and the loop writes its last setpoints again rather than walking up from the schedule's.
+- Not verified on the thermostat yet: that a HomeKit write's hold really ends after the Hold Action's 2 hours, and how setpoints read back after a write. Read the log the next morning with `scripts/thermostat-log.ts`.
+
 ## Phases
 
 0. **Find out what is possible. Read only, nothing written to the thermostat.**
@@ -128,7 +138,7 @@ At 10:30 AM EST, with a 2-hour Hold Action set in the ecobee app, `scripts/ecobe
    - The dialog shows the crib range with − and + buttons in whole °F, saved to Turso on every tap (60–80 °F, low below high), and the latest decision with its time.
    - Still to do in this phase: the pause on a person's change, which needs writes to have something to compare against, so it moves to phase 3; and reading the log after a few nights to see whether the offset holds steady.
 
-3. **Writes, with someone watching.** One supervised write and release, asked for first and done while awake and nearby, then the loop switched on.
+3. **Writes, with someone watching.** One supervised write and release, asked for first and done while awake and nearby, then the loop switched on. Done 2026-11-12; see "Live from 2026-11-12, 18:00" above.
 
 ## Questions for later
 

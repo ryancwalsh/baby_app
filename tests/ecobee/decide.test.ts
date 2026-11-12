@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { AUTO_MINIMUM_GAP_CELSIUS, decide, HIGHEST_SETPOINT_CELSIUS, LOWEST_SETPOINT_CELSIUS, smoothOffset } from '@/services/ecobee/decide';
+import {
+  AUTO_MINIMUM_GAP_CELSIUS,
+  decide,
+  HIGHEST_SETPOINT_CELSIUS,
+  isWithinActiveHours,
+  LOWEST_SETPOINT_CELSIUS,
+  setpointsDiffer,
+  smoothOffset,
+  stepSetpoints,
+} from '@/services/ecobee/decide';
 
 const RANGE = { highCelsius: 22, lowCelsius: 20 };
 const MINUTE = 60_000;
@@ -62,5 +71,61 @@ describe('smoothOffset', () => {
 
   it('starts afresh after a gap as long as the time constant', () => {
     expect(smoothOffset({ atMilliseconds: 0, celsius: 0 }, 3, 30 * MINUTE, 30 * MINUTE).celsius).toBe(3);
+  });
+});
+
+describe('stepSetpoints', () => {
+  it('moves each setpoint toward the proposal by at most one step of MAXIMUM_STEP_CELSIUS', () => {
+    expect(stepSetpoints({ coolCelsius: 22.8, heatCelsius: 18.9 }, { coolCelsius: 23.5, heatCelsius: 20.8 }, 'auto')).toEqual({
+      coolCelsius: 23.4,
+      heatCelsius: 19.5,
+    });
+  });
+
+  it('lands on a proposal that is within a step', () => {
+    expect(stepSetpoints({ coolCelsius: null, heatCelsius: 20 }, { coolCelsius: null, heatCelsius: 19.4 }, 'heat')).toEqual({ coolCelsius: null, heatCelsius: 19.4 });
+  });
+
+  it('pushes the cool setpoint up when a heat step would close the gap auto mode needs', () => {
+    const stepped = stepSetpoints({ coolCelsius: 21.6, heatCelsius: 18.9 }, { coolCelsius: 21.6, heatCelsius: 19.5 }, 'auto');
+
+    expect((stepped?.coolCelsius ?? 0) - (stepped?.heatCelsius ?? 0)).toBeGreaterThanOrEqual(AUTO_MINIMUM_GAP_CELSIUS);
+  });
+
+  it('sends nothing when no setpoint would move by about 1 °F', () => {
+    expect(stepSetpoints({ coolCelsius: 22.8, heatCelsius: 18.9 }, { coolCelsius: 22.9, heatCelsius: 19.1 }, 'auto')).toBeNull();
+  });
+});
+
+describe('setpointsDiffer', () => {
+  it('allows for the thermostat rounding what was written', () => {
+    expect(setpointsDiffer({ coolCelsius: 22.8, heatCelsius: 20.8 }, { coolCelsius: 22.7, heatCelsius: 20.9 })).toBe(false);
+  });
+
+  it('notices a setpoint changed by someone else', () => {
+    expect(setpointsDiffer({ coolCelsius: 22.8, heatCelsius: 18.9 }, { coolCelsius: 22.8, heatCelsius: 20.6 })).toBe(true);
+  });
+});
+
+function at(time: string) {
+  return new Date(`2026-11-12T${time}:00`);
+}
+
+describe('isWithinActiveHours', () => {
+  it('runs past midnight', () => {
+    expect(isWithinActiveHours(at('18:00'), '18:00', '06:00')).toBe(true);
+    expect(isWithinActiveHours(at('23:59'), '18:00', '06:00')).toBe(true);
+    expect(isWithinActiveHours(at('03:00'), '18:00', '06:00')).toBe(true);
+    expect(isWithinActiveHours(at('06:00'), '18:00', '06:00')).toBe(false);
+    expect(isWithinActiveHours(at('12:00'), '18:00', '06:00')).toBe(false);
+  });
+
+  it('works within one day', () => {
+    expect(isWithinActiveHours(at('13:00'), '12:00', '15:00')).toBe(true);
+    expect(isWithinActiveHours(at('15:00'), '12:00', '15:00')).toBe(false);
+  });
+
+  it('is never active when the start and end are the same', () => {
+    expect(isWithinActiveHours(at('18:00'), '18:00', '18:00')).toBe(false);
   });
 });

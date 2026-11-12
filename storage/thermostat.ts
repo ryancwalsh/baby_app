@@ -1,8 +1,8 @@
-import { type CribRange } from '@/services/ecobee/decide';
+import { type CribRange, isTimeOfDay } from '@/services/ecobee/decide';
 import { query } from '@/storage/database';
 
 /**
- * The crib's range, shared by every phone because there is one nursery, and the log of what the worker decided about the hallway thermostat. See ecobee_plan.md.
+ * The crib's range and the hours the worker steers the thermostat, shared by every phone because there is one nursery, and the log of what the worker decided about the hallway thermostat. See ecobee_plan.md.
  */
 
 /**
@@ -10,6 +10,13 @@ import { query } from '@/storage/database';
  */
 const LOWEST_RANGE_CELSIUS = 15.5;
 const HIGHEST_RANGE_CELSIUS = 26.7;
+
+/**
+ * When the worker steers the thermostat, in the laptop's local time, and whether it does at all. Outside these hours the loop only logs what it would do.
+ */
+export type ThermostatSchedule = { activeFrom: string; activeUntil: string; isEnabled: boolean };
+
+export const DEFAULT_THERMOSTAT_SCHEDULE: ThermostatSchedule = { activeFrom: '18:00', activeUntil: '06:00', isEnabled: true };
 
 export type ThermostatDecisionRecord = {
   cribCelsius: null | number;
@@ -47,6 +54,29 @@ export async function saveCribRange(range: CribRange) {
   }
 
   await query('UPDATE settings SET crib_low_celsius = ?, crib_high_celsius = ? WHERE id = 1', [lowCelsius, highCelsius]);
+}
+
+export async function getThermostatSchedule(): Promise<ThermostatSchedule> {
+  const [row] = (await query('SELECT thermostat_enabled, thermostat_active_from, thermostat_active_until FROM settings WHERE id = 1')).rows;
+
+  return {
+    activeFrom: row?.thermostat_active_from === null || row?.thermostat_active_from === undefined ? DEFAULT_THERMOSTAT_SCHEDULE.activeFrom : String(row.thermostat_active_from),
+    activeUntil:
+      row?.thermostat_active_until === null || row?.thermostat_active_until === undefined ? DEFAULT_THERMOSTAT_SCHEDULE.activeUntil : String(row.thermostat_active_until),
+    isEnabled: row?.thermostat_enabled === null || row?.thermostat_enabled === undefined ? DEFAULT_THERMOSTAT_SCHEDULE.isEnabled : Number(row.thermostat_enabled) === 1,
+  };
+}
+
+export async function saveThermostatSchedule(schedule: ThermostatSchedule) {
+  if (!isTimeOfDay(schedule.activeFrom) || !isTimeOfDay(schedule.activeUntil)) {
+    throw new Error('The active hours need a start and an end time.');
+  }
+
+  await query('UPDATE settings SET thermostat_enabled = ?, thermostat_active_from = ?, thermostat_active_until = ? WHERE id = 1', [
+    schedule.isEnabled ? 1 : 0,
+    schedule.activeFrom,
+    schedule.activeUntil,
+  ]);
 }
 
 export async function recordThermostatDecision(record: ThermostatDecisionRecord) {

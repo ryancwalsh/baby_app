@@ -2,7 +2,15 @@
 
 import { requireLogin } from '@/auth/login';
 import { type CribRange } from '@/services/ecobee/decide';
-import { getCribRange, getLatestThermostatDecision, saveCribRange, type ThermostatDecisionRecord } from '@/storage/thermostat';
+import {
+  getCribRange,
+  getLatestThermostatDecision,
+  getThermostatSchedule,
+  saveCribRange,
+  saveThermostatSchedule,
+  type ThermostatDecisionRecord,
+  type ThermostatSchedule,
+} from '@/storage/thermostat';
 
 export type ThermostatSettings = {
   cribRange: CribRange | null;
@@ -29,5 +37,23 @@ export async function saveCribRangeAction(secretHash: string, range: CribRange):
     return { error: null };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Could not save the crib range.' };
+  }
+}
+
+export async function getThermostatScheduleAction(secretHash: string): Promise<ThermostatSchedule> {
+  await requireLogin(secretHash);
+
+  return getThermostatSchedule();
+}
+
+export async function saveThermostatScheduleAction(secretHash: string, schedule: ThermostatSchedule): Promise<{ error: null | string }> {
+  await requireLogin(secretHash);
+
+  try {
+    await saveThermostatSchedule(schedule);
+
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Could not save the active hours.' };
   }
 }

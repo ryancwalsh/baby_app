@@ -42,12 +42,14 @@ function describeTarget(target: ThermostatState['target']) {
 }
 
 function describeDecision(decision: ThermostatDecisionRecord) {
+  const setpoints = [decision.proposedHeatCelsius, decision.proposedCoolCelsius].filter((celsius) => celsius !== null).map((celsius) => toFahrenheit(celsius));
   let description = decision.outcome;
   if (decision.outcome === 'would change') {
-    const setpoints = [decision.proposedHeatCelsius, decision.proposedCoolCelsius].filter((celsius) => celsius !== null).map((celsius) => toFahrenheit(celsius));
     description = `would set ${setpoints.join('–')}°F`;
   } else if (decision.outcome === 'would leave') {
     description = 'would leave it as it is';
+  } else if (decision.outcome === 'changed') {
+    description = `set ${setpoints.join('–')}°F`;
   }
 
   return description;
@@ -82,7 +84,7 @@ function Half({ children, label }: { readonly children: ReactNode; readonly labe
 }
 
 /**
- * The nursery's temperature on the Switches tab, which opens a dialog beside the hallway thermostat's: its reading, the range it is holding, the crib range the worker steers toward, and the worker's latest decision. The thermostat is read only while the dialog is open, and only read; the worker's loop is a dry run and writes nothing to it either.
+ * The nursery's temperature on the Switches tab, which opens a dialog beside the hallway thermostat's: its reading, the range it is holding, the crib range the worker steers toward, and the worker's latest decision. The thermostat is read only while the dialog is open, and only read here; the worker's loop is what writes to it, during the active hours set on the Settings page.
  */
 export function TemperatureDialog({ secretHash }: { readonly secretHash: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -185,20 +187,25 @@ export function TemperatureDialog({ secretHash }: { readonly secretHash: string 
               <p className="text-muted text-3xl">{error ?? 'Reading the thermostat…'}</p>
             ) : (
               <>
-                <p className="text-6xl tabular-nums opacity-70">{toFahrenheit(thermostat.currentCelsius)}°F</p>
-                <p className="text-3xl tabular-nums">{describeTarget(thermostat.target)}</p>
+                <p className="text-5xl tabular-nums opacity-70">{toFahrenheit(thermostat.currentCelsius)}°F</p>
+                <p className="text-muted text-3xl tabular-nums">{describeTarget(thermostat.target)}</p>
                 <p className="text-muted text-3xl">{ACTIVITY_LABELS[thermostat.activity]}</p>
                 {error !== null && <p className="text-accent text-3xl">{error}</p>}
               </>
             )}
             {settings !== null && settings.latestDecision !== null && (
               <p className="text-muted text-3xl">
-                Trial run, {formatClockTime(settings.latestDecision.decidedAt, is24Hour)}: {describeDecision(settings.latestDecision)}. Nothing is sent yet.
+                {settings.latestDecision.outcome.startsWith('would') ? 'Trial run' : 'Nanit control'}, {formatClockTime(settings.latestDecision.decidedAt, is24Hour)}:{' '}
+                {describeDecision(settings.latestDecision)}.
               </p>
             )}
           </Half>
           <Half label="Nanit">
-            {isOpen && <NanitTemperature isLarge secretHash={secretHash} />}
+            {isOpen && (
+              <div className="border-foreground/30 rounded-3xl border-2 px-8 py-3">
+                <NanitTemperature isLarge secretHash={secretHash} />
+              </div>
+            )}
             <h3 className="text-muted text-3xl">Crib range (°F)</h3>
             {settings === null ? (
               <p className="text-muted text-3xl">{rangeError ?? 'Loading…'}</p>

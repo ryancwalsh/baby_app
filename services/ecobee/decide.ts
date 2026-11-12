@@ -96,3 +96,66 @@ export function decide(range: CribRange, offsetCelsius: number, target: Thermost
 
   return { outcome, proposed };
 }
+
+/**
+ * The most a setpoint is moved in one decision (about 1 °F), so the hallway is walked toward a new setpoint rather than jumped. The crib went on warming for at least 10 minutes after heating stopped on 2026-11-12, so a jump overshoots it.
+ */
+export const MAXIMUM_STEP_CELSIUS = 0.6;
+/**
+ * How far a setpoint read back may be from what was written and still count as the same, allowing for the thermostat's own rounding.
+ */
+export const SAME_SETPOINT_TOLERANCE_CELSIUS = 0.3;
+
+function stepToward(currentCelsius: null | number, proposedCelsius: null | number) {
+  let stepped = proposedCelsius;
+  if (currentCelsius !== null && proposedCelsius !== null) {
+    stepped = roundToTenth(currentCelsius + Math.max(-MAXIMUM_STEP_CELSIUS, Math.min(MAXIMUM_STEP_CELSIUS, proposedCelsius - currentCelsius)));
+  }
+
+  return stepped;
+}
+
+/**
+ * The setpoints to send now: each moved from where it is toward the proposal by at most MAXIMUM_STEP_CELSIUS, with the cool setpoint pushed up if auto mode's gap needs it, and nothing sent unless something moves by at least MINIMUM_CHANGE_CELSIUS.
+ */
+export function stepSetpoints(current: Setpoints, proposed: Setpoints, mode: ThermostatState['target']['mode']): null | Setpoints {
+  const heatCelsius = stepToward(current.heatCelsius, proposed.heatCelsius);
+  let coolCelsius = stepToward(current.coolCelsius, proposed.coolCelsius);
+  if (mode === 'auto' && heatCelsius !== null && coolCelsius !== null && coolCelsius - heatCelsius < AUTO_MINIMUM_GAP_CELSIUS) {
+    coolCelsius = roundToTenth(Math.min(HIGHEST_SETPOINT_CELSIUS, heatCelsius + AUTO_MINIMUM_GAP_CELSIUS + 0.05));
+  }
+
+  return moves(heatCelsius, current.heatCelsius) || moves(coolCelsius, current.coolCelsius) ? { coolCelsius, heatCelsius } : null;
+}
+
+function differs(readCelsius: null | number, writtenCelsius: null | number) {
+  return readCelsius !== null && writtenCelsius !== null && Math.abs(readCelsius - writtenCelsius) > SAME_SETPOINT_TOLERANCE_CELSIUS;
+}
+
+/**
+ * Whether the thermostat no longer holds what the loop last wrote, which means a person changed it or the hold ended.
+ */
+export function setpointsDiffer(read: Setpoints, written: Setpoints) {
+  return differs(read.heatCelsius, written.heatCelsius) || differs(read.coolCelsius, written.coolCelsius);
+}
+
+const TIME_OF_DAY_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/u;
+
+export function isTimeOfDay(value: string) {
+  return TIME_OF_DAY_PATTERN.test(value);
+}
+
+/**
+ * Whether a local time falls in the active hours, which may run past midnight (18:00 to 06:00). The start is inside and the end is not; equal times mean never.
+ */
+function toMinuteOfDay(timeOfDay: string) {
+  return Number(timeOfDay.slice(0, 2)) * 60 + Number(timeOfDay.slice(3, 5));
+}
+
+export function isWithinActiveHours(now: Date, activeFrom: string, activeUntil: string) {
+  const nowMinute = now.getHours() * 60 + now.getMinutes();
+  const from = toMinuteOfDay(activeFrom);
+  const until = toMinuteOfDay(activeUntil);
+
+  return from <= until ? nowMinute >= from && nowMinute < until : nowMinute >= from || nowMinute < until;
+}
