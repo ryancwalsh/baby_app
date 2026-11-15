@@ -1,15 +1,16 @@
 'use client';
 
 import { RefreshCwIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
 import { getLampsAction, type Lamp } from '@/app/actions/lamp';
 import { getTapoCloudStatusAction } from '@/app/actions/tapo-login';
 import { Clock } from '@/components/clock';
 import { LampToggle, UnreachableLampRow } from '@/components/lamp-toggle';
+import { NanitTemperature } from '@/components/nanit-temperature';
 import { NightLight } from '@/components/night-light';
 import { TapoCloudLogin } from '@/components/tapo-cloud-login';
-import { TemperatureDialog } from '@/components/temperature-dialog';
 import { useHiddenSwitches } from '@/hooks/use-hidden-switches';
 import { type NightLightState } from '@/services/nanit/night-light';
 
@@ -114,7 +115,9 @@ export function Lights({ secretHash }: { readonly secretHash: string }) {
       <Clock>
         {/* Each side of the temperature grows as much as the time does, which keeps it in the middle of the row. */}
         <div className="flex flex-1 justify-center">
-          <TemperatureDialog secretHash={secretHash} />
+          <Link aria-label="Show the nursery and hallway temperatures" href="/thermostat">
+            <NanitTemperature secretHash={secretHash} />
+          </Link>
         </div>
 
         <div className="flex flex-1 justify-end">

@@ -97,21 +97,35 @@ export async function recordThermostatDecision(record: ThermostatDecisionRecord)
   );
 }
 
+function toDecisionRecord(row: Record<string, unknown>): ThermostatDecisionRecord {
+  return {
+    cribCelsius: toOptionalNumber(row.crib_celsius),
+    currentCoolCelsius: toOptionalNumber(row.current_cool_celsius),
+    currentHeatCelsius: toOptionalNumber(row.current_heat_celsius),
+    decidedAt: String(row.decided_at),
+    hallwayCelsius: toOptionalNumber(row.hallway_celsius),
+    mode: row.mode === null ? null : String(row.mode),
+    offsetCelsius: toOptionalNumber(row.offset_celsius),
+    outcome: String(row.outcome),
+    proposedCoolCelsius: toOptionalNumber(row.proposed_cool_celsius),
+    proposedHeatCelsius: toOptionalNumber(row.proposed_heat_celsius),
+  };
+}
+
 export async function getLatestThermostatDecision(): Promise<null | ThermostatDecisionRecord> {
   const [row] = (await query('SELECT * FROM thermostat_decisions ORDER BY decided_at DESC LIMIT 1')).rows;
 
-  return row === undefined
-    ? null
-    : {
-        cribCelsius: toOptionalNumber(row.crib_celsius),
-        currentCoolCelsius: toOptionalNumber(row.current_cool_celsius),
-        currentHeatCelsius: toOptionalNumber(row.current_heat_celsius),
-        decidedAt: String(row.decided_at),
-        hallwayCelsius: toOptionalNumber(row.hallway_celsius),
-        mode: row.mode === null ? null : String(row.mode),
-        offsetCelsius: toOptionalNumber(row.offset_celsius),
-        outcome: String(row.outcome),
-        proposedCoolCelsius: toOptionalNumber(row.proposed_cool_celsius),
-        proposedHeatCelsius: toOptionalNumber(row.proposed_heat_celsius),
-      };
+  return row === undefined ? null : toDecisionRecord(row);
+}
+
+/**
+ * Every decision since a time, newest first, or every decision there is when `since` is null.
+ */
+export async function getThermostatDecisions(since: null | string): Promise<ThermostatDecisionRecord[]> {
+  const { rows } =
+    since === null
+      ? await query('SELECT * FROM thermostat_decisions ORDER BY decided_at DESC')
+      : await query('SELECT * FROM thermostat_decisions WHERE decided_at >= ? ORDER BY decided_at DESC', [since]);
+
+  return rows.map((row) => toDecisionRecord(row));
 }

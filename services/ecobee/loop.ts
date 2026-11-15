@@ -82,6 +82,20 @@ async function release(state: LoopState, reason: string, otherwise: string) {
 }
 
 /**
+ * What the thermostat holds just after a write, which is what a person's change is later compared against. It is not always what was sent: on a step down, the ecobee kept the cool setpoint about 0.3 °C above it, because the new cool setpoint arrived before the new heat one and briefly sat inside its 5 °F gap from the old heat setpoint. Comparing against what was sent took that for a person on 2026-11-13, 2026-11-14, and 2026-11-15. If the read fails, what was sent is the best guess left.
+ */
+async function readBackSetpoints(sent: Setpoints) {
+  let setpoints = sent;
+  try {
+    setpoints = getCurrentSetpoints((await readThermostat()).target);
+  } catch (error) {
+    console.error('The thermostat loop could not read back what it wrote.', error);
+  }
+
+  return setpoints;
+}
+
+/**
  * Inside the active hours: writes the next step toward the decision, unless a person has taken over. Returns the outcome and what was sent.
  */
 async function steer(state: LoopState, thermostat: ThermostatState, proposed: Setpoints): Promise<{ outcome: string; sent: null | Setpoints }> {
@@ -108,7 +122,7 @@ async function steer(state: LoopState, thermostat: ThermostatState, proposed: Se
     } else {
       await writeSetpoints(thermostat.target.mode, toSend);
       // eslint-disable-next-line require-atomic-updates -- runOnce never lets two decisions overlap, so nothing else changes `held` meanwhile.
-      state.held = { atMilliseconds: Date.now(), setpoints: toSend };
+      state.held = { atMilliseconds: Date.now(), setpoints: await readBackSetpoints(toSend) };
       result = { outcome: 'changed', sent: toSend };
     }
   }

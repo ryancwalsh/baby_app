@@ -79,7 +79,7 @@ All additive, per the migration rules in `AGENTS.md`:
 
 ## In the app
 
-- Everything lives in the dialog that tapping the temperature on the Switches tab opens (`components/temperature-dialog.tsx`). Today it shows the crib and hallway readings in large type and the range the ecobee is holding. It will gain the crib range, the on/off switch, what the loop is doing (holding, released, paused, or off), and when it last acted.
+- Everything lives on the `/thermostat` page that tapping the temperature on the Switches tab opens (`components/thermostat-panel.tsx`; a full-screen dialog until 2026-11-15), with the loop's whole decision log at `/thermostat/log`. When this was written it showed the crib and hallway readings in large type and the range the ecobee is holding. It will gain the crib range, the on/off switch, what the loop is doing (holding, released, paused, or off), and when it last acted.
 - The range and the switch are shared, in the `settings` table, not per phone, because there is one nursery.
 - The worker serves the reading at `/api/worker/thermostat`, called through `components/worker-client.ts`; the switch and the resume button will be POSTs to the same route.
 
@@ -118,8 +118,9 @@ The user asked the same day for the loop to write, between active hours set on t
 - Inside the active hours, each 10-minute decision walks the setpoints toward the decision by at most 0.6 °C (about 1 °F), from `stepSetpoints` in `services/ecobee/decide.ts`, because the morning test showed the crib keeps warming after heating stops. In auto mode the cool setpoint is pushed up if the heat step would close the 5 °F gap.
 - Outcomes when live are `changed`, `left as it is`, `paused: changed by a person`, `thermostat is off`, `released: …`, and `could not reach the thermostat: …`. Outside the hours the old dry-run outcomes (`would change`, `would leave`) go on being logged.
 - The loop clears its hold (`1.48`) when the hours end, when switched off, when the crib reading is stale or outside 10–35 °C, or when no range is set. It only clears a hold it placed in this process; after a restart, the 2-hour Hold Action ends any hold it left.
-- A person wins: setpoints that differ from what the loop last wrote by more than 0.3 °C, less than 110 minutes after its write, pause it until the active hours next end. A difference after that is taken for the 2-hour hold ending, and the loop writes its last setpoints again rather than walking up from the schedule's.
-- Not verified on the thermostat yet: that a HomeKit write's hold really ends after the Hold Action's 2 hours, and how setpoints read back after a write. Read the log the next morning with `scripts/thermostat-log.ts`.
+- A person wins: setpoints that differ by more than 0.3 °C from what the thermostat held just after the loop's last write, less than 110 minutes after it, pause it until the active hours next end. A difference after that is taken for the 2-hour hold ending, and the loop writes its last setpoints again rather than walking up from the schedule's.
+- **The loop reads the thermostat back after every write**, because what it holds is not always what was sent. On a step down in auto mode the ecobee kept the cool setpoint about 0.3 °C above what was written: the new cool setpoint arrives before the new heat one and briefly sits inside the 5 °F gap from the old heat setpoint, and the ecobee seems to split the shortfall between the two. Comparing against what was sent paused the loop for "a person" on 2026-11-13 at 01:40, 2026-11-14 at 04:20, and 2026-11-15 at 01:20, with nobody touching the thermostat. `tests/ecobee/loop.test.ts` reproduces it with a fake ecobee that behaves that way.
+- Not verified on the thermostat yet: that a HomeKit write's hold really ends after the Hold Action's 2 hours. The log is mixed: holds placed at 19:20 lasted about 4 to 5 hours on 2026-11-13 and 2026-11-14, while the 01:10 hold on 2026-11-15 ended about 2 hours later. Check the Hold Action in the ecobee app. Read the log on `/thermostat/log` or with `scripts/thermostat-log.ts`.
 
 ## Phases
 
