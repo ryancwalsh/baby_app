@@ -1,10 +1,12 @@
 'use server';
 
 import { requireLogin } from '@/auth/login';
+import { MILLISECONDS_PER_DAY } from '@/constants/time';
 import { type CribRange } from '@/services/ecobee/decide';
 import {
   getCribRange,
   getLatestThermostatDecision,
+  getThermostatDecisions,
   getThermostatSchedule,
   saveCribRange,
   saveThermostatSchedule,
@@ -26,6 +28,15 @@ export async function getThermostatSettingsAction(secretHash: string): Promise<T
   const [cribRange, latestDecision] = await Promise.all([getCribRange(), getLatestThermostatDecision()]);
 
   return { cribRange, latestDecision };
+}
+
+/**
+ * The worker's decisions over the last so many days, or all of them when `days` is null, for the log page.
+ */
+export async function getThermostatDecisionsAction(secretHash: string, days: null | number): Promise<ThermostatDecisionRecord[]> {
+  await requireLogin(secretHash);
+
+  return getThermostatDecisions(days === null ? null : new Date(Date.now() - days * MILLISECONDS_PER_DAY).toISOString());
 }
 
 export async function saveCribRangeAction(secretHash: string, range: CribRange): Promise<{ error: null | string }> {

@@ -79,7 +79,7 @@ All additive, per the migration rules in `AGENTS.md`:
 
 ## In the app
 
-- Everything lives in the dialog that tapping the temperature on the Switches tab opens (`components/temperature-dialog.tsx`). Today it shows the crib and hallway readings in large type and the range the ecobee is holding. It will gain the crib range, the on/off switch, what the loop is doing (holding, released, paused, or off), and when it last acted.
+- Everything lives on the `/thermostat` page that tapping the temperature on the Switches tab opens (`components/thermostat-panel.tsx`; a full-screen dialog until 2026-11-15), with the loop's whole decision log at `/thermostat/log`. When this was written it showed the crib and hallway readings in large type and the range the ecobee is holding. It will gain the crib range, the on/off switch, what the loop is doing (holding, released, paused, or off), and when it last acted.
 - The range and the switch are shared, in the `settings` table, not per phone, because there is one nursery.
 - The worker serves the reading at `/api/worker/thermostat`, called through `components/worker-client.ts`; the switch and the resume button will be POSTs to the same route.
 
