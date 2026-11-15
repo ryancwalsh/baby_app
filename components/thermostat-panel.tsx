@@ -177,7 +177,7 @@ export function ThermostatPanel({ secretHash }: { readonly secretHash: string })
             {rangeError !== null && <p className="text-accent text-3xl">{rangeError}</p>}
           </>
         )}
-        <Link className="text-faint absolute bottom-1 left-1/2 -translate-x-1/2 text-xs underline" href="/thermostat/log">
+        <Link className="text-faint absolute bottom-1 left-2 text-xs underline" href="/thermostat/log">
           log
         </Link>
       </Half>

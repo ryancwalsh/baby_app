@@ -8,7 +8,7 @@ import { ThermostatLogTable } from '@/components/thermostat-log-table';
  */
 export default function ThermostatLogPage() {
   return (
-    <div className="flex flex-col gap-4 px-4 py-6">
+    <div className="relative left-1/2 flex w-screen -translate-x-1/2 flex-col gap-4 px-2 py-6">
       <h1 className="text-xl font-semibold">Thermostat log</h1>
       <LoginGuard>{(secretHash) => <ThermostatLogTable secretHash={secretHash} />}</LoginGuard>
     </div>
