@@ -1,5 +1,5 @@
 import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
-import { decide, getCurrentSetpoints, isWithinActiveHours, type Setpoints, setpointsDiffer, smoothOffset, stepSetpoints } from '@/services/ecobee/decide';
+import { decide, getCurrentSetpoints, isWithinActiveHours, orderForWriting, type Setpoints, setpointsDiffer, smoothOffset, stepSetpoints } from '@/services/ecobee/decide';
 import { clearHold, readThermostat, type ThermostatState, writeSetpoints } from '@/services/ecobee/thermostat';
 import { connect, getTemperature } from '@/services/nanit/connection';
 import { getCribRange, getThermostatSchedule, recordThermostatDecision, type ThermostatDecisionRecord } from '@/storage/thermostat';
@@ -82,7 +82,7 @@ async function release(state: LoopState, reason: string, otherwise: string) {
 }
 
 /**
- * What the thermostat holds just after a write, which is what a person's change is later compared against. It is not always what was sent: on a step down, the ecobee kept the cool setpoint about 0.3 °C above it, because the new cool setpoint arrived before the new heat one and briefly sat inside its 5 °F gap from the old heat setpoint. Comparing against what was sent took that for a person on 2026-11-13, 2026-11-14, and 2026-11-15. If the read fails, what was sent is the best guess left.
+ * What the thermostat holds just after a write, which is what a person's change is later compared against. If the read fails, what was sent is the best guess left. It does not catch the ecobee pushing its thresholds apart: a read straight after the write still returns what was sent, and the change shows only later, which is why a step down paused the loop again on 2026-11-16. Sending the thresholds in the order `orderForWriting` gives is what prevents that.
  */
 async function readBackSetpoints(sent: Setpoints) {
   let setpoints = sent;
@@ -120,7 +120,11 @@ async function steer(state: LoopState, thermostat: ThermostatState, proposed: Se
     if (toSend === null) {
       result = { outcome: 'left as it is', sent: null };
     } else {
-      await writeSetpoints(thermostat.target.mode, toSend);
+      const writes = thermostat.target.mode === 'auto' ? orderForWriting(current, toSend) : [toSend];
+      for (const setpoints of writes) {
+        await writeSetpoints(thermostat.target.mode, setpoints);
+      }
+
       // eslint-disable-next-line require-atomic-updates -- runOnce never lets two decisions overlap, so nothing else changes `held` meanwhile.
       state.held = { atMilliseconds: Date.now(), setpoints: await readBackSetpoints(toSend) };
       result = { outcome: 'changed', sent: toSend };

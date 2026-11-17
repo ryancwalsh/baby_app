@@ -128,6 +128,17 @@ export function stepSetpoints(current: Setpoints, proposed: Setpoints, mode: The
   return moves(heatCelsius, current.heatCelsius) || moves(coolCelsius, current.coolCelsius) ? { coolCelsius, heatCelsius } : null;
 }
 
+/**
+ * The setpoints split into two writes in auto mode, in an order that never brings the cooling threshold inside the gap from the heating one as it stands. The ecobee applies thresholds one at a time and, when one arrives inside the gap, pushes the two apart: sending the cool setpoint first on a step down left it about 0.3 °C above what was sent, which the loop took for a person on 2026-11-13, 2026-11-14, 2026-11-15, and 2026-11-16. So when the cool setpoint is going down, the heat setpoint goes first; otherwise the cool one does.
+ */
+export function orderForWriting(current: Setpoints, next: Setpoints): Setpoints[] {
+  const cool = { coolCelsius: next.coolCelsius, heatCelsius: null };
+  const heat = { coolCelsius: null, heatCelsius: next.heatCelsius };
+  const isCoolGoingDown = current.coolCelsius !== null && next.coolCelsius !== null && next.coolCelsius < current.coolCelsius;
+
+  return isCoolGoingDown ? [heat, cool] : [cool, heat];
+}
+
 function differs(readCelsius: null | number, writtenCelsius: null | number) {
   return readCelsius !== null && writtenCelsius !== null && Math.abs(readCelsius - writtenCelsius) > SAME_SETPOINT_TOLERANCE_CELSIUS;
 }

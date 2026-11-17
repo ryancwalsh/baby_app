@@ -76,12 +76,18 @@ export async function readThermostat(): Promise<ThermostatState> {
 }
 
 /**
- * Sends setpoints in °C for the given mode, which ecobee turns into a hold that ends by the Hold Action set in its app: both thresholds in auto, the one target in heat or cool. Never changes the mode.
+ * Sends setpoints in °C for the given mode, which ecobee turns into a hold that ends by the Hold Action set in its app: whichever thresholds are given in auto, the one target in heat or cool. Never changes the mode. The ecobee applies auto mode's two thresholds one at a time, so the loop sends them in separate writes, in the order `orderForWriting` gives.
  */
 export async function writeSetpoints(mode: ThermostatMode, setpoints: { coolCelsius: null | number; heatCelsius: null | number }) {
   let characteristics: Record<string, number> = {};
-  if (mode === 'auto' && setpoints.heatCelsius !== null && setpoints.coolCelsius !== null) {
-    characteristics = { [COOLING_THRESHOLD]: setpoints.coolCelsius, [HEATING_THRESHOLD]: setpoints.heatCelsius };
+  if (mode === 'auto' && (setpoints.heatCelsius !== null || setpoints.coolCelsius !== null)) {
+    if (setpoints.coolCelsius !== null) {
+      characteristics[COOLING_THRESHOLD] = setpoints.coolCelsius;
+    }
+
+    if (setpoints.heatCelsius !== null) {
+      characteristics[HEATING_THRESHOLD] = setpoints.heatCelsius;
+    }
   } else if (mode === 'heat' && setpoints.heatCelsius !== null) {
     characteristics = { [TARGET_TEMPERATURE]: setpoints.heatCelsius };
   } else if (mode === 'cool' && setpoints.coolCelsius !== null) {
