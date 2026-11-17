@@ -7,14 +7,19 @@ import { type ThermostatDecisionRecord } from '@/storage/thermostat';
 /**
  * A stand-in for the hallway ecobee in auto mode, modelled on what the decision log recorded on the nights of 2026-11-12, 2026-11-13, and 2026-11-14.
  *
- * `writeSetpoints` sends the cooling threshold before the heating threshold, and the ecobee applies them one at a time. When a threshold arrives that is closer than its 5 °F deadband to the other one as it stands at that moment, the ecobee splits the shortfall between the two. On a downward step the new cooling threshold lands near the old heating threshold, so the cool setpoint read back ends up about 0.2–0.3 °C above what was written. That model reproduces all three downward steps in the log to the tenth: sent 20.1/22.9 from 20.7/23.5 read back 20.1/23.2, sent 19.6/22.4 from 20.2/23.0 read back 19.6/22.7 (twice), and sent 19.7/22.5 from 20.2/23.0 read back 19.7/22.7. It is inferred from those readings, not documented by ecobee.
+ * The ecobee applies thresholds one at a time, in the order they are sent. When a threshold arrives that is closer than its 5 °F deadband to the other one as it stands at that moment, the ecobee splits the shortfall between the two. When the cooling threshold was sent first on a downward step it landed near the old heating threshold, so the cool setpoint ended up about 0.2–0.3 °C above what was written. That model reproduces all four such steps in the log to the tenth: sent 20.1/22.9 from 20.7/23.5 read back 20.1/23.2, sent 19.6/22.4 from 20.2/23.0 read back 19.6/22.7 (three times), and sent 19.7/22.5 from 20.2/23.0 read back 19.7/22.7. It is inferred from those readings, not documented by ecobee.
+ *
+ * The split does not show at once. A read straight after the write returns what was sent, and the split appears only later: on 2026-11-16 at 21:19 the loop read back right after writing 19.6/22.4, found nothing amiss, and still read 19.6/22.7 ten minutes later. So this fake keeps what was sent visible until `SETTLES_AFTER_MILLISECONDS` have passed.
  */
+const SETTLES_AFTER_MILLISECONDS = 1_000;
+
 function roundToTenth(celsius: number) {
   return Math.round(celsius * 10) / 10;
 }
 
 function createFakeEcobee(initial: { coolCelsius: number; heatCelsius: number }) {
   const thresholds = { ...initial };
+  let unsettled: null | { coolCelsius: number; heatCelsius: number; untilMilliseconds: number } = null;
 
   function setCool(celsius: number) {
     const shortfall = AUTO_MINIMUM_GAP_CELSIUS - (celsius - thresholds.heatCelsius);
@@ -35,18 +40,26 @@ function createFakeEcobee(initial: { coolCelsius: number; heatCelsius: number })
   }
 
   return {
-    read: (hallwayCelsius: number): ThermostatState => ({
-      activity: 'idle',
-      currentCelsius: hallwayCelsius,
-      target: { coolCelsius: thresholds.coolCelsius, heatCelsius: thresholds.heatCelsius, mode: 'auto' },
-    }),
+    read: (hallwayCelsius: number): ThermostatState => {
+      const shown = unsettled !== null && Date.now() < unsettled.untilMilliseconds ? unsettled : thresholds;
+
+      return {
+        activity: 'idle',
+        currentCelsius: hallwayCelsius,
+        target: { coolCelsius: shown.coolCelsius, heatCelsius: shown.heatCelsius, mode: 'auto' },
+      };
+    },
     /**
      * A person changing the setpoints in the ecobee app.
      */
     setByHand: (setpoints: { coolCelsius: number; heatCelsius: number }) => {
       thresholds.coolCelsius = setpoints.coolCelsius;
       thresholds.heatCelsius = setpoints.heatCelsius;
+      unsettled = null;
     },
+    /**
+     * One HomeKit write: the cooling threshold first, then the heating one, as `writeSetpoints` lists them.
+     */
     write: (setpoints: Setpoints) => {
       if (setpoints.coolCelsius !== null) {
         setCool(setpoints.coolCelsius);
@@ -55,6 +68,12 @@ function createFakeEcobee(initial: { coolCelsius: number; heatCelsius: number })
       if (setpoints.heatCelsius !== null) {
         setHeat(setpoints.heatCelsius);
       }
+
+      unsettled = {
+        coolCelsius: setpoints.coolCelsius ?? thresholds.coolCelsius,
+        heatCelsius: setpoints.heatCelsius ?? thresholds.heatCelsius,
+        untilMilliseconds: Date.now() + SETTLES_AFTER_MILLISECONDS,
+      };
     },
   };
 }
