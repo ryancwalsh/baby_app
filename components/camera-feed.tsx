@@ -112,7 +112,7 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
    * Whether the picture has stopped moving, covered over below rather than
    * left on screen.
    */
-  const { isAlarmOn, isStale, isStaleRef, toggleAlarm } = usePictureWatchdog({ isStarting, isWatching, retry, videoRef });
+  const { isAlarmOn, isSilenced, isStale, isStaleRef, silenceAlarm, toggleAlarm } = usePictureWatchdog({ isStarting, isWatching, retry, videoRef });
 
   /**
    * Told to the server rather than only done here, because the relay would
@@ -251,16 +251,17 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           </span>
           <ToggleSwitch isOn={isWatching} />
         </button>
-        {/* Its own button rather than a setting elsewhere, because the one time it matters is the night it was left off. */}
+        {/* Its own button rather than a setting elsewhere, because the one time it matters is the night it was left off. Worded as well as drawn, because a slashed bell is easy to misread at 3am. */}
         <button
           aria-checked={isAlarmOn}
           aria-label={isAlarmOn ? 'Alarm on when the picture is lost' : 'Alarm off when the picture is lost'}
-          className="border-foreground/15 bg-foreground/2 dark:bg-black flex items-center rounded-2xl border px-5"
+          className="border-foreground/15 bg-foreground/2 dark:bg-black flex flex-col items-center justify-center gap-1 rounded-2xl border px-3"
           onClick={toggleAlarm}
           role="switch"
           type="button"
         >
           {isAlarmOn ? <BellIcon className="size-5 text-accent" /> : <BellOffIcon className="size-5 opacity-50" />}
+          <span className={`text-xs ${isAlarmOn ? 'text-accent' : 'text-faint'}`}>{isAlarmOn ? 'Alarm on' : 'Alarm off'}</span>
         </button>
         <button
           aria-checked={isMonitoring}
@@ -297,13 +298,15 @@ export function CameraFeed({ secretHash }: { readonly secretHash: string }) {
           </div>
         )}
 
-        {/*
-          Opaque, so the frozen frame underneath cannot be mistaken for the
-          room. Outside the pinch view for the same reason as the spinner.
-        */}
+        {/* Opaque, so the frozen frame underneath cannot be mistaken for the room, and carrying the alarm's own off switch where the eye already is. Outside the pinch view for the same reason as the spinner. */}
         {isWatching && isStale && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black">
-            <p className="text-sm text-amber-500">The picture has stopped. Reconnecting…</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black px-6 text-center">
+            <p className="text-sm text-amber-500">The picture from the camera has stopped arriving. Reconnecting…</p>
+            {isAlarmOn && !isSilenced && (
+              <button className="flex items-center gap-2 rounded-2xl border border-amber-500/60 px-6 py-3 text-amber-500" onClick={silenceAlarm} type="button">
+                <BellOffIcon aria-hidden className="size-5" /> Silence the alarm
+              </button>
+            )}
           </div>
         )}
 

@@ -71,6 +71,11 @@ export function usePictureWatchdog({
   const { store: storeAlarmSetting, value: alarmSetting } = useLocalStorage(ALARM_SETTING_KEY);
   const isAlarmOn = alarmSetting !== ALARM_OFF;
   const isAlarmOnRef = useRef(isAlarmOn);
+  /**
+   * Silenced for this one loss of the picture, from the button on the cover. The alarm stays switched on for the next one, and the picture coming back ends the silence.
+   */
+  const [isSilenced, setIsSilenced] = useState(false);
+  const isSilencedRef = useRef(false);
 
   useEffect(() => {
     isAlarmOnRef.current = isAlarmOn;
@@ -80,11 +85,23 @@ export function usePictureWatchdog({
     isStaleRef.current = isNowStale;
     lostSinceRef.current = isNowStale ? (lostSinceRef.current ?? lastProgressAt) : null;
     setIsStale(isNowStale);
+    isSilencedRef.current = isNowStale && isSilencedRef.current;
+    setIsSilenced(isSilencedRef.current);
   }, []);
 
   /**
    * Not judged while the page is hidden either, where the browser pauses the
-   * picture on purpose.
+   * picture on purpose. A loss found before the page was hidden is forgotten
+   * rather than carried through it: iPhone pauses the picture of a hidden page
+   * and nothing here can start it again until the page is shown, so a loss
+   * carried through would go on sounding all night over a picture that is
+   * only waiting to be looked at.
+   *
+   * The same goes for a page that was frozen, which a locked iPhone does
+   * without always saying it is hidden first: the clock has jumped since the
+   * last tick, and the time it spent frozen is not time the picture was seen
+   * to stand still. Counted, it sounded the alarm within two seconds of the
+   * phone being woken, before the player had a chance to catch up.
    */
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -97,13 +114,20 @@ export function usePictureWatchdog({
       let lastTime = videoRef.current?.currentTime ?? 0;
       let lastProgressAt = Date.now();
       let lastRetryAt = Date.now();
+      let lastTickAt = Date.now();
 
       interval = setInterval(() => {
         const video = videoRef.current;
         const now = Date.now();
+        const wasFrozen = now - lastTickAt > STALE_AFTER_MILLISECONDS;
 
-        if (video === null || document.visibilityState !== 'visible') {
+        lastTickAt = now;
+
+        if (video === null || document.visibilityState !== 'visible' || wasFrozen) {
+          lastTime = video?.currentTime ?? lastTime;
           lastProgressAt = now;
+          lastRetryAt = now;
+          markStale(false, now);
         } else if (video.currentTime !== lastTime) {
           lastTime = video.currentTime;
           lastProgressAt = now;
@@ -142,7 +166,7 @@ export function usePictureWatchdog({
       interval = setInterval(() => {
         const lostSince = lostSinceRef.current;
 
-        if (isAlarmOnRef.current && lostSince !== null && Date.now() - lostSince > ALARM_AFTER_MILLISECONDS) {
+        if (isAlarmOnRef.current && !isSilencedRef.current && lostSince !== null && Date.now() - lostSince > ALARM_AFTER_MILLISECONDS) {
           soundAlarm();
         }
       }, ALARM_REPEAT_MILLISECONDS);
@@ -166,5 +190,10 @@ export function usePictureWatchdog({
     storeAlarmSetting(isAlarmOn ? ALARM_OFF : null);
   }, [isAlarmOn, storeAlarmSetting]);
 
-  return { isAlarmOn, isStale, isStaleRef, toggleAlarm };
+  const silenceAlarm = useCallback(() => {
+    isSilencedRef.current = true;
+    setIsSilenced(true);
+  }, []);
+
+  return { isAlarmOn, isSilenced, isStale, isStaleRef, silenceAlarm, toggleAlarm };
 }
