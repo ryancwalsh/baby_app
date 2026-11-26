@@ -3,7 +3,7 @@
 import { CirclePlusIcon, MusicIcon, SlidersHorizontalIcon, VideoIcon, WavesIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { type MouseEvent, useCallback, useEffect, useRef } from 'react';
 
 import { ListenAction, LullabyAction, NightLightAction, NoiseAction, TrackingAction } from '@/components/bottom-nav-actions';
 import { useLullabyAudio } from '@/components/lullaby-audio-provider';
@@ -14,6 +14,8 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useNavigationBottomSpace } from '@/hooks/use-navigation-bottom-space';
 import { TRACKING_VIEWS } from '@/hooks/use-tracking-view';
 
+const SWITCHES_HREF = '/';
+const THERMOSTAT_HREF = '/thermostat';
 const LULLABIES_HREF = '/lullabies';
 const NOISE_HREF = '/noise';
 const TRACK_HREF = '/track';
@@ -24,12 +26,22 @@ const TRACK_HREF = '/track';
 const TRACK_SECTION_HREFS = [TRACK_HREF, '/track/sleep', '/track/bottle', '/track/diaper', '/settings'];
 
 /**
+ * The pages reached from the Switches tab, which keep it lit.
+ */
+const SWITCHES_SECTION_HREFS = [SWITCHES_HREF, THERMOSTAT_HREF, '/thermostat/log'];
+
+/**
+ * How long the Switches tab has to be held to open the thermostat instead.
+ */
+const LONG_PRESS_MILLISECONDS = 500;
+
+/**
  * Reached from the footer rather than a tab, but still a page to come back to on launch.
  */
 const NOTES_HREF = '/notes';
 
 const NAV_ITEMS = [
-  { Action: NightLightAction, href: '/', icon: SlidersHorizontalIcon, label: 'Switches' },
+  { Action: NightLightAction, href: SWITCHES_HREF, icon: SlidersHorizontalIcon, label: 'Switches' },
   { Action: ListenAction, href: MONITOR_HREF, icon: VideoIcon, label: 'Monitor' },
   { Action: TrackingAction, href: TRACK_HREF, icon: CirclePlusIcon, label: 'Track' },
   { Action: LullabyAction, href: LULLABIES_HREF, icon: MusicIcon, label: 'Lullabies' },
@@ -37,7 +49,7 @@ const NAV_ITEMS = [
 ] as const;
 
 const CURRENT_PAGE_KEY = 'baby-app-current-page';
-const DEFAULT_HREF = '/';
+const DEFAULT_HREF = SWITCHES_HREF;
 
 /**
  * Fixed to the bottom so it is reachable one-handed in the dark, and kept dim:
@@ -59,6 +71,44 @@ export function BottomNav() {
   const { isPlaying: isNoisePlaying } = useNoiseAudio();
   const hasRestored = useRef(false);
   const { bottomSpacePixels } = useNavigationBottomSpace();
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  /**
+   * Set once a hold has opened the thermostat, so that the click which follows the finger lifting does not go on to the Switches page.
+   */
+  const wasLongPressRef = useRef(false);
+
+  const openThermostatFromLongPress = useCallback(() => {
+    if (!wasLongPressRef.current) {
+      wasLongPressRef.current = true;
+      router.push(THERMOSTAT_HREF);
+    }
+  }, [router]);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  /**
+   * The thermostat is a page of its own, and the Switches tab is the quick way there: held from any tab, or tapped again while it is already the page on screen. Android reports a hold as a context menu, which opens it too, and iOS's link preview is turned off in the class below.
+   */
+  const switchesTabHandlers = {
+    onContextMenu: (event: MouseEvent) => {
+      event.preventDefault();
+      cancelLongPress();
+      openThermostatFromLongPress();
+    },
+    onPointerCancel: cancelLongPress,
+    onPointerDown: () => {
+      wasLongPressRef.current = false;
+      cancelLongPress();
+      longPressTimerRef.current = setTimeout(openThermostatFromLongPress, LONG_PRESS_MILLISECONDS);
+    },
+    onPointerLeave: cancelLongPress,
+    onPointerUp: cancelLongPress,
+  };
 
   useEffect(() => {
     if (isLoaded) {
@@ -107,7 +157,9 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-md">
         {NAV_ITEMS.map((item) => {
           const { Action, icon: Icon } = item;
-          const isCurrent = pathname === item.href || (item.href === TRACK_HREF && TRACK_SECTION_HREFS.includes(pathname));
+          const isSwitches = item.href === SWITCHES_HREF;
+          const isCurrent =
+            pathname === item.href || (item.href === TRACK_HREF && TRACK_SECTION_HREFS.includes(pathname)) || (isSwitches && SWITCHES_SECTION_HREFS.includes(pathname));
           const isSounding = isPlayingByHref[item.href] === true;
 
           return (
@@ -115,14 +167,25 @@ export function BottomNav() {
               <Action />
               <Link
                 aria-current={isCurrent ? 'page' : undefined}
-                className={`flex flex-col items-center gap-1 self-stretch py-2 text-xs ${isCurrent ? 'font-semibold text-accent' : 'text-faint'}`}
+                className={`flex flex-col items-center gap-1 self-stretch py-2 text-xs select-none [-webkit-touch-callout:none] ${isCurrent ? 'font-semibold text-accent' : 'text-faint'}`}
                 href={item.href}
+                {...(isSwitches ? switchesTabHandlers : {})}
                 /**
                  * Recorded here rather than inferred on arrival, because this is
                  * the only place that knows a person did it: the restore below
                  * navigates too, and must not start the camera.
                  */
-                onClick={() => {
+                onClick={(event) => {
+                  if (isSwitches && (wasLongPressRef.current || pathname === SWITCHES_HREF)) {
+                    event.preventDefault();
+
+                    if (wasLongPressRef.current) {
+                      wasLongPressRef.current = false;
+                    } else {
+                      router.push(THERMOSTAT_HREF);
+                    }
+                  }
+
                   recordNavigationTap(item.href);
 
                   /**
