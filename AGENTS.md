@@ -68,6 +68,11 @@ A stream ends itself after 280 seconds, inside Vercel's limit, and the phone's
   mutes Web Audio on the silent switch, and it wakes its audio context before
   every beep. The watch screen has a Test alarm button and says when the alarm
   cannot sound.
+- The Nanit picture's alarm (`hooks/use-picture-watchdog.ts`) forgets a loss
+  when the page is hidden or wakes from being frozen, because iPhone pauses the
+  picture of a hidden page and a loss carried through it sounded all night
+  over a picture that was fine. The cover over a lost picture has a Silence
+  button, which lasts until the picture comes back.
 - A page frozen by a locked iPhone cannot alarm, and nothing here fixes that.
   The watcher holds a wake lock, warns when it cannot, and owns up afterwards to
   time it was not monitoring. A real answer would be server-side detection and
@@ -356,7 +361,11 @@ in `.env.production.local`.
   Blob token, so the lullabies do not load there unless one is added. They are
   named for when they were made, in UTC like every stored time here, and the
   pages show that name in the phone's own time zone (`storage/timestamps.ts`).
-  Database backups are named in UTC the same way.
+  Database backups are named in UTC the same way. Their order, dragged by
+  the handle on each row, is shared by every phone in `settings.lullaby_order`
+  (`storage/lullaby-order.ts`), and it is the order they play in.
+- The thermostat page is reached by holding the Switches tab, or tapping it
+  again while it is already the page on screen.
 - `yarn typecheck`, `yarn lint`, `yarn test`, `yarn prettier --write <files>`.
   All offline and safe to run. Yarn, not npm; `--exact` when adding. Tests are
   in `tests/`, on Vitest and jsdom. The fakes in `tests/webcam/fakes.ts` copy
