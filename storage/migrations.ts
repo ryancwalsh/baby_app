@@ -184,4 +184,11 @@ export const MIGRATIONS: Migration[] = [
       'ALTER TABLE settings ADD COLUMN thermostat_active_until TEXT',
     ],
   },
+  /**
+   * The order the lullabies are listed and played in, shared by every phone, as a JSON array of file names. Null means the default order from storage/lullabies.ts.
+   */
+  {
+    name: '2026-11-25_lullaby_order',
+    statements: ['ALTER TABLE settings ADD COLUMN lullaby_order TEXT'],
+  },
 ];

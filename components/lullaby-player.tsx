@@ -1,12 +1,14 @@
 'use client';
 
-import { CheckIcon, MusicIcon, PauseIcon, PencilIcon, PlayIcon, Repeat1Icon, RepeatIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { CheckIcon, GripVerticalIcon, MusicIcon, PauseIcon, PencilIcon, PlayIcon, Repeat1Icon, RepeatIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { type Lullaby, renameLullabyAction } from '@/app/actions/lullaby';
 import { type LoopMode, useLullabyAudio } from '@/components/lullaby-audio-provider';
 import { LullabyDeleteConfirmation } from '@/components/lullaby-delete-confirmation';
 import { LullabyRecorder } from '@/components/lullaby-recorder';
+import { LullabyScrubber } from '@/components/lullaby-scrubber';
+import { useLullabyDrag } from '@/hooks/use-lullaby-drag';
 
 const CARD_CLASS_NAME = 'border-foreground/15 bg-foreground/2 dark:bg-black rounded-2xl border px-5 py-4';
 
@@ -99,8 +101,9 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
   const { currentUrl, cycleLoopMode, isPlaying, loopMode, nextLoopMode, playTrack } = useLullabyAudio();
   const [renamingFileName, setRenamingFileName] = useState<null | string>(null);
   const [deletingFileName, setDeletingFileName] = useState<null | string>(null);
-
+  const { draggingFileName, getHandleProps, listRef, orderError, shownLullabies } = useLullabyDrag({ lullabies, onChanged, secretHash });
   const currentLullaby = lullabies.find((lullaby) => lullaby.url === currentUrl);
+
   const LoopIcon = LOOP_MODES[loopMode].icon;
 
   return (
@@ -129,8 +132,12 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
             </button>
           </div>
 
-          <div className="flex flex-col gap-2">
-            {lullabies.map((lullaby) => {
+          {currentLullaby !== undefined && <LullabyScrubber name={currentLullaby.name} />}
+
+          {orderError !== null && <p className="text-sm text-accent">{orderError}</p>}
+
+          <div className="flex flex-col gap-2" ref={listRef}>
+            {shownLullabies.map((lullaby) => {
               /**
                * The amber marks sound, not selection: a paused track goes back
                * to the dim border so nothing glows in a dark room once the
@@ -147,7 +154,16 @@ export function LullabyPlayer({ lullabies, onChanged, secretHash }: LullabyPlaye
               }
 
               return (
-                <div className="flex items-center gap-2" key={lullaby.url}>
+                <div className={`flex items-center gap-2 ${lullaby.fileName === draggingFileName ? 'opacity-60' : ''}`} key={lullaby.url}>
+                  {/* Only the handle starts a drag, so a scroll or a tap on the row still does what it always did. */}
+                  <button
+                    aria-label={`Drag to reorder ${lullaby.name}`}
+                    className="-ml-2 shrink-0 cursor-grab touch-none p-2 opacity-50"
+                    {...getHandleProps(lullaby.fileName)}
+                    type="button"
+                  >
+                    <GripVerticalIcon className="size-4" />
+                  </button>
                   <button
                     className={`${ROW_CLASS_NAME} flex-1 ${isSounding ? 'border-accent/60 text-accent' : 'border-foreground/15'}`}
                     onClick={() => playTrack(lullaby.url)}

@@ -46,6 +46,15 @@ type LullabyAudio = {
   lullabies: Lullaby[] | null;
   nextLoopMode: LoopMode;
   playTrack: (url: string) => void;
+  /**
+   * How far into the current track it is, and how long the track is, in seconds. The duration is zero until the track has loaded enough to know it.
+   */
+  position: { durationSeconds: number; elapsedSeconds: number };
+  /**
+   * Puts the list in this order, which is the order it plays in from then on.
+   */
+  reorderLullabies: (fileNames: string[]) => void;
+  seek: (seconds: number) => void;
   setLullabies: (lullabies: Lullaby[]) => void;
 };
 
@@ -77,6 +86,7 @@ export function LullabyAudioProvider({ children }: { readonly children: React.Re
   const [currentUrl, setCurrentUrl] = useState<null | string>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loopMode, setLoopMode] = useState<LoopMode>(DEFAULT_LOOP_MODE);
+  const [position, setPosition] = useState({ durationSeconds: 0, elapsedSeconds: 0 });
   const nextLoopMode = getNextLoopMode(loopMode, lullabies?.length ?? 0);
 
   /**
@@ -135,6 +145,27 @@ export function LullabyAudioProvider({ children }: { readonly children: React.Re
     [currentUrl, isPlaying, startTrack],
   );
 
+  const reorderLullabies = useCallback((fileNames: string[]) => {
+    setLullabies((previous) => (previous === null ? previous : fileNames.flatMap((fileName) => previous.filter((lullaby) => lullaby.fileName === fileName))));
+  }, []);
+
+  const seek = useCallback((seconds: number) => {
+    const audio = audioRef.current;
+
+    if (audio !== null && Number.isFinite(audio.duration)) {
+      audio.currentTime = Math.min(Math.max(seconds, 0), audio.duration);
+      setPosition({ durationSeconds: audio.duration, elapsedSeconds: audio.currentTime });
+    }
+  }, []);
+
+  function updatePosition() {
+    const audio = audioRef.current;
+
+    if (audio !== null) {
+      setPosition({ durationSeconds: Number.isFinite(audio.duration) ? audio.duration : 0, elapsedSeconds: audio.currentTime });
+    }
+  }
+
   function handleEnded() {
     const currentIndex = lullabies?.findIndex((lullaby) => lullaby.url === currentUrl) ?? -1;
     const nextLullaby = lullabies === null ? undefined : lullabies[(currentIndex + 1) % lullabies.length];
@@ -155,15 +186,26 @@ export function LullabyAudioProvider({ children }: { readonly children: React.Re
       lullabies: lullabies?.map((lullaby) => ({ ...lullaby, name: toLocalTimestampName(lullaby.name) })) ?? null,
       nextLoopMode,
       playTrack,
+      position,
+      reorderLullabies,
+      seek,
       setLullabies,
     }),
-    [currentUrl, cycleLoopMode, isPlaying, loopMode, lullabies, nextLoopMode, playTrack],
+    [currentUrl, cycleLoopMode, isPlaying, loopMode, lullabies, nextLoopMode, playTrack, position, reorderLullabies, seek],
   );
 
   return (
     <LullabyAudioContext value={value}>
       {children}
-      <audio onEnded={() => handleEnded()} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} ref={audioRef} />
+      <audio
+        onDurationChange={() => updatePosition()}
+        onEnded={() => handleEnded()}
+        onLoadedMetadata={() => updatePosition()}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onTimeUpdate={() => updatePosition()}
+        ref={audioRef}
+      />
     </LullabyAudioContext>
   );
 }
