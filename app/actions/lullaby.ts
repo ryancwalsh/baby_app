@@ -2,6 +2,7 @@
 
 import { requireLogin } from '@/auth/login';
 import { deleteLullaby, getLullabyName, listLullabyFiles, renameLullaby } from '@/storage/lullabies';
+import { applyLullabyOrder, getLullabyOrder, renameInLullabyOrder, saveLullabyOrder } from '@/storage/lullaby-order';
 
 const API_PATH = '/api/lullabies';
 
@@ -21,7 +22,9 @@ export type Lullaby = {
 export async function getLullabiesAction(secretHash: string): Promise<Lullaby[]> {
   await requireLogin(secretHash);
 
-  return (await listLullabyFiles()).map((fileName) => ({
+  const [fileNames, order] = await Promise.all([listLullabyFiles(), getLullabyOrder()]);
+
+  return applyLullabyOrder(fileNames, order).map((fileName) => ({
     fileName,
     name: getLullabyName(fileName),
     url: `${API_PATH}/${encodeURIComponent(fileName)}?secretHash=${encodeURIComponent(secretHash)}`,
@@ -37,7 +40,7 @@ export async function renameLullabyAction(secretHash: string, fileName: string, 
   await requireLogin(secretHash);
 
   try {
-    await renameLullaby(fileName, newName);
+    await renameInLullabyOrder(fileName, await renameLullaby(fileName, newName));
 
     return { error: null };
   } catch (error) {
@@ -54,5 +57,20 @@ export async function deleteLullabyAction(secretHash: string, fileName: string):
     return { error: null };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Could not delete the lullaby.' };
+  }
+}
+
+/**
+ * The whole list in its new order, as dragged on one phone. Every other phone picks it up the next time it loads the list.
+ */
+export async function saveLullabyOrderAction(secretHash: string, fileNames: string[]): Promise<{ error: null | string }> {
+  await requireLogin(secretHash);
+
+  try {
+    await saveLullabyOrder(fileNames.map(String));
+
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Could not save the order.' };
   }
 }
