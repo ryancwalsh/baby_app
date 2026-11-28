@@ -366,7 +366,9 @@ in `.env.production.local`.
   the handle on each row, is shared by every phone in `settings.lullaby_order`
   (`storage/lullaby-order.ts`), and it is the order they play in.
 - The thermostat page is reached by holding the Switches tab, or tapping it
-  again while it is already the page on screen.
+  again while it is already the page on screen. How the worker's loop steers
+  the ecobee, and why, is in `thermostat_control.md`; read it before changing
+  the loop, because every start and stop of the furnace is heard in the nursery.
 - `yarn typecheck`, `yarn lint`, `yarn test`, `yarn prettier --write <files>`.
   All offline and safe to run. Yarn, not npm; `--exact` when adding. Tests are
   in `tests/`, on Vitest and jsdom. The fakes in `tests/webcam/fakes.ts` copy

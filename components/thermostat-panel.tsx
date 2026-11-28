@@ -44,16 +44,8 @@ function describeTarget(target: ThermostatState['target']) {
 
 function describeDecision(decision: ThermostatDecisionRecord) {
   const setpoints = [decision.proposedHeatCelsius, decision.proposedCoolCelsius].filter((celsius) => celsius !== null).map((celsius) => toFahrenheit(celsius));
-  let description = decision.outcome;
-  if (decision.outcome === 'would change') {
-    description = `would set ${setpoints.join('–')}°F`;
-  } else if (decision.outcome === 'would leave') {
-    description = 'would leave it as it is';
-  } else if (decision.outcome === 'changed') {
-    description = `set ${setpoints.join('–')}°F`;
-  }
 
-  return description;
+  return setpoints.length === 0 ? decision.outcome : `${decision.outcome}, set ${setpoints.join('–')}°F`;
 }
 
 const ACTIVITY_LABELS: Record<ThermostatState['activity'], string> = { cooling: 'Cooling now', heating: 'Heating now', idle: 'Idle' };
@@ -85,7 +77,7 @@ function Half({ children, label }: { readonly children: ReactNode; readonly labe
 }
 
 /**
- * The `/thermostat` page, reached by tapping the nursery's temperature on the Switches tab: the crib's temperature and the crib range the worker steers toward, above the hallway thermostat's reading, the range it is holding, and the worker's latest decision. The thermostat is read only while the page is open, and only read here; the worker's loop is what writes to it, during the active hours set on the Settings page.
+ * The `/thermostat` page, reached by tapping the nursery's temperature on the Switches tab: the crib's temperature and the crib range the worker steers toward, above the hallway thermostat's reading, the range it is holding, and the worker's latest decision. The thermostat is read only while the page is open, and only read here; the worker's loop is what writes to it, during the active hours set on the Settings page (see thermostat_control.md).
  */
 export function ThermostatPanel({ secretHash }: { readonly secretHash: string }) {
   const [thermostat, setThermostat] = useState<null | ThermostatState>(null);

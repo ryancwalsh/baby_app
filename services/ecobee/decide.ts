@@ -1,11 +1,7 @@
 import { type ThermostatState } from '@/services/ecobee/thermostat';
 
 /**
- * How the worker chooses the hallway thermostat's setpoints from the crib's temperature. Pure, so it can be tested without a thermostat; `services/ecobee/loop.ts` feeds it.
- *
- * The thermostat is good at holding the hallway at a setpoint; it just measures the wrong room. So rather than switching heating or cooling on and off, this learns how far the hallway is from the crib and shifts the crib's target by that much.
- *
- * The target is the middle of the crib range, not its edge. Between furnace runs the crib swings by about 4 °F (64.5 to 69 °F on 2026-11-27, with the hallway held steady), so a heat setpoint aimed at the range's low end left the crib below it for about half of every night. Aimed at the middle, the swing stays inside the range as long as the range is about as wide as the swing.
+ * The shared pieces of how the worker steers the hallway thermostat: the hard limits, auto mode's gap, the active hours, and how what the loop wrote is compared with what the thermostat holds. The switching itself is in `services/ecobee/crib-switch.ts`, and why it works the way it does is in thermostat_control.md.
  */
 
 /**
@@ -14,33 +10,15 @@ import { type ThermostatState } from '@/services/ecobee/thermostat';
 export const LOWEST_SETPOINT_CELSIUS = 16;
 export const HIGHEST_SETPOINT_CELSIUS = 26;
 /**
- * Ecobee's auto mode keeps its heat and cool setpoints at least this far apart (5 °F by default), so only one of them can aim at the middle of the range, and the other is moved away to keep the gap.
+ * Ecobee's auto mode keeps its heat and cool setpoints at least this far apart (5 °F by default).
  */
 export const AUTO_MINIMUM_GAP_CELSIUS = (5 * 5) / 9;
-/**
- * A setpoint is only changed when it would move by at least this much (about 1 °F), so the thermostat is not nudged all night.
- */
-export const MINIMUM_CHANGE_CELSIUS = 0.5;
 
 export type CribRange = { highCelsius: number; lowCelsius: number };
 
 export type Setpoints = { coolCelsius: null | number; heatCelsius: null | number };
 
-/**
- * Which setpoint aims at the middle of the range in auto mode: heat when the ecobee last heated, cool when it last cooled. It follows what the thermostat actually did, so it changes with the seasons rather than with every swing of the crib.
- */
-export type ProtectedSide = 'cool' | 'heat';
-
-export type Decision = {
-  outcome: 'thermostat is off' | 'would change' | 'would leave';
-  proposed: Setpoints;
-};
-
-function clamp(celsius: number) {
-  return Math.min(HIGHEST_SETPOINT_CELSIUS, Math.max(LOWEST_SETPOINT_CELSIUS, celsius));
-}
-
-function roundToTenth(celsius: number) {
+export function roundToTenth(celsius: number) {
   return Math.round(celsius * 10) / 10;
 }
 
@@ -70,78 +48,10 @@ export function getCurrentSetpoints(target: ThermostatState['target']): Setpoint
   return setpoints;
 }
 
-function moves(proposedCelsius: null | number, currentCelsius: null | number) {
-  return proposedCelsius !== null && currentCelsius !== null && Math.abs(proposedCelsius - currentCelsius) >= MINIMUM_CHANGE_CELSIUS;
-}
-
-/**
- * The setpoints that should keep the crib in its range, for the thermostat's current mode, which this never changes. `offsetCelsius` is the hallway minus the crib. In heat or cool mode the one setpoint aims the crib at the middle of the range. In auto mode the protected side aims at the middle and the other side sits at its own end of the range, or further out if the auto gap needs it.
- */
-export function decide(range: CribRange, offsetCelsius: number, target: ThermostatState['target'], protectedSide: ProtectedSide = 'heat'): Decision {
-  const middleCelsius = clamp((range.lowCelsius + range.highCelsius) / 2 + offsetCelsius);
-  let heatCelsius = middleCelsius;
-  let coolCelsius = middleCelsius;
-
-  if (target.mode === 'auto' && protectedSide === 'heat') {
-    coolCelsius = Math.max(clamp(range.highCelsius + offsetCelsius), heatCelsius + AUTO_MINIMUM_GAP_CELSIUS);
-    if (coolCelsius > HIGHEST_SETPOINT_CELSIUS) {
-      coolCelsius = HIGHEST_SETPOINT_CELSIUS;
-      heatCelsius = coolCelsius - AUTO_MINIMUM_GAP_CELSIUS;
-    }
-  } else if (target.mode === 'auto') {
-    heatCelsius = Math.min(clamp(range.lowCelsius + offsetCelsius), coolCelsius - AUTO_MINIMUM_GAP_CELSIUS);
-    if (heatCelsius < LOWEST_SETPOINT_CELSIUS) {
-      heatCelsius = LOWEST_SETPOINT_CELSIUS;
-      coolCelsius = heatCelsius + AUTO_MINIMUM_GAP_CELSIUS;
-    }
-  }
-
-  const proposed: Setpoints = {
-    coolCelsius: target.mode === 'cool' || target.mode === 'auto' ? roundToTenth(coolCelsius) : null,
-    heatCelsius: target.mode === 'heat' || target.mode === 'auto' ? roundToTenth(heatCelsius) : null,
-  };
-  const current = getCurrentSetpoints(target);
-
-  let outcome: Decision['outcome'] = 'would leave';
-  if (target.mode === 'off') {
-    outcome = 'thermostat is off';
-  } else if (moves(proposed.heatCelsius, current.heatCelsius) || moves(proposed.coolCelsius, current.coolCelsius)) {
-    outcome = 'would change';
-  }
-
-  return { outcome, proposed };
-}
-
-/**
- * The most a setpoint is moved in one decision (about 1 °F), so the hallway is walked toward a new setpoint rather than jumped. The crib went on warming for at least 10 minutes after heating stopped on 2026-11-12, so a jump overshoots it.
- */
-export const MAXIMUM_STEP_CELSIUS = 0.6;
 /**
  * How far a setpoint read back may be from what was written and still count as the same, allowing for the thermostat's own rounding.
  */
 export const SAME_SETPOINT_TOLERANCE_CELSIUS = 0.3;
-
-function stepToward(currentCelsius: null | number, proposedCelsius: null | number) {
-  let stepped = proposedCelsius;
-  if (currentCelsius !== null && proposedCelsius !== null) {
-    stepped = roundToTenth(currentCelsius + Math.max(-MAXIMUM_STEP_CELSIUS, Math.min(MAXIMUM_STEP_CELSIUS, proposedCelsius - currentCelsius)));
-  }
-
-  return stepped;
-}
-
-/**
- * The setpoints to send now: each moved from where it is toward the proposal by at most MAXIMUM_STEP_CELSIUS, with the cool setpoint pushed up if auto mode's gap needs it, and nothing sent unless something moves by at least MINIMUM_CHANGE_CELSIUS.
- */
-export function stepSetpoints(current: Setpoints, proposed: Setpoints, mode: ThermostatState['target']['mode']): null | Setpoints {
-  const heatCelsius = stepToward(current.heatCelsius, proposed.heatCelsius);
-  let coolCelsius = stepToward(current.coolCelsius, proposed.coolCelsius);
-  if (mode === 'auto' && heatCelsius !== null && coolCelsius !== null && coolCelsius - heatCelsius < AUTO_MINIMUM_GAP_CELSIUS) {
-    coolCelsius = roundToTenth(Math.min(HIGHEST_SETPOINT_CELSIUS, heatCelsius + AUTO_MINIMUM_GAP_CELSIUS + 0.05));
-  }
-
-  return moves(heatCelsius, current.heatCelsius) || moves(coolCelsius, current.coolCelsius) ? { coolCelsius, heatCelsius } : null;
-}
 
 /**
  * The setpoints split into two writes in auto mode, in an order that never brings the cooling threshold inside the gap from the heating one as it stands. The ecobee applies thresholds one at a time and, when one arrives inside the gap, pushes the two apart: sending the cool setpoint first on a step down left it about 0.3 °C above what was sent, which the loop took for a person on 2026-11-13, 2026-11-14, 2026-11-15, and 2026-11-16. So when the cool setpoint is going down, the heat setpoint goes first; otherwise the cool one does.

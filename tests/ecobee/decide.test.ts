@@ -1,73 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  AUTO_MINIMUM_GAP_CELSIUS,
-  decide,
-  HIGHEST_SETPOINT_CELSIUS,
-  isWithinActiveHours,
-  LOWEST_SETPOINT_CELSIUS,
-  setpointsDiffer,
-  smoothOffset,
-  stepSetpoints,
-} from '@/services/ecobee/decide';
+import { isWithinActiveHours, setpointsDiffer, smoothOffset } from '@/services/ecobee/decide';
 
-const RANGE = { highCelsius: 22, lowCelsius: 20 };
 const MINUTE = 60_000;
-
-describe('decide', () => {
-  it('aims the heat setpoint at the middle of the crib range, shifted by the offset, while heating is protected in auto mode', () => {
-    const decision = decide({ highCelsius: 23, lowCelsius: 19 }, 1, { coolCelsius: 22.8, heatCelsius: 18.3, mode: 'auto' });
-
-    expect(decision.proposed).toEqual({ coolCelsius: 24.8, heatCelsius: 22 });
-    expect(decision.outcome).toBe('would change');
-  });
-
-  it('keeps the heat setpoint at the middle and pushes the cool one out when the range is narrower than the auto gap', () => {
-    const { proposed } = decide(RANGE, 0, { coolCelsius: 22.8, heatCelsius: 18.3, mode: 'auto' });
-
-    expect(proposed.heatCelsius).toBe(21);
-    expect((proposed.coolCelsius ?? 0) - (proposed.heatCelsius ?? 0)).toBeCloseTo(AUTO_MINIMUM_GAP_CELSIUS, 1);
-  });
-
-  it('aims the cool setpoint at the middle and pushes the heat one out when cooling is protected', () => {
-    const { proposed } = decide(RANGE, 0, { coolCelsius: 22.8, heatCelsius: 18.3, mode: 'auto' }, 'cool');
-
-    expect(proposed.coolCelsius).toBe(21);
-    expect((proposed.coolCelsius ?? 0) - (proposed.heatCelsius ?? 0)).toBeCloseTo(AUTO_MINIMUM_GAP_CELSIUS, 1);
-  });
-
-  it('keeps the auto gap inside the hard limits', () => {
-    const { proposed } = decide(RANGE, 10, { coolCelsius: 22.8, heatCelsius: 18.3, mode: 'auto' });
-
-    expect(proposed.coolCelsius).toBe(HIGHEST_SETPOINT_CELSIUS);
-    expect(proposed.heatCelsius).toBeCloseTo(HIGHEST_SETPOINT_CELSIUS - AUTO_MINIMUM_GAP_CELSIUS, 1);
-  });
-
-  it('proposes only the heat setpoint in heat mode, aimed at the middle', () => {
-    expect(decide(RANGE, -0.5, { celsius: 18, mode: 'heat' }).proposed).toEqual({ coolCelsius: null, heatCelsius: 20.5 });
-  });
-
-  it('proposes only the cool setpoint in cool mode, aimed at the middle', () => {
-    expect(decide(RANGE, 0, { celsius: 22, mode: 'cool' }).proposed).toEqual({ coolCelsius: 21, heatCelsius: null });
-  });
-
-  it('never proposes a setpoint outside the hard limits', () => {
-    const tooWarm = decide(RANGE, 10, { celsius: 20, mode: 'heat' });
-    const tooCold = decide(RANGE, -10, { celsius: 20, mode: 'cool' });
-
-    expect(tooWarm.proposed.heatCelsius).toBe(HIGHEST_SETPOINT_CELSIUS);
-    expect(tooCold.proposed.coolCelsius).toBe(LOWEST_SETPOINT_CELSIUS);
-  });
-
-  it('leaves a setpoint that would move by less than about 1 °F', () => {
-    expect(decide(RANGE, 0, { celsius: 20.7, mode: 'heat' }).outcome).toBe('would leave');
-    expect(decide(RANGE, 0, { celsius: 20.5, mode: 'heat' }).outcome).toBe('would change');
-  });
-
-  it('does nothing while the thermostat is off', () => {
-    expect(decide(RANGE, 0, { mode: 'off' })).toEqual({ outcome: 'thermostat is off', proposed: { coolCelsius: null, heatCelsius: null } });
-  });
-});
 
 describe('smoothOffset', () => {
   it('starts from the first reading', () => {
@@ -83,29 +18,6 @@ describe('smoothOffset', () => {
 
   it('starts afresh after a gap as long as the time constant', () => {
     expect(smoothOffset({ atMilliseconds: 0, celsius: 0 }, 3, 30 * MINUTE, 30 * MINUTE).celsius).toBe(3);
-  });
-});
-
-describe('stepSetpoints', () => {
-  it('moves each setpoint toward the proposal by at most one step of MAXIMUM_STEP_CELSIUS', () => {
-    expect(stepSetpoints({ coolCelsius: 22.8, heatCelsius: 18.9 }, { coolCelsius: 23.5, heatCelsius: 20.8 }, 'auto')).toEqual({
-      coolCelsius: 23.4,
-      heatCelsius: 19.5,
-    });
-  });
-
-  it('lands on a proposal that is within a step', () => {
-    expect(stepSetpoints({ coolCelsius: null, heatCelsius: 20 }, { coolCelsius: null, heatCelsius: 19.4 }, 'heat')).toEqual({ coolCelsius: null, heatCelsius: 19.4 });
-  });
-
-  it('pushes the cool setpoint up when a heat step would close the gap auto mode needs', () => {
-    const stepped = stepSetpoints({ coolCelsius: 21.6, heatCelsius: 18.9 }, { coolCelsius: 21.6, heatCelsius: 19.5 }, 'auto');
-
-    expect((stepped?.coolCelsius ?? 0) - (stepped?.heatCelsius ?? 0)).toBeGreaterThanOrEqual(AUTO_MINIMUM_GAP_CELSIUS);
-  });
-
-  it('sends nothing when no setpoint would move by about 1 °F', () => {
-    expect(stepSetpoints({ coolCelsius: 22.8, heatCelsius: 18.9 }, { coolCelsius: 22.9, heatCelsius: 19.1 }, 'auto')).toBeNull();
   });
 });
 

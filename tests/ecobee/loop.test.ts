@@ -44,7 +44,7 @@ function createFakeEcobee(initial: { coolCelsius: number; heatCelsius: number })
       const shown = unsettled !== null && Date.now() < unsettled.untilMilliseconds ? unsettled : thresholds;
 
       return {
-        activity: 'idle',
+        activity: hallwayCelsius < shown.heatCelsius ? 'heating' : hallwayCelsius > shown.coolCelsius ? 'cooling' : 'idle',
         currentCelsius: hallwayCelsius,
         target: { coolCelsius: shown.coolCelsius, heatCelsius: shown.heatCelsius, mode: 'auto' },
       };
@@ -80,7 +80,7 @@ function createFakeEcobee(initial: { coolCelsius: number; heatCelsius: number })
 
 const MINUTE = 60_000;
 /**
- * 66–71 °F, the crib range in use on those nights.
+ * An example crib range, 66–71 °F. With the default guesses, heating starts at about 19.4 °C and stops at about 20.6 °C.
  */
 const CRIB_RANGE = { highCelsius: 21.7, lowCelsius: 18.9 };
 
@@ -91,13 +91,15 @@ const environment = vi.hoisted(() => ({
   records: [] as ThermostatDecisionRecord[],
 }));
 
-vi.mock('@/services/ecobee/thermostat', () => ({
+const thermostat = vi.hoisted(() => ({
   clearHold: vi.fn(async () => {}),
   readThermostat: vi.fn(async () => environment.ecobee?.read(environment.hallwayCelsius)),
   writeSetpoints: vi.fn(async (_mode: string, setpoints: Setpoints) => {
     environment.ecobee?.write(setpoints);
   }),
 }));
+
+vi.mock('@/services/ecobee/thermostat', () => thermostat);
 
 vi.mock('@/services/nanit/connection', () => ({
   connect: vi.fn(async () => {}),
@@ -118,64 +120,110 @@ async function startLoop() {
 }
 
 /**
- * Lets the loop make its next decision: the first one comes a minute after start, and the rest every 10 minutes.
+ * Lets the loop make its next decisions, one a minute (the first a minute after start), and returns the last decision logged.
  */
-async function nextDecision() {
-  const count = environment.records.length;
-  await vi.advanceTimersByTimeAsync(count === 0 ? MINUTE : 10 * MINUTE);
+async function decide(count = 1) {
+  await vi.advanceTimersByTimeAsync(count * MINUTE);
 
   return environment.records.at(-1);
+}
+
+function lastSent() {
+  const record = environment.records.at(-1);
+
+  return { coolCelsius: record?.proposedCoolCelsius, heatCelsius: record?.proposedHeatCelsius };
 }
 
 describe('the thermostat loop', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     /**
-     * 01:09 local time, inside the default 18:00–06:00 active hours, like the step down at 01:10 on 2026-11-15.
+     * 01:09 local time, inside the 18:00–06:00 active hours.
      */
     vi.setSystemTime(new Date('2026-11-15T01:09:00'));
     vi.resetModules();
+    vi.clearAllMocks();
     delete (globalThis as { thermostatLoop?: unknown }).thermostatLoop;
     environment.records = [];
     environment.cribCelsius = 20.2;
     environment.hallwayCelsius = 20.2;
     /**
-     * Above the middle of the crib range, so the loop's first decision is a step down.
+     * The schedule's setpoints, which would heat the hallway on their own whenever it fell below 20.2 °C.
      */
-    environment.ecobee = createFakeEcobee({ coolCelsius: 23.8, heatCelsius: 21 });
+    environment.ecobee = createFakeEcobee({ coolCelsius: 23, heatCelsius: 20.2 });
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('does not take its own step down for a person changing the setpoints', async () => {
+  it('takes hold with resting setpoints when the crib is in the middle of the range, so the schedule cannot heat', async () => {
     await startLoop();
 
-    const step = await nextDecision();
-    expect(step?.outcome).toBe('changed');
-    expect({ coolCelsius: step?.proposedCoolCelsius, heatCelsius: step?.proposedHeatCelsius }).toEqual({ coolCelsius: 23.2, heatCelsius: 20.4 });
-
-    const after = await nextDecision();
-    expect(after?.outcome).not.toBe('paused: changed by a person');
+    expect((await decide())?.outcome).toBe('took hold: resting');
+    expect(lastSent()).toEqual({ coolCelsius: 21.6, heatCelsius: 18.8 });
   });
 
-  it('still pauses when a person changes the setpoints after a step down', async () => {
+  it('does not take its own write for a person changing the setpoints', async () => {
     await startLoop();
-    await nextDecision();
+    await decide();
+    await decide(5);
+
+    expect(environment.records.map((record) => record.outcome)).not.toContain('paused: changed by a person');
+  });
+
+  it('pauses when a person changes the setpoints', async () => {
+    await startLoop();
+    await decide();
 
     environment.ecobee?.setByHand({ coolCelsius: 24, heatCelsius: 21 });
 
-    expect((await nextDecision())?.outcome).toBe('paused: changed by a person');
+    expect((await decide())?.outcome).toBe('paused: changed by a person');
+    expect((await decide(3))?.outcome).toBe('paused: changed by a person');
   });
 
-  it('does not take its own step up for a person changing the setpoints', async () => {
-    environment.ecobee = createFakeEcobee({ coolCelsius: 22.5, heatCelsius: 19.7 });
-    environment.cribCelsius = 17.7;
-    environment.hallwayCelsius = 19.7;
+  it('starts heating near the low end, lets the run go on through the middle, and stops it near the top', async () => {
     await startLoop();
+    await decide();
 
-    expect((await nextDecision())?.outcome).toBe('changed');
-    expect((await nextDecision())?.outcome).not.toBe('paused: changed by a person');
+    environment.cribCelsius = 19.3;
+    expect((await decide())?.outcome).toBe('started heating');
+    expect(lastSent()).toEqual({ coolCelsius: 23.8, heatCelsius: 21 });
+
+    const writesWhenStarted = thermostat.writeSetpoints.mock.calls.length;
+    environment.cribCelsius = 20.2;
+    await decide(3);
+    expect(thermostat.writeSetpoints.mock.calls.length).toBe(writesWhenStarted);
+
+    environment.cribCelsius = 20.7;
+    expect((await decide(5))?.outcome).toBe('stopped heating');
+    expect(lastSent()).toEqual({ coolCelsius: 21.6, heatCelsius: 18.8 });
+  });
+
+  it('does not start heating again before the rest is over while the crib is still in range', async () => {
+    await startLoop();
+    await decide();
+    environment.cribCelsius = 19.3;
+    await decide();
+    environment.cribCelsius = 20.7;
+    expect((await decide(8))?.outcome).toBe('stopped heating');
+
+    environment.cribCelsius = 19.3;
+    await decide(5);
+    expect(environment.records.at(-1)?.outcome).toBe('resting');
+
+    environment.cribCelsius = 18.8;
+    expect((await decide())?.outcome).toBe('started heating');
+  });
+
+  it('moves the hold when the hallway warms toward the heat setpoint during a run, without stopping it', async () => {
+    await startLoop();
+    await decide();
+    environment.cribCelsius = 19.3;
+    await decide();
+
+    environment.hallwayCelsius = 20.7;
+    expect((await decide())?.outcome).toBe('moved the hold: heating');
+    expect(lastSent().heatCelsius).toBe(21.5);
   });
 });

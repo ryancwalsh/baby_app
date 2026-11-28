@@ -40,6 +40,8 @@ Risks: the sign-in is unofficial and can break without notice, forum reports say
 
 ## How the control loop works
 
+**Superseded on 2026-11-28.** The loop no longer shifts setpoints by a learned offset; the crib now switches the furnace on and off directly. The goals, the challenges, and the current algorithm are in `thermostat_control.md`. What follows is the original design, kept for its history.
+
 It runs **in the worker on the laptop**, next to `services/nanit/connection.ts`, because that is where the crib reading arrives. That matches `plan_cloud.md`, which keeps long-running loops and sockets on the laptop.
 
 The thermostat is good at holding the hallway at a setpoint; it is just measuring the wrong room. So rather than switching heat or cooling on and off ourselves, the loop learns how far the hallway is from the crib and shifts the setpoints by that amount:

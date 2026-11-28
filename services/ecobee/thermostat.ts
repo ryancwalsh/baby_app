@@ -3,7 +3,7 @@ import { HttpClient } from 'hap-controller';
 import { readStoredSecret } from '@/storage/stored-secrets';
 
 /**
- * The hallway ecobee over HomeKit on the home network. See ecobee_plan.md. Reading is safe at any time. The two writes, `writeSetpoints` and `clearHold`, start or stop real heating or cooling, and only the worker's loop calls them.
+ * The hallway ecobee over HomeKit on the home network. See ecobee_plan.md, and thermostat_control.md for how the loop uses it. Reading is safe at any time. The two writes, `writeSetpoints` and `clearHold`, start or stop real heating or cooling, and only the worker's loop calls them.
  */
 
 const STORED_SECRET_NAME = 'ecobee-homekit-pairing';
@@ -60,7 +60,17 @@ async function getClient() {
 
 export async function readThermostat(): Promise<ThermostatState> {
   const client = await getClient();
-  const { characteristics } = await client.getCharacteristics([CURRENT_ACTIVITY, TARGET_MODE, CURRENT_TEMPERATURE, TARGET_TEMPERATURE, COOLING_THRESHOLD, HEATING_THRESHOLD]);
+  let response: Awaited<ReturnType<typeof client.getCharacteristics>>;
+  /**
+   * Closed after every read, because the worker's loop reads every minute and the thermostat allows only a few HomeKit connections at once.
+   */
+  try {
+    response = await client.getCharacteristics([CURRENT_ACTIVITY, TARGET_MODE, CURRENT_TEMPERATURE, TARGET_TEMPERATURE, COOLING_THRESHOLD, HEATING_THRESHOLD]);
+  } finally {
+    await client.close();
+  }
+
+  const { characteristics } = response;
   const values = new Map(characteristics.map((characteristic) => [`${characteristic.aid}.${characteristic.iid}`, Number(characteristic.value)]));
   const read = (id: string) => values.get(id) ?? Number.NaN;
   const mode = MODES[read(TARGET_MODE)] ?? 'off';

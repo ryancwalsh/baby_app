@@ -2,7 +2,7 @@ import { type CribRange, isTimeOfDay } from '@/services/ecobee/decide';
 import { query } from '@/storage/database';
 
 /**
- * The crib's range and the hours the worker steers the thermostat, shared by every phone because there is one nursery, and the log of what the worker decided about the hallway thermostat. See ecobee_plan.md.
+ * The crib's range and the hours the worker steers the thermostat, shared by every phone because there is one nursery, and the log of what the worker decided about the hallway thermostat. See ecobee_plan.md and thermostat_control.md.
  */
 
 /**
