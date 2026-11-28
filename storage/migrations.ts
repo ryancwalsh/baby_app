@@ -191,4 +191,11 @@ export const MIGRATIONS: Migration[] = [
     name: '2026-11-25_lullaby_order',
     statements: ['ALTER TABLE settings ADD COLUMN lullaby_order TEXT'],
   },
+  /**
+   * Whether a diaper was poop or pee. Every diaper logged before this is taken to be poop. Nullable so the build before this one can still insert without it; null reads as poop.
+   */
+  {
+    name: '2026-11-28_diaper_kind',
+    statements: ['ALTER TABLE diapers ADD COLUMN kind TEXT', "UPDATE diapers SET kind = 'poop'"],
+  },
 ];

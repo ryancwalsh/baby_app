@@ -7,6 +7,7 @@ import { TILE_COLORS } from '@/components/tile-styles';
 import { formatClockTime, formatDate, formatDuration, startOfNextDay } from '@/components/tracking-format';
 import { HOURS_PER_DAY } from '@/constants/time';
 import { type BottleTimeBasis, getBottleTime } from '@/hooks/use-bottle-time';
+import { toDiaperKindLabel } from '@/storage/tracking-types';
 
 const HOUR_HEIGHT_PIXELS = 64;
 const TIMELINE_HEIGHT_PIXELS = HOUR_HEIGHT_PIXELS * HOURS_PER_DAY;
@@ -103,7 +104,7 @@ function buildTimeline(log: TrackingLog, dayStart: number, now: number, is24Hour
         height: MARK_HEIGHT_PIXELS,
         href: getHref('diaper', diaper.id),
         key: `diaper-${diaper.id}`,
-        label: `Diaper at ${formatClockTime(time, is24Hour)}`,
+        label: `${toDiaperKindLabel(diaper.kind)} diaper at ${formatClockTime(time, is24Hour)}`,
         text: '',
         top: toMarkTop(time),
       });

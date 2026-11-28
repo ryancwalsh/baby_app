@@ -22,9 +22,23 @@ export type Bottle = {
   touchedLipsAt: null | string;
 };
 
+export const DIAPER_KINDS = [
+  { kind: 'poop', label: 'Poop' },
+  { kind: 'pee', label: 'Pee' },
+] as const;
+
+export type DiaperKind = (typeof DIAPER_KINDS)[number]['kind'];
+
+export const DEFAULT_DIAPER_KIND: DiaperKind = 'poop';
+
+export function toDiaperKindLabel(kind: DiaperKind) {
+  return DIAPER_KINDS.find((option) => option.kind === kind)?.label ?? kind;
+}
+
 export type Diaper = {
   changedAt: string;
   id: number;
+  kind: DiaperKind;
   note: string;
 };
 

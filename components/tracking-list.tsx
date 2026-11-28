@@ -14,6 +14,7 @@ import { useNow } from '@/hooks/use-now';
 import { useLogTextSize } from '@/hooks/use-text-size';
 import { useTrackingLog } from '@/hooks/use-tracking-log';
 import { DAY_CALENDAR_HREF } from '@/hooks/use-tracking-view';
+import { toDiaperKindLabel } from '@/storage/tracking-types';
 
 type ListEvent = {
   colorClassName: string;
@@ -78,7 +79,7 @@ function buildDays(log: TrackingLog, now: number, is24Hour: boolean, bottleTimeB
   for (const diaper of log.diapers) {
     events.push({
       colorClassName: TILE_COLORS.diaper.label,
-      details: '',
+      details: toDiaperKindLabel(diaper.kind),
       href: `/track/diaper?id=${diaper.id}`,
       key: `diaper-${diaper.id}`,
       label: 'Diaper',

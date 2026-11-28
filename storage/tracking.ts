@@ -1,7 +1,17 @@
 import { type Row } from '@libsql/client';
 
 import { query } from '@/storage/database';
-import { type Bottle, type BottleInput, type Diaper, type DiaperInput, type Sleep, type SleepInput } from '@/storage/tracking-types';
+import {
+  type Bottle,
+  type BottleInput,
+  DEFAULT_DIAPER_KIND,
+  type Diaper,
+  DIAPER_KINDS,
+  type DiaperInput,
+  type DiaperKind,
+  type Sleep,
+  type SleepInput,
+} from '@/storage/tracking-types';
 
 /**
  * Every time is stored as a UTC ISO string from `toISOString`, so that comparing two of them as text orders them in time — which is what the indexes and the `ORDER BY`s rely on.
@@ -44,10 +54,18 @@ function toBottle(row: Row): Bottle {
   };
 }
 
+/**
+ * Anything that is not a known kind, including the null an older build leaves behind, reads as the default.
+ */
+function toDiaperKind(value: unknown): DiaperKind {
+  return DIAPER_KINDS.find((option) => option.kind === value)?.kind ?? DEFAULT_DIAPER_KIND;
+}
+
 function toDiaper(row: Row): Diaper {
   return {
     changedAt: String(row.changed_at),
     id: Number(row.id),
+    kind: toDiaperKind(row.kind),
     note: String(row.note),
   };
 }
@@ -103,7 +121,7 @@ function validateBottle(input: BottleInput): BottleInput {
 }
 
 function validateDiaper(input: DiaperInput): DiaperInput {
-  return { changedAt: toTime(input.changedAt, 'Time'), note: input.note.trim() };
+  return { changedAt: toTime(input.changedAt, 'Time'), kind: toDiaperKind(input.kind), note: input.note.trim() };
 }
 
 export async function listSleeps(sinceIso: null | string = null): Promise<Sleep[]> {
@@ -186,11 +204,11 @@ export async function saveBottle(id: null | number, input: BottleInput) {
 }
 
 export async function saveDiaper(id: null | number, input: DiaperInput) {
-  const { changedAt, note } = validateDiaper(input);
+  const { changedAt, kind, note } = validateDiaper(input);
   if (id === null) {
-    await query('INSERT INTO diapers (changed_at, note) VALUES (?, ?)', [changedAt, note]);
+    await query('INSERT INTO diapers (changed_at, kind, note) VALUES (?, ?, ?)', [changedAt, kind, note]);
   } else {
-    await query('UPDATE diapers SET changed_at = ?, note = ? WHERE id = ?', [changedAt, note, id]);
+    await query('UPDATE diapers SET changed_at = ?, kind = ?, note = ? WHERE id = ?', [changedAt, kind, note, id]);
   }
 }
 
