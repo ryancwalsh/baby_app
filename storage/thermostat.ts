@@ -16,6 +16,11 @@ const HIGHEST_RANGE_CELSIUS = 26.7;
  */
 export type ThermostatSchedule = { activeFrom: string; activeUntil: string; isEnabled: boolean };
 
+/**
+ * How many decisions the log keeps; older ones are deleted as new ones arrive. A row with its index takes about 144 bytes (measured on 2,552 real rows, 2026-11-28), so this keeps the table near 1 MB: five days at one decision a minute, or 50 days at one every 10 minutes.
+ */
+export const THERMOSTAT_DECISIONS_KEPT = 7_200;
+
 export const DEFAULT_THERMOSTAT_SCHEDULE: ThermostatSchedule = { activeFrom: '18:00', activeUntil: '06:00', isEnabled: true };
 
 export type ThermostatDecisionRecord = {
@@ -95,6 +100,7 @@ export async function recordThermostatDecision(record: ThermostatDecisionRecord)
       record.proposedCoolCelsius,
     ],
   );
+  await query('DELETE FROM thermostat_decisions WHERE id < (SELECT id FROM thermostat_decisions ORDER BY id DESC LIMIT 1 OFFSET ?)', [THERMOSTAT_DECISIONS_KEPT - 1]);
 }
 
 function toDecisionRecord(row: Record<string, unknown>): ThermostatDecisionRecord {
