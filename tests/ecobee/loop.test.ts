@@ -139,7 +139,10 @@ describe('the thermostat loop', () => {
     environment.records = [];
     environment.cribCelsius = 20.2;
     environment.hallwayCelsius = 20.2;
-    environment.ecobee = createFakeEcobee({ coolCelsius: 23, heatCelsius: 20.2 });
+    /**
+     * Above the middle of the crib range, so the loop's first decision is a step down.
+     */
+    environment.ecobee = createFakeEcobee({ coolCelsius: 23.8, heatCelsius: 21 });
   });
 
   afterEach(() => {
@@ -151,7 +154,7 @@ describe('the thermostat loop', () => {
 
     const step = await nextDecision();
     expect(step?.outcome).toBe('changed');
-    expect({ coolCelsius: step?.proposedCoolCelsius, heatCelsius: step?.proposedHeatCelsius }).toEqual({ coolCelsius: 22.4, heatCelsius: 19.6 });
+    expect({ coolCelsius: step?.proposedCoolCelsius, heatCelsius: step?.proposedHeatCelsius }).toEqual({ coolCelsius: 23.2, heatCelsius: 20.4 });
 
     const after = await nextDecision();
     expect(after?.outcome).not.toBe('paused: changed by a person');

@@ -1,5 +1,15 @@
 import { MILLISECONDS_PER_MINUTE } from '@/constants/time';
-import { decide, getCurrentSetpoints, isWithinActiveHours, orderForWriting, type Setpoints, setpointsDiffer, smoothOffset, stepSetpoints } from '@/services/ecobee/decide';
+import {
+  decide,
+  getCurrentSetpoints,
+  isWithinActiveHours,
+  orderForWriting,
+  type ProtectedSide,
+  type Setpoints,
+  setpointsDiffer,
+  smoothOffset,
+  stepSetpoints,
+} from '@/services/ecobee/decide';
 import { clearHold, readThermostat, type ThermostatState, writeSetpoints } from '@/services/ecobee/thermostat';
 import { connect, getTemperature } from '@/services/nanit/connection';
 import { getCribRange, getThermostatSchedule, recordThermostatDecision, type ThermostatDecisionRecord } from '@/storage/thermostat';
@@ -26,7 +36,10 @@ const CRIB_READING_FRESH_MILLISECONDS = 10 * MILLISECONDS_PER_MINUTE;
  */
 const LOWEST_SANE_CRIB_CELSIUS = 10;
 const HIGHEST_SANE_CRIB_CELSIUS = 35;
-const OFFSET_TIME_CONSTANT_MILLISECONDS = 30 * MILLISECONDS_PER_MINUTE;
+/**
+ * Longer than a furnace cycle (one run every 1 to 2 hours on 2026-11-27), so the offset is the average over a cycle. At 30 minutes, the warm burst the crib gets during each run shrank the offset at once, the loop lowered the heat, and the next low came colder.
+ */
+const OFFSET_TIME_CONSTANT_MILLISECONDS = 90 * MILLISECONDS_PER_MINUTE;
 /**
  * The ecobee app's Hold Action is 2 hours, so setpoints that change this long after the loop's last write are taken for its hold ending, not for a person. Measured to the decision before the hold would end.
  */
@@ -52,6 +65,10 @@ type LoopState = {
    * Set when a person changed the setpoints, and cleared when the active hours end.
    */
   isPaused: boolean;
+  /**
+   * Whatever the ecobee was last seen doing, heating or cooling. Starts as heat, and after a restart too.
+   */
+  lastActiveSide: ProtectedSide;
   offset: null | { atMilliseconds: number; celsius: number };
 };
 
@@ -61,7 +78,7 @@ type LoopState = {
 const shared = globalThis as typeof globalThis & { thermostatLoop?: LoopState };
 
 function getState() {
-  shared.thermostatLoop ??= { held: null, isPaused: false, offset: null };
+  shared.thermostatLoop ??= { held: null, isPaused: false, lastActiveSide: 'heat', offset: null };
 
   return shared.thermostatLoop;
 }
@@ -157,7 +174,13 @@ async function decideOnce(): Promise<ThermostatDecisionRecord> {
     try {
       const thermostat = await readThermostat();
       state.offset = smoothOffset(state.offset, thermostat.currentCelsius - crib.celsius, Date.now(), OFFSET_TIME_CONSTANT_MILLISECONDS);
-      const decision = decide(range, state.offset.celsius, thermostat.target);
+      if (thermostat.activity === 'heating') {
+        state.lastActiveSide = 'heat';
+      } else if (thermostat.activity === 'cooling') {
+        state.lastActiveSide = 'cool';
+      }
+
+      const decision = decide(range, state.offset.celsius, thermostat.target, state.lastActiveSide);
       const current = getCurrentSetpoints(thermostat.target);
       record = {
         cribCelsius: crib.celsius,

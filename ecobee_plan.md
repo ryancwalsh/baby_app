@@ -44,16 +44,17 @@ It runs **in the worker on the laptop**, next to `services/nanit/connection.ts`,
 
 The thermostat is good at holding the hallway at a setpoint; it is just measuring the wrong room. So rather than switching heat or cooling on and off ourselves, the loop learns how far the hallway is from the crib and shifts the setpoints by that amount:
 
-1. Every reading, compute `offset = hallway − crib`, and smooth it (an exponential moving average over about 30 minutes) so that a door opening or a burst of sun does not swing it.
+1. Every reading, compute `offset = hallway − crib`, and smooth it (an exponential moving average over about 90 minutes, 30 until 2026-11-28) so that a door opening, a burst of sun, or the warm air of one furnace run does not swing it.
 2. Every 10 minutes, compute the setpoints that should put the crib in range:
-   - Heat setpoint = crib low + offset.
-   - Cool setpoint = crib high + offset.
+   - Heat setpoint = middle of the crib range + offset, while the ecobee was last heating.
+   - Cool setpoint = middle of the crib range + offset, while it was last cooling.
+   - Until 2026-11-28 these aimed at the range's ends (heat = crib low + offset). Between furnace runs the crib swings about 4 °F with the hallway held steady (64.5 to 69 °F on 2026-11-27), so aiming at the low end left the crib below it about half of every night, and the short 30-minute average lowered the heat after each warm burst. Aiming at the middle keeps the swing inside a range about as wide as the swing.
    - In heat mode only the heat setpoint is sent, in cool mode only the cool one, and in auto mode both. In off mode the loop does nothing; it never changes the mode itself.
 3. Clamp both to fixed hard limits, 61–79 °F (16–26 °C), whatever the arithmetic says.
 4. Send a hold only if a setpoint moved by at least 1 °F since the last one, so the thermostat is not nudged constantly.
 5. If the crib is back in range and the schedule's own setpoints would keep it there, release the hold and let the schedule run.
 
-Ecobee's auto mode enforces a minimum gap between the heat and cool setpoints (5 °F by default). A crib range narrower than that is widened around its middle, and the settings page says so.
+Ecobee's auto mode enforces a minimum gap between the heat and cool setpoints (5 °F by default), so only one of them can aim at the middle. The protected side is whichever the ecobee was last seen doing (heating by default, and after a restart); the other sits at its own end of the range, or further out if the gap needs it.
 
 The Nanit sits on electronics and may read warm. Decided 2026-11-10 not to check it against a separate thermometer; the Nanit is taken as the crib temperature as it reads.
 
