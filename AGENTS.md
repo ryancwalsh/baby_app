@@ -319,7 +319,8 @@ in `.env.production.local`.
   text orders them in time; the indexes and `ORDER BY`s rely on it.
 - `storage/tracking-types.ts` is imported by the pages, so it must stay free of
   anything Node-only; the libsql client stays in `storage/database.ts`.
-- The theme, the 12/24-hour clock, the date format, the text size on the
+- The theme, the 12/24-hour clock, the date format, the order of the Track
+  tiles (dragged in Settings), the text size on the
   tiles, on the add and edit pages, in the tracking list, and in the day calendar, where the notepad button goes, whether a
   bottle is placed in the log at "touched lips" (the default) or "prepared",
   and the minutes between bottles behind the bottle tile's "Next" are per

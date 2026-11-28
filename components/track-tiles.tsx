@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { type ReactNode, useCallback, useEffect, useState, useTransition } from 'react';
 
 import { deleteSleepAction, endSleepNowAction, getTrackingSummaryAction, startSleepNowAction, type TrackingSummary } from '@/app/actions/tracking';
 import { BottleTile } from '@/components/bottle-tile';
@@ -15,6 +15,8 @@ import { TILE_BUTTON_CLASS_NAME, TILE_COLORS } from '@/components/tile-styles';
 import { formatAgo, formatDuration, formatRunningDuration } from '@/components/tracking-format';
 import { useNow } from '@/hooks/use-now';
 import { useTileTextSize } from '@/hooks/use-text-size';
+import { type TrackTile, useTrackTileOrder } from '@/hooks/use-track-tile-order';
+import { toDiaperKindLabel } from '@/storage/tracking-types';
 
 function SleepTile({
   now,
@@ -97,7 +99,9 @@ function DiaperTile({ now, summary }: { readonly now: number; readonly summary: 
         <span className="text-faint text-base">No diapers yet.</span>
       ) : (
         <>
-          <span className="text-foreground/70 tabular-nums text-base">{formatAgo(now - new Date(diaper.changedAt).getTime())}</span>
+          <span className="text-foreground/70 tabular-nums text-base">
+            {toDiaperKindLabel(diaper.kind)} {formatAgo(now - new Date(diaper.changedAt).getTime())}
+          </span>
           <TileNote note={diaper.note} />
         </>
       )}
@@ -113,6 +117,7 @@ export function TrackTiles({ secretHash }: { readonly secretHash: string }) {
   const [error, setError] = useState<null | string>(null);
   const now = useNow();
   const { zoom } = useTileTextSize();
+  const { tileOrder } = useTrackTileOrder();
 
   const load = useCallback(async () => {
     try {
@@ -142,30 +147,44 @@ export function TrackTiles({ secretHash }: { readonly secretHash: string }) {
     };
   }, [load]);
 
+  function renderTile(tile: TrackTile, loadedSummary: TrackingSummary, loadedNow: number) {
+    const tiles: Record<TrackTile, ReactNode> = {
+      bottle: (
+        <BottleTile
+          key="bottle"
+          now={loadedNow}
+          onChange={() => {
+            load();
+          }}
+          secretHash={secretHash}
+          summary={loadedSummary}
+        />
+      ),
+      diaper: <DiaperTile key="diaper" now={loadedNow} summary={loadedSummary} />,
+      medicine: <MedicineTile key="medicine" medicine={loadedSummary.latestMedicine} now={loadedNow} />,
+      sleep: (
+        <SleepTile
+          key="sleep"
+          now={loadedNow}
+          onChange={() => {
+            load();
+          }}
+          secretHash={secretHash}
+          summary={loadedSummary}
+        />
+      ),
+      stopwatch: <StopwatchTile key="stopwatch" now={loadedNow} />,
+    };
+
+    return tiles[tile];
+  }
+
   return (
     <div className="flex flex-col gap-2">
       {error !== null && <p className="text-sm text-accent">{error}</p>}
       {summary !== null && now !== null && (
         <div className="flex flex-col gap-2" style={{ zoom }}>
-          <SleepTile
-            now={now}
-            onChange={() => {
-              load();
-            }}
-            secretHash={secretHash}
-            summary={summary}
-          />
-          <BottleTile
-            now={now}
-            onChange={() => {
-              load();
-            }}
-            secretHash={secretHash}
-            summary={summary}
-          />
-          <DiaperTile now={now} summary={summary} />
-          <MedicineTile medicine={summary.latestMedicine} now={now} />
-          <StopwatchTile now={now} />
+          {tileOrder.map((tile) => renderTile(tile, summary, now))}
         </div>
       )}
     </div>

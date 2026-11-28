@@ -1,6 +1,7 @@
 'use client';
 
 import { ShownSwitches } from '@/components/shown-switches';
+import { TrackTileOrder } from '@/components/track-tile-order';
 import { DATE_FORMATS, formatDate } from '@/components/tracking-format';
 import { useBottleInterval } from '@/hooks/use-bottle-interval';
 import { useBottleResumeDelay } from '@/hooks/use-bottle-resume-delay';
@@ -39,7 +40,7 @@ function TextSizeChoice({ legend, onChange, textSize }: { readonly legend: strin
 }
 
 /**
- * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the text size on the tiles, on the forms, in the tracking list, and in the day calendar, what the notepad button opens, which switches the Switches tab shows, how much room is left under the tabs, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
+ * The settings that are about whoever is holding the phone rather than about the baby: the theme, the clock and date formats, the order of the Track tiles, the text size on the tiles, on the forms, in the tracking list, and in the day calendar, what the notepad button opens, which switches the Switches tab shows, how much room is left under the tabs, which time places a bottle in the log, and how long after one bottle the next is due. They live in local storage and change the moment they are tapped.
  */
 export function PhoneSettings({ secretHash }: { readonly secretHash: string }) {
   const { is24Hour, setIs24Hour } = useClockFormat();
@@ -110,6 +111,8 @@ export function PhoneSettings({ secretHash }: { readonly secretHash: string }) {
           ))}
         </div>
       </fieldset>
+
+      <TrackTileOrder />
 
       <TextSizeChoice
         legend="Tile text on this phone"
